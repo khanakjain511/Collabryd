@@ -1,159 +1,360 @@
-# Turborepo starter
+# Collabryd
 
-This Turborepo starter is maintained by the Turborepo core team.
+Welcome to the **Collabryd** repository! This project is structured as a monorepo managed with [Turborepo](https://turbo.build/repo) and [pnpm](https://pnpm.io/).
 
-## Using this example
+---
 
-Run the following command:
+## 🛠 Tech Stack
 
-```sh
-npx create-turbo@latest
+- **Monorepo Manager:** Turborepo & pnpm workspaces
+- **Backend (`apps/api`):** Express 5, TypeScript, Node.js (`tsx`)
+- **Frontend (`apps/web`):** React 19, Vite, TypeScript
+- **Database & ORM (`packages/database`):** PostgreSQL 18 (via Docker), Drizzle ORM, `pg`
+- **Tooling & Configs:** ESLint, Prettier, TypeScript 7
+
+---
+
+## 📁 Repository Structure
+
+```text
+├── apps/
+│   ├── api/                 # Express REST API (backend)
+│   └── web/                 # Vite + React application (frontend)
+├── packages/
+│   ├── database/            # Drizzle ORM schema, migrations & DB client (@collabryd/database)
+│   ├── ui/                  # Shared UI components library (@repo/ui)
+│   ├── eslint-config/       # Shared ESLint configuration (@repo/eslint-config)
+│   └── typescript-config/   # Shared TypeScript configurations (@repo/typescript-config)
+├── docker-compose.yml       # PostgreSQL 18 database service
+├── pnpm-workspace.yaml      # Monorepo workspace definitions
+└── turbo.json               # Turborepo task pipeline configuration
 ```
 
-## What's inside?
+---
 
-This Turborepo includes the following packages/apps:
+## 📋 Prerequisites
 
-### Apps and Packages
+Before setting up the repository, make sure you have the following installed on your machine:
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `@next/eslint-plugin-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+1. **Node.js** `>= 24.0.0`
+   - Check version: `node -v`
+   - Recommended: Use [nvm](https://github.com/nvm-sh/nvm) or [fnm](https://github.com/Schniz/fnm) (`nvm use 24` or `fnm use 24`)
+2. **pnpm** `11.x` (or enable via corepack)
+   - Enable via corepack: `corepack enable pnpm`
+   - Check version: `pnpm -v`
+3. **Docker & Docker Compose** (for running local PostgreSQL)
+   - [Install Docker Desktop](https://www.docker.com/products/docker-desktop/) (macOS / Windows / Linux)
+   - Make sure Docker daemon is running: `docker info`
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+---
 
-### Utilities
+## 🚀 Quick Start Guide
 
-This Turborepo has some additional tools already setup for you:
+Follow these steps in order to get the entire project up and running locally.
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+### 1. Clone the repository
 
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+```bash
+git clone https://github.com/shreyanshagrawal/Collabryd.git
+cd Collabryd
 ```
 
-Without global `turbo`, use your package manager:
+### 2. Install dependencies
 
-```sh
-cd my-turborepo
-npx turbo build
-pnpm exec turbo build
-pnpm exec turbo build
+Install all monorepo dependencies across apps and packages:
+
+```bash
+pnpm install
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+### 3. Set up environment variables
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+Copy the example `.env.example` file to create your local `.env`:
 
-```sh
-turbo build --filter=docs
+```bash
+cp .env.example .env
 ```
 
-Without global `turbo`:
+The default values in `.env` are configured for local development:
 
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+```env
+BACKEND_PORT: PORT
+POSTGRES_USER=Database_user_name
+POSTGRES_PASSWORD: Database_password
+POSTGRES_DB=Database_name
+DATABASE_PORT: 5434
 ```
 
-### Develop
+> **Note:** The local PostgreSQL port is mapped to host port **`5434`** (instead of standard `5432`) to avoid collisions if you already have a local PostgreSQL instance running.
 
-To develop all apps and packages, run the following command:
+---
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+### 4. Start the Database (Docker)
 
-```sh
-cd my-turborepo
-turbo dev
+Start the PostgreSQL 18 container in the background:
+
+```bash
+docker compose up -d
 ```
 
-Without global `turbo`, use your package manager:
+To verify the container is healthy and running:
 
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
+```bash
+docker compose ps
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+---
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+### 5. Apply Database Migrations
 
-```sh
-turbo dev --filter=web
+Generate and run Drizzle migrations to ensure your local database schema is up-to-date:
+
+```bash
+pnpm --filter @collabryd/database db:migrate
 ```
 
-Without global `turbo`:
+_(Optional)_ If you are rapidly prototyping schema changes during development, you can push schema changes directly:
 
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+```bash
+pnpm --filter @collabryd/database db:push
 ```
 
-### Remote Caching
+---
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+### 6. Run the Development Servers
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+Start all applications (frontend and backend) concurrently via Turborepo:
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
+```bash
 ```
 
-Without global `turbo`, use your package manager:
+### 3. Set up environment variables
 
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
+Copy the example `.env.example` file to create your local `.env`:
+
+```bash
+cp .env.example .env
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+The default values in `.env` are configured for local development:
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
+```env
+BACKEND_PORT: 3000
+POSTGRES_USER=collabryd
+POSTGRES_PASSWORD: teammate_password
+POSTGRES_DB=collabryd
+DATABASE_PORT: 5434
 ```
 
-Without global `turbo`:
+> **Note:** The local PostgreSQL port is mapped to host port **`5434`** (instead of standard `5432`) to avoid collisions if you already have a local PostgreSQL instance running.
 
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
+---
+
+### 4. Start the Database (Docker)
+
+Start the PostgreSQL 18 container in the background:
+
+```bash
+docker compose up -d
 ```
 
-## Useful Links
+To verify the container is healthy and running:
 
-Learn more about the power of Turborepo:
+```bash
+docker compose ps
+```
 
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+---
+
+### 5. Apply Database Migrations
+
+Generate and run Drizzle migrations to ensure your local database schema is up-to-date:
+
+```bash
+pnpm --filter @collabryd/database db:migrate
+```
+
+*(Optional)* If you are rapidly prototyping schema changes during development, you can push schema changes directly:
+
+```bash
+pnpm --filter @collabryd/database db:push
+```
+
+---
+
+### 6. Run the Development Servers
+
+Start all applications (frontend and backend) concurrently via Turborepo:
+
+```bash
+pnpm dev
+```
+
+This starts:
+This starts:
+- 🌐 **Frontend (Web):** [http://localhost:5173](http://localhost:5173)
+- 🔌 **Backend (API):** [http://localhost:3000](http://localhost:3000)
+
+- 🌐 **Frontend (Web):** [http://localhost:5173](http://localhost:5173)
+- 🔌 **Backend (API):** [http://localhost:3000](http://localhost:3000)
+
+Verify the API is healthy by visiting:
+
+```bash
+curl http://localhost:3000/api/health
+# Response: {"success":true,"message":"API is running"}
+```
+
+---
+
+## 🗄️ Database Management & Drizzle Studio
+
+The database client and schema live in `packages/database`. You can manage the database with the following commands:
+
+| Command                                         | Description                                                                               |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `pnpm --filter @collabryd/database db:generate` | Generate migration SQL files based on schema changes in `src/schema/`                     |
+| `pnpm --filter @collabryd/database db:migrate`  | Apply pending migrations to the PostgreSQL database                                       |
+| `pnpm --filter @collabryd/database db:push`     | Directly sync database schema without creating migration files                            |
+| `pnpm --filter @collabryd/database db:studio`   | Launch Drizzle Studio GUI at [https://local.drizzle.studio](https://local.drizzle.studio) |
+
+To stop the PostgreSQL container:
+
+```bash
+docker compose down
+```
+
+To stop the container and delete existing database data volumes:
+
+```bash
+docker compose down -v
+```
+
+---
+
+## 📜 Monorepo Scripts Reference
+
+Run these commands from the root directory:
+
+| Script         | Command            | Description                                            |
+| -------------- | ------------------ | ------------------------------------------------------ |
+| **Start Dev**  | `pnpm dev`         | Starts API & Web applications in watch mode with Turbo |
+| **Build All**  | `pnpm build`       | Builds all packages and applications                   |
+| **Lint**       | `pnpm lint`        | Runs ESLint across all projects                        |
+| **Format**     | `pnpm format`      | Formats all TS, TSX, and Markdown files using Prettier |
+| **Type Check** | `pnpm check-types` | Validates TypeScript types across all workspaces       |
+
+### Running Commands for Specific Apps
+
+Turborepo and pnpm support targeting specific workspaces with the `--filter` flag:
+
+```bash
+# Run only API backend
+pnpm --filter @repo/api dev
+
+# Run only Web frontend
+pnpm --filter web dev
+
+# Run a script inside packages/database
+pnpm --filter @collabryd/database <script>
+```
+
+---
+
+## ❓ Troubleshooting & FAQs
+
+### Database Connection Refused
+
+- Ensure the Docker container is active: `docker compose ps`
+- Check container logs: `docker compose logs postgres`
+- Verify that port `5434` is not blocked or occupied by another process.
+
+### Port 3000 or 5173 Already in Use
+
+- Change `BACKEND_PORT` in your root `.env` file to another port (e.g. `3001`).
+- Vite will automatically attempt the next available port (e.g. `5174`) if `5173` is busy.
+
+### TypeScript / Workspace Resolution Issues
+
+- If a workspace package isn't resolved properly after pulling new changes, run:
+  ```bash
+  pnpm install
+  pnpm build
+  ```
+
+Verify the API is healthy by visiting:
+```bash
+curl http://localhost:3000/api/health
+# Response: {"success":true,"message":"API is running"}
+```
+
+---
+
+## 🗄️ Database Management & Drizzle Studio
+
+The database client and schema live in `packages/database`. You can manage the database with the following commands:
+
+| Command | Description |
+|---|---|
+| `pnpm --filter @collabryd/database db:generate` | Generate migration SQL files based on schema changes in `src/schema/` |
+| `pnpm --filter @collabryd/database db:migrate` | Apply pending migrations to the PostgreSQL database |
+| `pnpm --filter @collabryd/database db:push` | Directly sync database schema without creating migration files |
+| `pnpm --filter @collabryd/database db:studio` | Launch Drizzle Studio GUI at [https://local.drizzle.studio](https://local.drizzle.studio) |
+
+To stop the PostgreSQL container:
+```bash
+docker compose down
+```
+To stop the container and delete existing database data volumes:
+```bash
+docker compose down -v
+```
+
+---
+
+## 📜 Monorepo Scripts Reference
+
+Run these commands from the root directory:
+
+| Script | Command | Description |
+|---|---|---|
+| **Start Dev** | `pnpm dev` | Starts API & Web applications in watch mode with Turbo |
+| **Build All** | `pnpm build` | Builds all packages and applications |
+| **Lint** | `pnpm lint` | Runs ESLint across all projects |
+| **Format** | `pnpm format` | Formats all TS, TSX, and Markdown files using Prettier |
+| **Type Check** | `pnpm check-types` | Validates TypeScript types across all workspaces |
+
+### Running Commands for Specific Apps
+
+Turborepo and pnpm support targeting specific workspaces with the `--filter` flag:
+
+```bash
+# Run only API backend
+pnpm --filter @repo/api dev
+
+# Run only Web frontend
+pnpm --filter web dev
+
+# Run a script inside packages/database
+pnpm --filter @collabryd/database <script>
+```
+
+---
+
+## ❓ Troubleshooting & FAQs
+
+### Database Connection Refused
+- Ensure the Docker container is active: `docker compose ps`
+- Check container logs: `docker compose logs postgres`
+- Verify that port `5434` is not blocked or occupied by another process.
+
+### Port 3000 or 5173 Already in Use
+- Change `BACKEND_PORT` in your root `.env` file to another port (e.g. `3001`).
+- Vite will automatically attempt the next available port (e.g. `5174`) if `5173` is busy.
+
+### TypeScript / Workspace Resolution Issues
+- If a workspace package isn't resolved properly after pulling new changes, run:
+  ```bash
+  pnpm install
+  pnpm build
+  ```
