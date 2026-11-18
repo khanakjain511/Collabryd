@@ -771,7 +771,7 @@ export function MyTeamsPage({ demo }: { demo: DemoData }) {
             {item === "Invitations" && (
               <span>
                 {
-                  demo.invitations.filter(
+                  receivedInvitations.filter(
                     (invite) => invite.status === "Pending",
                   ).length
                 }
