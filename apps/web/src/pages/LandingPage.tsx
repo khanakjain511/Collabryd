@@ -1,5 +1,5 @@
 import type { DemoData } from "../hooks/useDemoData";
-import { demoEvents, demoPeople } from "../data/demo";
+import { demoPeople } from "../data/demo";
 import { EventCard, PersonCard } from "../components/Cards";
 import { PublicLayout } from "../components/Layout";
 import { Reveal } from "../components/Reveal";
@@ -359,11 +359,17 @@ export function LandingPage({ demo }: { demo: DemoData }) {
           </div>
         </Reveal>
         <div className="cards-grid">
-          {demoEvents.map((event) => (
-            <Reveal key={event.id}>
-              <EventCard event={event} />
-            </Reveal>
-          ))}
+          {demo.events
+            .filter(
+              (event) =>
+                !event.publication || event.publication === "Published",
+            )
+            .slice(0, 3)
+            .map((event) => (
+              <Reveal key={event.id}>
+                <EventCard event={event} />
+              </Reveal>
+            ))}
         </div>
         <p className="quiet-note">
           Illustrative events for the frontend demo. Official listings and

@@ -1,10 +1,11 @@
 import type { DemoData } from "../hooks/useDemoData";
-import { demoEvents, demoPeople } from "../data/demo";
 import { EventCard, PersonCard, TeamCard } from "../components/Cards";
 import { Avatar, Icon, PageHeading } from "../components/ui";
 
 export function DashboardPage({ demo }: { demo: DemoData }) {
-  const pending = demo.invitations.filter((item) => item.status === "Pending");
+  const pending = demo.invitations.filter(
+    (item) => item.status === "Pending" && (item.personId || "you") === "you",
+  );
   return (
     <>
       <PageHeading
@@ -95,8 +96,12 @@ export function DashboardPage({ demo }: { demo: DemoData }) {
         </a>
       </div>
       <div className="cards-grid">
-        {demoPeople
-          .filter((person) => !demo.blockedIds.includes(person.id))
+        {demo.people
+          .filter(
+            (person) =>
+              !demo.blockedIds.includes(person.id) &&
+              (!person.status || person.status === "Active"),
+          )
           .slice(0, 3)
           .map((person) => (
             <PersonCard key={person.id} person={person} compact />
@@ -126,9 +131,14 @@ export function DashboardPage({ demo }: { demo: DemoData }) {
         </a>
       </div>
       <div className="cards-grid">
-        {demoEvents.map((event) => (
-          <EventCard key={event.id} event={event} />
-        ))}
+        {demo.events
+          .filter(
+            (event) => !event.publication || event.publication === "Published",
+          )
+          .slice(0, 3)
+          .map((event) => (
+            <EventCard key={event.id} event={event} />
+          ))}
       </div>
     </>
   );
