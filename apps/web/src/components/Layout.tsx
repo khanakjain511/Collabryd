@@ -191,16 +191,16 @@ export function AppLayout({
             Big possibilities.
           </h3>
           <p>There’s a place for what you bring.</p>
-          <a href="#/teams/create">
+          <a href="#/teams/create" onClick={() => setMenuOpen(false)}>
             Start a team <Icon name="arrowUp" size={16} />
           </a>
         </div>
         <div className="sidebar-bottom">
-          <a href="#/settings/profile">
+          <a href="#/settings/profile" onClick={() => setMenuOpen(false)}>
             <Icon name="settings" />
             Settings
           </a>
-          <a href="#/admin">
+          <a href="#/admin" onClick={() => setMenuOpen(false)}>
             <Icon name="lock" />
             Demo review queue
           </a>
