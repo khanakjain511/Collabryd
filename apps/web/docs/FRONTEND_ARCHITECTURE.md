@@ -1,8 +1,8 @@
 # Frontend architecture and audit
 
-## Current repository evidence
+## Initial repository evidence (before implementation)
 
-Inspected on 18 November 2026:
+Initial planning inspection on 18 November 2026. This table preserves the starting point; IMPLEMENTATION.md and PROGRESS.md describe the completed frontend demo:
 
 | Item | Observed state |
 | --- | --- |
@@ -93,3 +93,7 @@ For browser-history routes the eventual host must serve `index.html` for applica
 Run workspace-local commands from `apps/web` (`pnpm build`, and `pnpm dev` when browser QA is needed). Avoid repository-wide commands that could affect backend work. No Turborepo configuration/commands need changes. If a later task requires them, first resolve the installed turbo package and read its bundled docs per root AGENTS.md.
 
 Use comments to explain intent or an unusual browser/API requirement, not every JSX line. Handoff should trace one real request journey end to end so the student can explain state, props, CSS and service responsibilities.
+
+## Actual implementation choices
+
+The approved demo retains React/Vite/plain CSS. Native hash links and a small switch replace the proposed router dependency; one useDemoData hook owns the local fixture state and named actions. Cards/pages receive values through props. No service layer is claimed because no backend calls exist; add named resource services when integrating agreed contracts. See IMPLEMENTATION.md for the source walkthrough.

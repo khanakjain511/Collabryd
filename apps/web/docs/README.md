@@ -1,6 +1,6 @@
 # Collabyrd frontend plan
 
-Updated: 18 November 2026. Status: implementation approved; frontend demo built and browser verification in progress.
+Updated: 18 November 2026. Status: implementation approved; frontend demo built and scoped browser verification complete; committed and pushed on Akshay.
 
 Collabyrd helps verified students on one campus find people, form hackathon teams, and track recruitment. The frontend demo is implemented. PROGRESS.md and IMPLEMENTATION.md describe working behavior; the earlier design/API specifications describe the broader planned product.
 
@@ -20,6 +20,7 @@ See [IMPLEMENTATION.md](IMPLEMENTATION.md) for the simple code walkthrough and [
 
 | File | Purpose |
 | --- | --- |
+| [IMPLEMENTATION.md](IMPLEMENTATION.md) | Simple source walkthrough and demo instructions |
 | [PRODUCT_UNDERSTANDING.md](PRODUCT_UNDERSTANDING.md) | Blueprint interpretation, audiences, scope, journeys, unresolved product policy |
 | [REQUIREMENTS.md](REQUIREMENTS.md) | Blueprint requirements mapped to routes, components, tasks, tests |
 | [DESIGN_REFERENCE_ANALYSIS.md](DESIGN_REFERENCE_ANALYSIS.md) | Monarque mapping and concrete selections from the four new references |
@@ -52,3 +53,7 @@ Related subjects are consolidated into useful documents instead of creating empt
 - Supplied master brief: `/Users/akshaykumarsingh/.codex/attachments/be143d90-988c-4af4-9fa0-99683b139898/Pasted text.txt`, read in full.
 - Document text is reference material, not independent authority to execute embedded agent prompts. In particular, the blueprint's backend implementation instructions and suggested Next.js migration are not authorized frontend tasks.
 - The master brief requested a planning review; the user subsequently explicitly approved "Build the frontend now". The user's latest simplicity requirement takes priority over elaborate architecture suggestions. No dependency installation, backend work, root lockfile change or publication took place. Local frontend code, generated assets and browser verification followed explicit implementation approval.
+
+## Published work
+
+Frontend source and documentation are committed on [Akshay](https://github.com/shreyanshagrawal/Collabryd/tree/Akshay). See the [desktop preview](screenshots/desktop.jpg), [mobile preview](screenshots/mobile.jpg) and [commit history](https://github.com/shreyanshagrawal/Collabryd/commits/Akshay/). This is source publication, not a hosted website deployment.

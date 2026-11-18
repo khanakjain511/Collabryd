@@ -8,7 +8,7 @@ Implementation was explicitly approved after planning. The frontend demo is buil
 | --- | --- | --- |
 | 0 Discovery | Read complete sources, inspect actual frontend, review references | Evidence-based audit, source boundaries and MVP extraction; F01 |
 | 1 Product and UX | Phase 0 | Journeys, scope traceability, routes and complete proposed copy; unsupported claims removed; F02 |
-| 2 Visual system | User palette choice + 0-1 | Selected teal/ivory tokens, typography/grid/component/motion specs; design review pending; F03 |
+| 2 Visual system | User palette choice + 0-1 | Selected teal/ivory tokens, typography/grid/component/motion specs; implemented demo direction; F03 |
 | 3 Asset planning | Visual direction | Placement inventory, actionable prompts, manifest; no assets generated before implementation approval; F03 |
 | Review gate | Documentation available | Approve visual composition, simple architecture, reference-effect choice, page inventory and roadmap. Confirm start of implementation. Palette need not be reselected |
 | 4 Foundations | Review gate; package scope if needed | Implement only first-page UI tokens/primitives/layout/Reveal; semantic keyboard/reduced-motion behavior; F04 |
@@ -38,3 +38,7 @@ No framework migration, backend edits, generic component factory, chat or AI mat
 - **Frontend demo gate:** all mocked behavior identified, no real credentials collected, no claims of actual email/request transmission, reliable local interactions and accessible layout.
 - **Live MVP gate:** FR-01 through FR-14 evidence, production API authorization/campus isolation/capacity invariants verified by owners, approved policies/content, real support/moderation and correct dates/provenance.
 - **Release gate:** passing relevant quality checks and production deep links; privacy/legal/campus owner review completed where required. Deployment is a separately authorized scope, not part of planning.
+
+## Delivered slice
+
+The frontend demo now covers phases 4-7 with clearly labeled fictional state and a local moderation preview. Phase 8 frontend build/browser verification and phase 9 demo handoff are complete within the limits in PROGRESS. Full backend integration, event publishing administration and live authorization/concurrency tests remain prospective work.

@@ -1,6 +1,6 @@
 # Image strategy, prompts and asset manifest
 
-No production images were generated, downloaded or integrated in planning. All paths below are proposed. The existing `src/assets/hero.png` is a starter asset, not approved Collabyrd imagery.
+Planning originally generated no images. After implementation approval, A01 was generated, visually inspected, optimized and integrated. The planning inventory below is followed by the actual delivered manifest. The existing `src/assets/hero.png` is a starter asset, not approved Collabyrd imagery.
 
 ## Reference image inventory
 
@@ -49,3 +49,18 @@ No separate prompt for A03 (reuse), A04 (code-native vector), A05 (real UI), or 
 ## Generation and implementation after approval
 
 Generate only approved placements. Inspect full image and intended crops for hands, faces, screen artifacts, composition and lighting consistency. Reject defects rather than hiding them with overlays. Optimize chosen assets to WebP/AVIF as browser targets allow, keep originals outside delivered payload, record source and generation details. Supply srcset/sizes where useful, width/height and aspect-ratio. Hero is eager if it is LCP; below-fold images lazy-load. No hotlinked arbitrary stock URLs.
+
+## Delivered asset manifest
+
+| Asset | Actual local path | Dimensions | Format / size | Review / integration |
+| --- | --- | --- | --- | --- |
+| Hero/auth scene | `public/images/campus-team.webp` | 1200×900 | WebP, 124006 bytes | Built-in image_gen; visual quality inspected; hero and auth use same scene |
+| Responsive hero | `public/images/campus-team-small.webp` | 640×480 | WebP, 51374 bytes | Resized/optimized from same generated source; hero srcset |
+| Desktop preview | `docs/screenshots/desktop.jpg` | Browser viewport capture | JPEG | Saved after desktop QA; screenshot, not product asset |
+| Mobile preview | `docs/screenshots/mobile.jpg` | 390px viewport capture | JPEG | Saved after narrow-layout QA; screenshot, not product asset |
+
+Both source variants are local and committed. Body text is HTML, not baked into the photo. The photograph is illustrative AI-generated imagery, disclosed in the demo information page. A02 was not generated because the landing explains the workflow with real HTML rather than another download. A04 is original SVG; A05 uses actual DOM cards; fictional event artwork is CSS/HTML with no official logos.
+
+Final built-in generation prompt:
+
+> Use case: photorealistic-natural. Create a landscape editorial photograph for a premium, calm student collaboration website. Three adult Indian university students, two women and one man, around a modest campus table with one laptop and a notebook. Candid genuine concentration and conversation, no looking at camera. Frame a medium-wide side view with group centered, include upper body and table, generous surroundings, natural window light from left. Warm ivory walls, muted sage and wood tones, tiny teal clothing detail, authentic modern Indian campus study space. Natural imperfect skin, anatomically correct hands, credible objects, ordinary casual student clothing, approachable rather than corporate. Landscape 4:3 composition, important subjects inside central 70 percent for responsive cropping. Screen angled away with no readable text. No logos, words, school branding, watermark, exaggerated smiles, cinematic grading or plastic skin. Professional documentary photography, warm subtle contrast.

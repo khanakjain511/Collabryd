@@ -1,6 +1,6 @@
 # Accessibility, performance and testing
 
-This is a verification plan. No application test, build, accessibility audit or performance run was executed in this documentation-only phase. Palette base-pair contrast and documentation consistency were checked separately.
+This document preserves the planned full-product verification scope. The frontend demo was subsequently built and tested: actual TypeScript/Vite builds, browser scenarios, viewport checks and screenshots are recorded in PROGRESS.md. Server authorization/concurrency, a complete accessibility audit and field performance measurement remain unexecuted.
 
 ## Accessibility contract
 

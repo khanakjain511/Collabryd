@@ -4,7 +4,7 @@ Updated: 18 November 2026. **Implementation is approved and a frontend demo is b
 
 ## User instructions
 
-The user wants simple code they can explain, adapted ideas from Vanta, Lenis, React Bits and Originkit, and a premium/convenient/eye-friendly appearance. They delegated palette choice: Midnight Teal + Warm Ivory. They explicitly replied "Build the frontend now". Later they requested an `Akshay` branch and interval commits. The branch has been created. Commit only authored frontend work; leave the pre-existing untracked root product PDF alone. Do not push unless requested.
+The user wants simple code they can explain, adapted ideas from Vanta, Lenis, React Bits and Originkit, and a premium/convenient/eye-friendly appearance. They delegated palette choice: Midnight Teal + Warm Ivory. They explicitly replied "Build the frontend now". Later they requested an `Akshay` branch and interval commits. The branch has been created and pushed to origin after a subsequent explicit user request. Commit/push future authorized work in logical intervals. Leave the pre-existing untracked root product PDF alone.
 
 ## Source and scope
 
@@ -39,6 +39,10 @@ Vanta NET → original fixed SVG network. Lenis → native smooth anchors (no wh
 
 See PROGRESS for executed browser scenarios/build results; QUALITY_PLAN separates demo checks from live authorization/concurrency tests. Build passes with JS ~84KB gzip and CSS ~11KB gzip. Desktop and 390px/mobile screens reviewed; small SVG overflow fixed. Native password toggle, registration/profile flow, team creation/requests/acceptance/full state, reports and notifications exercised. Reviewed browser log has no application errors. No full automated/a11y/cross-browser/field performance claim.
 
-Use `pnpm dev --host 127.0.0.1` from apps/web for local preview and `pnpm build` for TypeScript/Vite checks. Local server permission may be needed in this environment. Development server is temporary; final delivery records its teardown. No deployment/publication is authorized by this local-repository task.
+Use `pnpm dev --host 127.0.0.1` from apps/web for local preview and `pnpm build` for TypeScript/Vite checks. Local server permission may be needed in this environment. The temporary development server was stopped after QA; restart it with that command. Desktop/mobile screenshots are committed under docs/screenshots. No deployment/publication is authorized by this local-repository task.
 
 Future work: confirm campus domains/enrollment/membership limits/visibility/support/moderation policies, backend session/CSRF/contracts and exact admin ownership before live integration. Keep fixtures separate, preserve existing visual language, implement one real vertical slice at a time and replace demo state with agreed resource services. Update this file/PROGRESS/DECISIONS with actual evidence; never treat a planning checklist as proof of code.
+
+## Git delivery
+
+The user requested local commits and then explicitly requested remote publication. `Akshay` tracks `origin/Akshay` in `shreyanshagrawal/Collabryd`; the first 11 commits and matching remote SHA were verified. Final verification documentation is an additional commit. The original root blueprint PDF is still untracked and intentionally excluded. Do not open a PR, merge main or change repository permissions without a new request.
