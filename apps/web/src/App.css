@@ -3556,3 +3556,135 @@ input[type="checkbox"] {
     min-height: 44px;
   }
 }
+
+/* Directory tools stay native and share the existing form styling. */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 22px;
+  margin: 30px 0;
+}
+.pagination > span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.advanced-filters {
+  flex-basis: 100%;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.advanced-filters summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--primary);
+  padding: 8px 0;
+}
+.filter-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 15px;
+  padding: 14px 0 4px;
+}
+.results-heading .inline-actions select {
+  width: auto;
+  max-width: 210px;
+}
+.profile-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.optional-links {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.optional-links legend {
+  padding: 0 8px;
+  font-size: 13px;
+}
+.optional-links > p {
+  margin: 0;
+}
+.admin-links a {
+  display: inline-flex;
+  padding: 15px 0;
+  font-size: 12px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.admin-links a.active {
+  color: var(--primary);
+  font-weight: 600;
+  border-bottom-color: var(--primary);
+}
+.admin-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.admin-summary .panel {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.admin-summary .panel > span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.admin-summary strong {
+  font-family: var(--display);
+  font-size: 45px;
+  font-weight: 400;
+}
+.admin-summary p {
+  margin: 0;
+}
+.list-count {
+  margin: 20px 0;
+  font-size: 12px;
+}
+.outgoing-invites {
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.outgoing-invites strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+@media (max-width: 1024px) {
+  .filter-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .admin-summary {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+@media (max-width: 640px) {
+  .results-heading {
+    flex-wrap: wrap;
+  }
+  .results-heading .inline-actions {
+    justify-content: space-between;
+    width: 100%;
+  }
+  .filter-fields {
+    grid-template-columns: 1fr;
+  }
+  .pagination {
+    gap: 12px;
+  }
+  .pagination .button {
+    padding-inline: 12px;
+  }
+  .invitation-row > label {
+    margin-left: 55px;
+    width: calc(100% - 55px);
+  }
+}
