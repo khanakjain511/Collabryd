@@ -1,122 +1,156 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useState } from "react";
+import { useDemoData } from "./hooks/useDemoData";
+import { AppLayout, PublicLayout } from "./components/Layout";
+import { LandingPage } from "./pages/LandingPage";
+import { AccessPage, AuthPage } from "./pages/AuthPages";
+import { DashboardPage } from "./pages/DashboardPage";
+import { DiscoverPage, PersonPage } from "./pages/DiscoverPage";
+import {
+  CreateTeamPage,
+  MyTeamsPage,
+  TeamDetailPage,
+  TeamsPage,
+} from "./pages/TeamsPages";
+import { EventDetailPage, EventsPage } from "./pages/EventPages";
+import {
+  AdminDemoPage,
+  InfoPage,
+  NotificationsPage,
+  ProfileFormPage,
+  SettingsPage,
+} from "./pages/AccountPages";
+import "./App.css";
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+// Native hash links give this dependency-free demo browser back/forward support.
+// Replace this small switch with application routing when integrating the API.
+function readPath() {
+  return window.location.hash.startsWith("#/")
+    ? window.location.hash.slice(1).split("?")[0]
+    : "/";
 }
 
-export default App
+function App() {
+  const [path, setPath] = useState(readPath);
+  const demo = useDemoData();
+
+  useEffect(() => {
+    function onNavigation() {
+      setPath(readPath());
+    }
+    window.addEventListener("hashchange", onNavigation);
+    return () => window.removeEventListener("hashchange", onNavigation);
+  }, []);
+
+  useEffect(() => {
+    const title =
+      path === "/"
+        ? "Good ideas need great people"
+        : path.split("/")[1].replaceAll("-", " ");
+    document.title = `${title.charAt(0).toUpperCase() + title.slice(1)} · Collabyrd`;
+    const section = document.getElementById(window.location.hash.slice(1));
+    if (path === "/" && section) {
+      section.scrollIntoView();
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: "instant" });
+    document
+      .querySelector<HTMLElement>("main h1")
+      ?.focus({ preventScroll: true });
+  }, [path, demo.signedIn, demo.verified]);
+
+  const [area, id] = path.slice(1).split("/");
+  const authModes = [
+    "login",
+    "register",
+    "verify-campus",
+    "forgot-password",
+    "reset-password",
+  ] as const;
+  const authMode = authModes.find((mode) => mode === area);
+  let page;
+  if (path === "/") page = <LandingPage demo={demo} />;
+  else if (authMode) page = <AuthPage key={path} mode={authMode} demo={demo} />;
+  else if (["about", "contact", "privacy", "terms"].includes(area))
+    page = <InfoPage kind={area} demo={demo} />;
+  else if (
+    ![
+      "dashboard",
+      "discover",
+      "users",
+      "teams",
+      "my-teams",
+      "hackathons",
+      "notifications",
+      "onboarding",
+      "settings",
+      "admin",
+    ].includes(area)
+  )
+    page = <InfoPage kind="not-found" demo={demo} />;
+  else if (area === "hackathons" && !demo.signedIn)
+    page = (
+      <PublicLayout demo={demo}>
+        <div className="container public-events">
+          {id ? <EventDetailPage id={id} demo={demo} /> : <EventsPage />}
+        </div>
+      </PublicLayout>
+    );
+  else if (!demo.signedIn || !demo.verified)
+    page = (
+      <PublicLayout demo={demo}>
+        <AccessPage demo={demo} />
+      </PublicLayout>
+    );
+  else {
+    let content;
+    if (area === "dashboard") content = <DashboardPage demo={demo} />;
+    else if (area === "discover") content = <DiscoverPage demo={demo} />;
+    else if (area === "users")
+      content = <PersonPage key={id} id={id} demo={demo} />;
+    else if (area === "teams" && id === "create")
+      content = <CreateTeamPage demo={demo} />;
+    else if (area === "teams" && id)
+      content = <TeamDetailPage key={id} id={id} demo={demo} />;
+    else if (area === "teams") content = <TeamsPage demo={demo} />;
+    else if (area === "my-teams") content = <MyTeamsPage demo={demo} />;
+    else if (area === "hackathons" && id)
+      content = <EventDetailPage id={id} demo={demo} />;
+    else if (area === "hackathons") content = <EventsPage />;
+    else if (area === "notifications")
+      content = <NotificationsPage demo={demo} />;
+    else if (area === "onboarding" || (area === "settings" && id === "profile"))
+      content = (
+        <ProfileFormPage
+          key={path}
+          demo={demo}
+          onboarding={area === "onboarding"}
+        />
+      );
+    else if (area === "settings" && (id === "privacy" || id === "account"))
+      content = <SettingsPage key={id} kind={id} demo={demo} />;
+    else if (area === "admin") content = <AdminDemoPage demo={demo} />;
+    else return <InfoPage kind="not-found" demo={demo} />;
+    page = (
+      <AppLayout demo={demo} path={path}>
+        {content}
+      </AppLayout>
+    );
+  }
+  return (
+    <>
+      <a
+        className="skip-link"
+        href="#main"
+        onClick={(event) => {
+          event.preventDefault();
+          document.querySelector<HTMLElement>("main h1")?.focus();
+        }}
+      >
+        Skip to content
+      </a>
+      {page}
+    </>
+  );
+}
+
+export default App;
