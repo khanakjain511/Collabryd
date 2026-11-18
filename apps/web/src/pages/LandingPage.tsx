@@ -36,7 +36,7 @@ export function LandingPage({ demo }: { demo: DemoData }) {
           <div className="hero-eyebrow">
             <span className="status-dot" /> YOUR NEXT CHAPTER IS A TEAM EFFORT
           </div>
-          <h1>
+          <h1 tabIndex={-1}>
             Good ideas need
             <br />
             <em>great people.</em>

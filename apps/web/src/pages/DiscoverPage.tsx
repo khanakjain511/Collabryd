@@ -16,8 +16,9 @@ export function DiscoverPage({ demo }: { demo: DemoData }) {
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("All roles");
   const [available, setAvailable] = useState(false);
-  const roles = [...new Set(demoPeople.map((person) => person.role))];
-  const people = demoPeople.filter(
+  const directory = demo.visible ? [demo.profile, ...demoPeople] : demoPeople;
+  const roles = [...new Set(directory.map((person) => person.role))];
+  const people = directory.filter(
     (person) =>
       !demo.blockedIds.includes(person.id) &&
       `${person.name} ${person.skills.join(" ")} ${person.interests}`

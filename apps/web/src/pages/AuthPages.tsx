@@ -291,7 +291,7 @@ export function AccessPage({ demo }: { demo: DemoData }) {
         <Icon name="people" size={36} />
       </span>
       <p className="eyebrow">A CAMPUS COMMUNITY, WITH CLEAR BOUNDARIES</p>
-      <h1>
+      <h1 tabIndex={-1}>
         Let’s get you
         <br />
         <em>on the inside.</em>
