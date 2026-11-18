@@ -6,6 +6,8 @@ Collabyrd helps verified students on one campus find people, form hackathon team
 
 The user asked for simple code they can explain and supplied Vanta, Lenis, React Bits, and Originkit as references. They delegated the palette choice with the preference "premium ... convenient and eye friendly". **Selected direction: Midnight Teal + Warm Ivory.** Selection does not imply that the frontend has been implemented or tested.
 
+For an exact answer to "is all work done?", read [FRONTEND_STATUS.md](FRONTEND_STATUS.md). The frontend demonstration is implemented; live backend integration and release verification are not complete.
+
 ## Read first
 
 1. [AI_HANDOFF.md](AI_HANDOFF.md): self-contained continuation context.
@@ -20,6 +22,7 @@ See [IMPLEMENTATION.md](IMPLEMENTATION.md) for the simple code walkthrough and [
 
 | File | Purpose |
 | --- | --- |
+| [FRONTEND_STATUS.md](FRONTEND_STATUS.md) | Exact completion boundary and remaining live-service work |
 | [IMPLEMENTATION.md](IMPLEMENTATION.md) | Simple source walkthrough and demo instructions |
 | [PRODUCT_UNDERSTANDING.md](PRODUCT_UNDERSTANDING.md) | Blueprint interpretation, audiences, scope, journeys, unresolved product policy |
 | [REQUIREMENTS.md](REQUIREMENTS.md) | Blueprint requirements mapped to routes, components, tasks, tests |

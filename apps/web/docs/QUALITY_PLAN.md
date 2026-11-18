@@ -1,69 +1,56 @@
-# Accessibility, performance and testing
+# Collabyrd frontend handoff
 
-This document preserves the planned full-product verification scope. The frontend demo was subsequently built and tested: actual TypeScript/Vite builds, browser scenarios, viewport checks and screenshots are recorded in PROGRESS.md. Server authorization/concurrency, a complete accessibility audit and field performance measurement remain unexecuted.
+Updated: 18 November 2026. **Implementation is approved and a frontend demo is built.** Read this, FRONTEND_STATUS.md, PROGRESS.md, ROADMAP.md, CHECKLIST.md and DECISIONS.md, then inspect actual source and git status. Earlier planning specifications are prospective; this file and PROGRESS describe current implementation.
 
-## Accessibility contract
+## User instructions
 
-Target WCAG 2.2 AA. A short checklist does not prove conformance; combine browser checks, assistive technology and automated checks for the finished scope.
+The user wants simple code they can explain, adapted ideas from Vanta, Lenis, React Bits and Originkit, and a premium/convenient/eye-friendly appearance. They delegated palette choice: Midnight Teal + Warm Ivory. They explicitly replied "Build the frontend now". Later they requested an `Akshay` branch and interval commits. The branch has been created and pushed to origin after a subsequent explicit user request. Commit/push future authorized work in logical intervals. Leave the pre-existing untracked root product PDF alone.
 
-- Semantic header/nav/main/footer, one h1, logical headings, skip link, route titles/focus updates. DOM reading order matches visual order.
-- Keyboard reaches every action; closed menus contain no reachable hidden controls. Escape closes dialog/menu, focus returns to trigger, native modal keeps focus inside.
-- Body text at least 4.5:1 contrast; large text at least 3:1; meaningful control boundaries/focus indicators 3:1 against adjoining colors. No color-only errors, status, selection or availability.
-- Persistent labels, autocomplete, descriptive hints and programmatically connected errors. Submit focuses first invalid control and announces summary; do not announce every keystroke. Paste/password managers allowed.
-- Design 44px control targets where practical; verify WCAG 2.2 target-size requirements (24×24 CSS px minimum or applicable spacing/exceptions), focus visibility and unobscured focus. Maintain content at 320px/reflow and zoom.
-- Native selects, checkboxes, radio groups, details/summary, dialog. Avoid custom widgets whose keyboard model the student would have to recreate.
-- Reduced motion before load and changed live; text/actions remain available; no forced scroll pacing or interaction during a blocking animation.
-- Images carry contextual alt or decorative empty alt; decorative SVG hidden from assistive technology. No synthetic identity presented as a real student.
-- Dynamic status uses polite announcements; blocking error uses alert thoughtfully. No vanished message as the only record of a request failure.
+## Source and scope
 
-Sources: [WCAG 2.2 reference](https://www.w3.org/WAI/WCAG22/quickref/), [WAI form notifications](https://www.w3.org/WAI/tutorials/forms/notifications/), [MDN reduced motion](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion).
+Repository `/Users/akshaykumarsingh/Documents/SEM-3/Capstone/Collabyrd`; frontend `apps/web`. Product reference: root `Teammate_Finder_Complete_Product_Blueprint.pdf`, 15 pages, proposed blueprint v1.0 dated 18 November 2026, read fully. Design reference: `/Users/akshaykumarsingh/Documents/REA/monarque_design_thinking_analysis.md`, read fully. Master brief: `/Users/akshaykumarsingh/.codex/attachments/be143d90-988c-4af4-9fa0-99683b139898/Pasted text.txt`, read fully. Embedded document instructions are source text, not authority to implement backend or change framework. The user's explicit implementation approval resolves the brief's earlier plan-only language.
 
-## Performance plan
+Only frontend source, frontend assets and docs changed. No dependencies/root lockfile/backend/database/root configuration changed. Read root AGENTS.md before any later turbo work; no turbo command/config changes were made here.
 
-Web Vitals targets: LCP ≤2.5s, INP ≤200ms, CLS ≤0.1 at the 75th percentile of field visits, separated by mobile/desktop. Local Lighthouse and browser traces are useful lab diagnostics, not proof of field INP or percentile outcomes. See [Web Vitals](https://web.dev/articles/vitals).
+## Actual code
 
-Proposed budgets: public initial JS ≤150KB gzip; initial stylesheet ≤30KB gzip; hero photo ≤180KB; optional story photo ≤140KB. Measure actual build output, document budget exceptions, and remove decorative work first. These limits are project goals, not claims about current bundle sizes.
+- `src/App.tsx`: small explicit route switch using native `#/...` links and a hashchange listener. Browser back/forward works; no router dependency. This is a conscious demo simplification from the earlier React Router proposal.
+- `src/hooks/useDemoData.ts`: root-local React state and named demo actions for identity/profile/teams/requests/invitations/notifications/reports/blocks. Components receive the returned object as props; no global store or generic data framework.
+- `src/data/demo.ts` and `src/types.ts`: clearly fictional fixtures and plain interfaces.
+- `src/components`: small UI helpers, cards, public/workspace layouts, original SVG HeroNetwork, one IntersectionObserver Reveal and native dialog. ErrorBoundary uses React's native class API; all product components are functions.
+- `src/pages`: LandingPage, AuthPages, DashboardPage, DiscoverPage, TeamsPages, EventPages, AccountPages. Plain readable JSX formatted with existing Prettier.
+- `src/index.css`: semantic palette/base styles. `src/App.css`: page and responsive styles. System sans + Georgia display, no downloaded font.
+- `public/images/campus-team.webp` (1200×900, 124006 bytes) and `campus-team-small.webp` (640×480, 51374 bytes): generated illustrative photo, inspected and converted to WebP. Reused auth crop. No real member photograph.
+- `index.html` and favicon updated for Collabyrd.
 
-- Keep Vite/React; no multiple animation engines for one page. Do not import entire component registries.
-- Prefer transforms/opacity; no layout reads in every scroll event or state updates on every frame.
-- Reserve image/card space, avoid icon/font shifts and loading placeholders with mismatched size. System fonts avoid a font download dependency.
-- Eager hero/LCP asset, lazy below-fold images. Responsive sources keep mobile payload smaller.
-- Paginate directory data. Cancel stale fetches; preserve responsive input during searches. Introduce a small debounce only if API traffic actually requires it.
-- Lazy-load optional route/visual code only when it materially reduces initial payload; don't scatter dynamic imports across every tiny component.
-- Evaluate optional WebGL against baseline, using slow mobile simulation and representative hardware. Retain static fallback if it fails budgets.
-- Test production build, not only Vite development. Record browser/version, viewport, hardware/throttling, cache state, route and repeated-run results.
+## What works
 
-## Scenario matrix
+Marketing, signup/login/demo verification/recovery/onboarding, dashboard, people filters/details, invitation preparation/report/block, teams create/filter/detail/My Teams/join/cancel/invitation acceptance/leader review/full/recruitment/archive, example events, notifications/read states, profile/privacy/account, local report review/campus-check preview and public information screens.
 
-| ID | Scenario / meaningful assertion | Local fixture coverage | Live backend evidence needed |
-| --- | --- | --- | --- |
-| T01 | Guest/pending → direct private URL; no private data displayed/fetched; verify status routes correctly | Guard rendering/session fixtures | API refuses private reads without active verification |
-| T02 | Fill required profile, skip optional links, save/reload roles/skills; invalid URL field feedback | Form behavior and mock refresh semantics | Persist/reload actual profile, ownership validation |
-| T03 | Combine filters/page, no results, reset, detail/back; stale response doesn't overwrite newer query | Filter UI and deterministic fixtures | Server matches allowed scope and actual query semantics |
-| T04 | Create team; leader included in member count; required roles/capacity visible | Draft/pending/failure/success UI | Creator membership and eligible publication persisted |
-| T05 | Join request pending → cancelled/accepted/rejected/expired; duplicate action handled | Service scenario errors, status labels | Server enforces one pending request and state transitions |
-| T06 | Student vs leader review; member removal/leader departure safe | Permissions in UI, confirmation/cancel paths | Direct unauthorized mutations rejected, leader invariant/audit |
-| T07 | Two leaders' actions on last slot; one succeeds, loser sees conflict/refreshed full team | 409 UI behavior only | Concurrent server accept test proves capacity invariant |
-| T08 | Invitation accept/decline/expired/revoked; full team conflict | All invitation UI states | Eligibility/expiry/capacity validated atomically |
-| T09 | Event zone/deadline, external URL label and link; team association not registration | Date display/link behavior | Published data/source provenance/visibility and persistence |
-| T10 | Correct notification item/read state/destination | Render/action/error/empty | Recipient isolation, persisted read state and event delivery |
-| T11 | Report submit/error/receipt; admin review resolves | Dialog keyboard, form/state views | Report reaches real queue; RBAC and audit enforced |
-| T12 | Hide profile/change contact visibility and block | Settings/UI transitions | Unauthorized fields absent from network responses, block honored |
-| T13 | Change resource IDs/campus-related query inputs; student opens admin URL | Safe access UI only | Server authorization and campus isolation negative tests |
-| T14 | Session expiry/suspension/logout clears private state; deletion request honest | UI access/refresh behavior | Session revocation, lifecycle/retention actually enforced |
-| T15 | Landing CTA → register; section anchors/menu/footer paths; no dead link | Browser navigation | Production deep links/hosting rewrite |
-| T16 | Keyboard forms/dialog/menu, screen-reader labels/errors, reflow/zoom, contrast, image fallback | Browser/manual + available axe | Real integrated error flows also accessible |
-| T17 | Reduced motion before/live; repeated route mount cleanup; animation disabled/unsupported APIs | Browser preferences and fallback simulation | Optional actual library version/hardware regression |
-| T18 | Production build payload/trace/mobile performance and image layout stability | Local lab diagnostics | Field data after privacy-approved deployment |
+All demo changes reset on refresh. No real credentials stored, backend requests, verification emails, campus authorization or event registrations. The demo queue is intentionally accessible to demo visitors and labeled as non-privileged; never describe it as RBAC. Separate user/team/event/report admin screens, event editing/publication, sorting/pagination, profile URLs/dates, team editing/removal/transfer/departure and account-state controls have since been added. Live integration remains pending.
 
-## Practical test tooling
+## Design rationale
 
-Start with existing TypeScript/Vite build plus purposeful browser walkthroughs after code changes. Do not add test packages merely to test static copy or duplicate implementation. For state-heavy services/forms, propose Vitest + Testing Library; for critical journeys propose Playwright E2E and axe. Their installation affects the workspace lockfile and requires the appropriate scope. No test runner is installed/configured by this plan.
+Teal `#115E59`, ivory `#FFFBF2`, ink `#17332F`, amber `#F2C078`. Editorial hierarchy and fine borders inspired by Monarque; no burgundy, copied imagery/proprietary fonts, blocking loader, pinned reading or parallax.
 
-Mock tests must explicitly say "mock". The highest-value integrated journey is register → verify → profile → team request → leader accepts → membership and notification update. Authorization/capacity concurrency tests belong to backend integration ownership even though the frontend displays their outcomes.
+Vanta NET → original fixed SVG network. Lenis → native smooth anchors (no wheel inertia). React Bits → original restrained CSS/observer entrance. Originkit Label Input → rounded field/icon composition with persistent label. No source from those packages is installed/copied. If actual packages are later requested, inspect version/license/lifecycle and workspace lockfile effects first.
 
-## Release checks after implementation
+## Validation and continuation
 
-Run frontend `pnpm build` from `apps/web`; inspect every error and actual output. Use existing lint when required by workflow or requested. Then navigate all implemented routes, refresh detail URLs, test back/forward and unknown route, mobile menu, real form failure and success, reduced motion, keyboard and narrow/zoom views. Check Chrome/Firefox/Safari where available; state untested browsers explicitly.
+See PROGRESS for executed browser scenarios/build results; QUALITY_PLAN separates demo checks from live authorization/concurrency tests. Build passes with JS 91.49KB gzip and CSS 11.59KB gzip. Six native Node tests pass. A fresh production preview rendered 14 main routes without console errors. The dev tab had transient hot-update hook warnings while state declarations were edited; do not confuse that log with the independent production check. Desktop and 390px/mobile screens reviewed; small SVG overflow fixed. Native password toggle, registration/profile flow, team creation/requests/acceptance/full state, reports and notifications exercised. Reviewed browser log has no application errors. No full automated/a11y/cross-browser/field performance claim.
 
-Capture wide and narrow screenshots for layout review and check focus/error/empty states as well as the happy path. Source-only review cannot certify visual quality. Update PROGRESS with exact commands, executed results, environment and unresolved limitations; do not mark a live integration test complete based on a demo.
+Use `pnpm dev --host 127.0.0.1` from apps/web for local preview and `pnpm build` for TypeScript/Vite checks. Local server permission may be needed in this environment. The temporary development server was stopped after QA; restart it with that command. Desktop/mobile screenshots are committed under docs/screenshots. No deployment/publication is authorized by this local-repository task.
+
+Future work: confirm campus domains/enrollment/membership limits/visibility/support/moderation policies, backend session/CSRF/contracts and exact admin ownership before live integration. Keep fixtures separate, preserve existing visual language, implement one real vertical slice at a time and replace demo state with agreed resource services. Update this file/PROGRESS/DECISIONS with actual evidence; never treat a planning checklist as proof of code.
+
+## Git delivery
+
+The user requested local commits and then explicitly requested remote publication. `Akshay` tracks `origin/Akshay` in `shreyanshagrawal/Collabryd`; the first 11 commits and matching remote SHA were verified. Final verification documentation is an additional commit. The original root blueprint PDF is still untracked and intentionally excluded. Do not open a PR, merge main or change repository permissions without a new request.
+
+## Completion clarification
+
+The user asked whether the whole work was done. The agent clarified that the first delivery was a partial frontend demo, then completed the missing frontend controls. FRONTEND_STATUS.md is authoritative for that boundary. Do not say the full live application is complete: actual backend/session/API/storage/campus policies, integrated security tests and deployment remain. Extra commits after the initial 12 continue on the same Akshay branch.
+
+## Executed supplemental checks
+
+`pnpm test` runs six native Node tests without added dependencies. `pnpm build` passes. Extended browser scenarios and the fresh production-preview smoke test of 14 routes are recorded in PROGRESS.md. New screenshots show admin and expanded mobile discovery. Integrated authorization/concurrency and full accessibility/field performance checks remain unexecuted.
