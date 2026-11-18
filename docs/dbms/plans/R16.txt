@@ -1,0 +1,176 @@
+Query ID: R16
+Type: READ
+Description: Project recommendation matching for student skills
+
+SQL:
+SELECT p.project_id, p.title, p.category, p.project_type, p.max_team_size,
+       COUNT(DISTINCT ps.skill_id) AS matched_skills_count
+FROM projects p
+JOIN project_skills ps ON p.project_id = ps.project_id
+JOIN user_skills us ON ps.skill_id = us.skill_id
+WHERE us.user_id = 15
+  AND p.status = 'OPEN'
+  AND p.owner_id != 15
+  AND p.project_id NOT IN (SELECT project_id FROM project_members WHERE user_id = 15)
+GROUP BY p.project_id, p.title, p.category, p.project_type, p.max_team_size
+ORDER BY matched_skills_count DESC, p.created_at DESC
+LIMIT 10;
+
+--- RUN 1 ---
+SET
+                                                                                    QUERY PLAN                                                                                     
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=35.08..35.11 rows=10 width=94) (actual time=0.198..0.199 rows=10.00 loops=1)
+   Buffers: shared hit=27
+   ->  Sort  (cost=35.08..35.12 rows=15 width=94) (actual time=0.197..0.198 rows=10.00 loops=1)
+         Sort Key: (count(DISTINCT ps.skill_id)) DESC, p.created_at DESC
+         Sort Method: quicksort  Memory: 27kB
+         Buffers: shared hit=27
+         ->  GroupAggregate  (cost=34.53..34.79 rows=15 width=94) (actual time=0.167..0.171 rows=17.00 loops=1)
+               Group Key: p.project_id
+               Buffers: shared hit=21
+               ->  Sort  (cost=34.53..34.56 rows=15 width=94) (actual time=0.161..0.162 rows=19.00 loops=1)
+                     Sort Key: p.project_id, ps.skill_id
+                     Sort Method: quicksort  Memory: 27kB
+                     Buffers: shared hit=21
+                     ->  Hash Join  (cost=23.01..34.23 rows=15 width=94) (actual time=0.095..0.152 rows=19.00 loops=1)
+                           Hash Cond: (ps.project_id = p.project_id)
+                           Buffers: shared hit=21
+                           ->  Hash Join  (cost=4.37..15.45 rows=54 width=16) (actual time=0.043..0.096 rows=40.00 loops=1)
+                                 Hash Cond: (ps.skill_id = us.skill_id)
+                                 Buffers: shared hit=10
+                                 ->  Seq Scan on project_skills ps  (cost=0.00..9.43 rows=543 width=16) (actual time=0.003..0.027 rows=543.00 loops=1)
+                                       Buffers: shared hit=4
+                                 ->  Hash  (cost=4.33..4.33 rows=3 width=8) (actual time=0.035..0.036 rows=2.00 loops=1)
+                                       Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                       Buffers: shared hit=6
+                                       ->  Index Only Scan using user_skills_pkey on user_skills us  (cost=0.28..4.33 rows=3 width=8) (actual time=0.033..0.033 rows=2.00 loops=1)
+                                             Index Cond: (user_id = 15)
+                                             Heap Fetches: 0
+                                             Index Searches: 1
+                                             Buffers: shared hit=6
+                           ->  Hash  (cost=18.15..18.15 rows=40 width=86) (actual time=0.049..0.049 rows=79.00 loops=1)
+                                 Buckets: 1024  Batches: 1  Memory Usage: 18kB
+                                 Buffers: shared hit=11
+                                 ->  Seq Scan on projects p  (cost=7.52..18.15 rows=40 width=86) (actual time=0.019..0.041 rows=79.00 loops=1)
+                                       Filter: ((owner_id <> 15) AND (NOT (ANY (project_id = (hashed SubPlan 1).col1))) AND ((status)::text = 'OPEN'::text))
+                                       Rows Removed by Filter: 71
+                                       Buffers: shared hit=11
+                                       SubPlan 1
+                                         ->  Seq Scan on project_members  (cost=0.00..7.51 rows=3 width=8) (actual time=0.004..0.013 rows=3.00 loops=1)
+                                               Filter: (user_id = 15)
+                                               Rows Removed by Filter: 358
+                                               Buffers: shared hit=3
+ Planning:
+   Buffers: shared hit=312
+ Planning Time: 0.632 ms
+ Execution Time: 0.269 ms
+(45 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                                                    QUERY PLAN                                                                                     
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=35.08..35.11 rows=10 width=94) (actual time=0.155..0.156 rows=10.00 loops=1)
+   Buffers: shared hit=27
+   ->  Sort  (cost=35.08..35.12 rows=15 width=94) (actual time=0.154..0.155 rows=10.00 loops=1)
+         Sort Key: (count(DISTINCT ps.skill_id)) DESC, p.created_at DESC
+         Sort Method: quicksort  Memory: 27kB
+         Buffers: shared hit=27
+         ->  GroupAggregate  (cost=34.53..34.79 rows=15 width=94) (actual time=0.139..0.143 rows=17.00 loops=1)
+               Group Key: p.project_id
+               Buffers: shared hit=21
+               ->  Sort  (cost=34.53..34.56 rows=15 width=94) (actual time=0.134..0.136 rows=19.00 loops=1)
+                     Sort Key: p.project_id, ps.skill_id
+                     Sort Method: quicksort  Memory: 27kB
+                     Buffers: shared hit=21
+                     ->  Hash Join  (cost=23.01..34.23 rows=15 width=94) (actual time=0.093..0.126 rows=19.00 loops=1)
+                           Hash Cond: (ps.project_id = p.project_id)
+                           Buffers: shared hit=21
+                           ->  Hash Join  (cost=4.37..15.45 rows=54 width=16) (actual time=0.042..0.072 rows=40.00 loops=1)
+                                 Hash Cond: (ps.skill_id = us.skill_id)
+                                 Buffers: shared hit=10
+                                 ->  Seq Scan on project_skills ps  (cost=0.00..9.43 rows=543 width=16) (actual time=0.004..0.019 rows=543.00 loops=1)
+                                       Buffers: shared hit=4
+                                 ->  Hash  (cost=4.33..4.33 rows=3 width=8) (actual time=0.033..0.033 rows=2.00 loops=1)
+                                       Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                       Buffers: shared hit=6
+                                       ->  Index Only Scan using user_skills_pkey on user_skills us  (cost=0.28..4.33 rows=3 width=8) (actual time=0.031..0.031 rows=2.00 loops=1)
+                                             Index Cond: (user_id = 15)
+                                             Heap Fetches: 0
+                                             Index Searches: 1
+                                             Buffers: shared hit=6
+                           ->  Hash  (cost=18.15..18.15 rows=40 width=86) (actual time=0.048..0.048 rows=79.00 loops=1)
+                                 Buckets: 1024  Batches: 1  Memory Usage: 18kB
+                                 Buffers: shared hit=11
+                                 ->  Seq Scan on projects p  (cost=7.52..18.15 rows=40 width=86) (actual time=0.019..0.040 rows=79.00 loops=1)
+                                       Filter: ((owner_id <> 15) AND (NOT (ANY (project_id = (hashed SubPlan 1).col1))) AND ((status)::text = 'OPEN'::text))
+                                       Rows Removed by Filter: 71
+                                       Buffers: shared hit=11
+                                       SubPlan 1
+                                         ->  Seq Scan on project_members  (cost=0.00..7.51 rows=3 width=8) (actual time=0.003..0.012 rows=3.00 loops=1)
+                                               Filter: (user_id = 15)
+                                               Rows Removed by Filter: 358
+                                               Buffers: shared hit=3
+ Planning:
+   Buffers: shared hit=312
+ Planning Time: 0.715 ms
+ Execution Time: 0.615 ms
+(45 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                                                    QUERY PLAN                                                                                     
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=35.08..35.11 rows=10 width=94) (actual time=0.154..0.156 rows=10.00 loops=1)
+   Buffers: shared hit=27
+   ->  Sort  (cost=35.08..35.12 rows=15 width=94) (actual time=0.154..0.155 rows=10.00 loops=1)
+         Sort Key: (count(DISTINCT ps.skill_id)) DESC, p.created_at DESC
+         Sort Method: quicksort  Memory: 27kB
+         Buffers: shared hit=27
+         ->  GroupAggregate  (cost=34.53..34.79 rows=15 width=94) (actual time=0.139..0.143 rows=17.00 loops=1)
+               Group Key: p.project_id
+               Buffers: shared hit=21
+               ->  Sort  (cost=34.53..34.56 rows=15 width=94) (actual time=0.135..0.136 rows=19.00 loops=1)
+                     Sort Key: p.project_id, ps.skill_id
+                     Sort Method: quicksort  Memory: 27kB
+                     Buffers: shared hit=21
+                     ->  Hash Join  (cost=23.01..34.23 rows=15 width=94) (actual time=0.093..0.126 rows=19.00 loops=1)
+                           Hash Cond: (ps.project_id = p.project_id)
+                           Buffers: shared hit=21
+                           ->  Hash Join  (cost=4.37..15.45 rows=54 width=16) (actual time=0.043..0.073 rows=40.00 loops=1)
+                                 Hash Cond: (ps.skill_id = us.skill_id)
+                                 Buffers: shared hit=10
+                                 ->  Seq Scan on project_skills ps  (cost=0.00..9.43 rows=543 width=16) (actual time=0.003..0.017 rows=543.00 loops=1)
+                                       Buffers: shared hit=4
+                                 ->  Hash  (cost=4.33..4.33 rows=3 width=8) (actual time=0.035..0.035 rows=2.00 loops=1)
+                                       Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                       Buffers: shared hit=6
+                                       ->  Index Only Scan using user_skills_pkey on user_skills us  (cost=0.28..4.33 rows=3 width=8) (actual time=0.032..0.032 rows=2.00 loops=1)
+                                             Index Cond: (user_id = 15)
+                                             Heap Fetches: 0
+                                             Index Searches: 1
+                                             Buffers: shared hit=6
+                           ->  Hash  (cost=18.15..18.15 rows=40 width=86) (actual time=0.047..0.047 rows=79.00 loops=1)
+                                 Buckets: 1024  Batches: 1  Memory Usage: 18kB
+                                 Buffers: shared hit=11
+                                 ->  Seq Scan on projects p  (cost=7.52..18.15 rows=40 width=86) (actual time=0.019..0.039 rows=79.00 loops=1)
+                                       Filter: ((owner_id <> 15) AND (NOT (ANY (project_id = (hashed SubPlan 1).col1))) AND ((status)::text = 'OPEN'::text))
+                                       Rows Removed by Filter: 71
+                                       Buffers: shared hit=11
+                                       SubPlan 1
+                                         ->  Seq Scan on project_members  (cost=0.00..7.51 rows=3 width=8) (actual time=0.003..0.012 rows=3.00 loops=1)
+                                               Filter: (user_id = 15)
+                                               Rows Removed by Filter: 358
+                                               Buffers: shared hit=3
+ Planning:
+   Buffers: shared hit=312
+ Planning Time: 0.693 ms
+ Execution Time: 0.249 ms
+(45 rows)
+
+

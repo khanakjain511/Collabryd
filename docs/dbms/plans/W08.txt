@@ -1,0 +1,74 @@
+Query ID: W08
+Type: WRITE
+Description: Accept application and update status
+
+SQL:
+UPDATE applications
+SET status = 'ACCEPTED', reviewed_at = CURRENT_TIMESTAMP
+WHERE application_id = 10 AND status = 'PENDING';
+
+--- RUN 1 ---
+SET
+BEGIN
+                                                                QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ Update on applications  (cost=0.15..8.17 rows=0 width=0) (actual time=0.010..0.010 rows=0.00 loops=1)
+   Buffers: shared hit=5
+   ->  Index Scan using applications_pkey on applications  (cost=0.15..8.17 rows=1 width=92) (actual time=0.010..0.010 rows=0.00 loops=1)
+         Index Cond: (application_id = 10)
+         Filter: ((status)::text = 'PENDING'::text)
+         Rows Removed by Filter: 1
+         Index Searches: 1
+         Buffers: shared hit=5
+ Planning:
+   Buffers: shared hit=122
+ Planning Time: 0.284 ms
+ Execution Time: 0.056 ms
+(12 rows)
+
+ROLLBACK
+
+
+--- RUN 2 ---
+SET
+BEGIN
+                                                                QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ Update on applications  (cost=0.15..8.17 rows=0 width=0) (actual time=0.009..0.010 rows=0.00 loops=1)
+   Buffers: shared hit=5
+   ->  Index Scan using applications_pkey on applications  (cost=0.15..8.17 rows=1 width=92) (actual time=0.009..0.009 rows=0.00 loops=1)
+         Index Cond: (application_id = 10)
+         Filter: ((status)::text = 'PENDING'::text)
+         Rows Removed by Filter: 1
+         Index Searches: 1
+         Buffers: shared hit=5
+ Planning:
+   Buffers: shared hit=122
+ Planning Time: 0.279 ms
+ Execution Time: 0.055 ms
+(12 rows)
+
+ROLLBACK
+
+
+--- RUN 3 ---
+SET
+BEGIN
+                                                                QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ Update on applications  (cost=0.15..8.17 rows=0 width=0) (actual time=0.010..0.010 rows=0.00 loops=1)
+   Buffers: shared hit=5
+   ->  Index Scan using applications_pkey on applications  (cost=0.15..8.17 rows=1 width=92) (actual time=0.010..0.010 rows=0.00 loops=1)
+         Index Cond: (application_id = 10)
+         Filter: ((status)::text = 'PENDING'::text)
+         Rows Removed by Filter: 1
+         Index Searches: 1
+         Buffers: shared hit=5
+ Planning:
+   Buffers: shared hit=122
+ Planning Time: 0.286 ms
+ Execution Time: 0.062 ms
+(12 rows)
+
+ROLLBACK
+

@@ -1,0 +1,93 @@
+Query ID: R14
+Type: READ
+Description: List project open role vacancies and requirements
+
+SQL:
+SELECT pr.project_role_id, pr.project_id, r.name AS role_name, pr.open_positions, pr.description
+FROM project_roles pr
+JOIN roles r ON pr.role_id = r.role_id
+WHERE pr.project_id = 5;
+
+--- RUN 1 ---
+SET
+                                                                      QUERY PLAN                                                                      
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ Hash Join  (cost=5.47..9.70 rows=2 width=88) (actual time=0.024..0.025 rows=2.00 loops=1)
+   Hash Cond: (pr.role_id = r.role_id)
+   Buffers: shared hit=7
+   ->  Bitmap Heap Scan on project_roles pr  (cost=4.29..8.52 rows=2 width=78) (actual time=0.012..0.013 rows=2.00 loops=1)
+         Recheck Cond: (project_id = 5)
+         Heap Blocks: exact=1
+         Buffers: shared hit=6
+         ->  Bitmap Index Scan on project_roles_project_id_role_id_key  (cost=0.00..4.29 rows=2 width=0) (actual time=0.009..0.009 rows=2.00 loops=1)
+               Index Cond: (project_id = 5)
+               Index Searches: 1
+               Buffers: shared hit=5
+   ->  Hash  (cost=1.08..1.08 rows=8 width=26) (actual time=0.006..0.007 rows=8.00 loops=1)
+         Buckets: 1024  Batches: 1  Memory Usage: 9kB
+         Buffers: shared hit=1
+         ->  Seq Scan on roles r  (cost=0.00..1.08 rows=8 width=26) (actual time=0.002..0.003 rows=8.00 loops=1)
+               Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=249
+ Planning Time: 0.387 ms
+ Execution Time: 0.062 ms
+(20 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                                      QUERY PLAN                                                                      
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ Hash Join  (cost=5.47..9.70 rows=2 width=88) (actual time=0.044..0.045 rows=2.00 loops=1)
+   Hash Cond: (pr.role_id = r.role_id)
+   Buffers: shared hit=7
+   ->  Bitmap Heap Scan on project_roles pr  (cost=4.29..8.52 rows=2 width=78) (actual time=0.011..0.012 rows=2.00 loops=1)
+         Recheck Cond: (project_id = 5)
+         Heap Blocks: exact=1
+         Buffers: shared hit=6
+         ->  Bitmap Index Scan on project_roles_project_id_role_id_key  (cost=0.00..4.29 rows=2 width=0) (actual time=0.008..0.008 rows=2.00 loops=1)
+               Index Cond: (project_id = 5)
+               Index Searches: 1
+               Buffers: shared hit=5
+   ->  Hash  (cost=1.08..1.08 rows=8 width=26) (actual time=0.028..0.028 rows=8.00 loops=1)
+         Buckets: 1024  Batches: 1  Memory Usage: 9kB
+         Buffers: shared hit=1
+         ->  Seq Scan on roles r  (cost=0.00..1.08 rows=8 width=26) (actual time=0.004..0.004 rows=8.00 loops=1)
+               Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=249
+ Planning Time: 0.561 ms
+ Execution Time: 0.083 ms
+(20 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                                      QUERY PLAN                                                                      
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ Hash Join  (cost=5.47..9.70 rows=2 width=88) (actual time=0.020..0.021 rows=2.00 loops=1)
+   Hash Cond: (pr.role_id = r.role_id)
+   Buffers: shared hit=7
+   ->  Bitmap Heap Scan on project_roles pr  (cost=4.29..8.52 rows=2 width=78) (actual time=0.009..0.010 rows=2.00 loops=1)
+         Recheck Cond: (project_id = 5)
+         Heap Blocks: exact=1
+         Buffers: shared hit=6
+         ->  Bitmap Index Scan on project_roles_project_id_role_id_key  (cost=0.00..4.29 rows=2 width=0) (actual time=0.006..0.006 rows=2.00 loops=1)
+               Index Cond: (project_id = 5)
+               Index Searches: 1
+               Buffers: shared hit=5
+   ->  Hash  (cost=1.08..1.08 rows=8 width=26) (actual time=0.006..0.006 rows=8.00 loops=1)
+         Buckets: 1024  Batches: 1  Memory Usage: 9kB
+         Buffers: shared hit=1
+         ->  Seq Scan on roles r  (cost=0.00..1.08 rows=8 width=26) (actual time=0.002..0.003 rows=8.00 loops=1)
+               Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=249
+ Planning Time: 0.385 ms
+ Execution Time: 0.058 ms
+(20 rows)
+
+

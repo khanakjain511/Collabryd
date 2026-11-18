@@ -1,0 +1,72 @@
+Query ID: R01
+Type: READ
+Description: Student login by email verification
+
+SQL:
+SELECT u.user_id, u.email, u.password_hash, u.account_status, up.display_name
+FROM users u
+JOIN user_profiles up ON u.user_id = up.user_id
+WHERE LOWER(u.email) = 'aarav.sharma1@university.edu';
+
+--- RUN 1 ---
+SET
+                                                    QUERY PLAN                                                     
+-------------------------------------------------------------------------------------------------------------------
+ Nested Loop  (cost=0.27..34.11 rows=2 width=123) (actual time=1.574..1.575 rows=0.00 loops=1)
+   Buffers: shared hit=10
+   ->  Seq Scan on users u  (cost=0.00..17.50 rows=2 width=111) (actual time=1.574..1.574 rows=0.00 loops=1)
+         Filter: (lower((email)::text) = 'aarav.sharma1@university.edu'::text)
+         Rows Removed by Filter: 500
+         Buffers: shared hit=10
+   ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..8.29 rows=1 width=20) (never executed)
+         Index Cond: (user_id = u.user_id)
+         Index Searches: 0
+ Planning:
+   Buffers: shared hit=260
+ Planning Time: 0.958 ms
+ Execution Time: 1.611 ms
+(13 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                    QUERY PLAN                                                     
+-------------------------------------------------------------------------------------------------------------------
+ Nested Loop  (cost=0.27..34.11 rows=2 width=123) (actual time=0.136..0.137 rows=0.00 loops=1)
+   Buffers: shared hit=10
+   ->  Seq Scan on users u  (cost=0.00..17.50 rows=2 width=111) (actual time=0.136..0.136 rows=0.00 loops=1)
+         Filter: (lower((email)::text) = 'aarav.sharma1@university.edu'::text)
+         Rows Removed by Filter: 500
+         Buffers: shared hit=10
+   ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..8.29 rows=1 width=20) (never executed)
+         Index Cond: (user_id = u.user_id)
+         Index Searches: 0
+ Planning:
+   Buffers: shared hit=260
+ Planning Time: 0.413 ms
+ Execution Time: 0.158 ms
+(13 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                    QUERY PLAN                                                     
+-------------------------------------------------------------------------------------------------------------------
+ Nested Loop  (cost=0.27..34.11 rows=2 width=123) (actual time=0.134..0.135 rows=0.00 loops=1)
+   Buffers: shared hit=10
+   ->  Seq Scan on users u  (cost=0.00..17.50 rows=2 width=111) (actual time=0.134..0.134 rows=0.00 loops=1)
+         Filter: (lower((email)::text) = 'aarav.sharma1@university.edu'::text)
+         Rows Removed by Filter: 500
+         Buffers: shared hit=10
+   ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..8.29 rows=1 width=20) (never executed)
+         Index Cond: (user_id = u.user_id)
+         Index Searches: 0
+ Planning:
+   Buffers: shared hit=260
+ Planning Time: 0.398 ms
+ Execution Time: 0.154 ms
+(13 rows)
+
+

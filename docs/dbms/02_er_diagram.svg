@@ -1,0 +1,386 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100">
+<rect width="1600" height="1100" fill="#f8fafc"/>
+<style>
+  text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; fill: #1e293b; }
+  .title { font-size: 26px; font-weight: 700; fill: #0f172a; }
+  .subtitle { font-size: 14px; font-weight: 400; fill: #64748b; }
+  .entity { fill: #ffffff; stroke: #3b82f6; stroke-width: 1.5; rx: 8; }
+  .entity-head { fill: #eff6ff; stroke: #3b82f6; stroke-width: 1.5; }
+  .entity-name { font-size: 15px; font-weight: 700; fill: #1d4ed8; }
+  .attr-pk { font-size: 11px; font-weight: 700; fill: #b91c1c; }
+  .attr-fk { font-size: 11px; font-weight: 600; fill: #4338ca; }
+  .attr-uq { font-size: 11px; font-weight: 600; fill: #047857; }
+  .attr-normal { font-size: 11px; fill: #334155; }
+  .rel-line { stroke: #64748b; stroke-width: 1.5; fill: none; }
+  .card-label { font-size: 11px; font-weight: 600; fill: #475569; background: #ffffff; }
+  .divider { stroke: #cbd5e1; stroke-width: 1; }
+</style>
+
+<!-- Header -->
+<text x="50" y="45" class="title">Collabryd — Entity Relationship Diagram (ERD)</text>
+<text x="50" y="68" class="subtitle">Relational schema architecture modeling users, profiles, catalogues, projects, applications, team rosters, realtime chat, and notifications.</text>
+
+<!-- Column 1: Users, Profile, Preferences, Achievements, Links (x: 50) -->
+<!-- USERS -->
+<g transform="translate(50, 100)">
+  <rect width="220" height="145" class="entity"/>
+  <rect width="220" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="220" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="220" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">users</text>
+  <text x="14" y="52" class="attr-pk">PK  user_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-uq">UQ  email (VARCHAR)</text>
+  <text x="14" y="88" class="attr-normal">password_hash (VARCHAR)</text>
+  <text x="14" y="106" class="attr-normal">account_status (VARCHAR)</text>
+  <text x="14" y="124" class="attr-normal">created_at, updated_at</text>
+</g>
+
+<!-- USER_PROFILES -->
+<g transform="translate(50, 280)">
+  <rect width="220" height="165" class="entity"/>
+  <rect width="220" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="220" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="220" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">user_profiles</text>
+  <text x="14" y="52" class="attr-pk">PK,FK  user_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-normal">display_name (VARCHAR)</text>
+  <text x="14" y="88" class="attr-normal">bio (TEXT), avatar_url</text>
+  <text x="14" y="106" class="attr-normal">institution, department</text>
+  <text x="14" y="124" class="attr-normal">course_program, academic_year</text>
+  <text x="14" y="142" class="attr-normal">availability, visibility</text>
+</g>
+
+<!-- ACHIEVEMENTS -->
+<g transform="translate(50, 480)">
+  <rect width="220" height="115" class="entity"/>
+  <rect width="220" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="220" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="220" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">achievements</text>
+  <text x="14" y="52" class="attr-pk">PK  achievement_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-fk">FK  user_id (BIGINT)</text>
+  <text x="14" y="88" class="attr-normal">title, description</text>
+  <text x="14" y="104" class="attr-normal">issuer, date_achieved</text>
+</g>
+
+<!-- SOCIAL_LINKS -->
+<g transform="translate(50, 630)">
+  <rect width="220" height="115" class="entity"/>
+  <rect width="220" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="220" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="220" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">social_links</text>
+  <text x="14" y="52" class="attr-pk">PK  link_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-fk">FK  user_id (BIGINT)</text>
+  <text x="14" y="88" class="attr-normal">platform (VARCHAR)</text>
+  <text x="14" y="104" class="attr-normal">url (VARCHAR)</text>
+</g>
+
+<!-- NOTIFICATION_PREFERENCES -->
+<g transform="translate(50, 780)">
+  <rect width="220" height="115" class="entity"/>
+  <rect width="220" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="220" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="220" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">notification_prefs</text>
+  <text x="14" y="52" class="attr-pk">PK,FK  user_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-normal">email_on_application (BOOL)</text>
+  <text x="14" y="88" class="attr-normal">email_on_team_change (BOOL)</text>
+  <text x="14" y="104" class="attr-normal">inapp_notifications (BOOL)</text>
+</g>
+
+<!-- Column 2: User-Catalogue Bridges (x: 350) -->
+<!-- USER_SKILLS -->
+<g transform="translate(350, 100)">
+  <rect width="210" height="120" class="entity"/>
+  <rect width="210" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="210" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="210" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">user_skills</text>
+  <text x="14" y="52" class="attr-pk">PK,FK  user_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-pk">PK,FK  skill_id (BIGINT)</text>
+  <text x="14" y="88" class="attr-normal">proficiency_level (VARCHAR)</text>
+  <text x="14" y="104" class="attr-normal">years_experience (NUMERIC)</text>
+</g>
+
+<!-- USER_INTERESTS -->
+<g transform="translate(350, 255)">
+  <rect width="210" height="95" class="entity"/>
+  <rect width="210" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="210" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="210" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">user_interests</text>
+  <text x="14" y="52" class="attr-pk">PK,FK  user_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-pk">PK,FK  interest_id (BIGINT)</text>
+  <text x="14" y="86" class="attr-normal">created_at (TIMESTAMPTZ)</text>
+</g>
+
+<!-- USER_PREFERRED_ROLES -->
+<g transform="translate(350, 385)">
+  <rect width="210" height="95" class="entity"/>
+  <rect width="210" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="210" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="210" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">user_preferred_roles</text>
+  <text x="14" y="52" class="attr-pk">PK,FK  user_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-pk">PK,FK  role_id (BIGINT)</text>
+  <text x="14" y="86" class="attr-normal">created_at (TIMESTAMPTZ)</text>
+</g>
+
+<!-- NOTIFICATIONS (Column 2 lower) -->
+<g transform="translate(350, 520)">
+  <rect width="210" height="145" class="entity"/>
+  <rect width="210" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="210" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="210" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">notifications</text>
+  <text x="14" y="52" class="attr-pk">PK  notification_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-fk">FK  recipient_id (BIGINT)</text>
+  <text x="14" y="88" class="attr-normal">type (VARCHAR)</text>
+  <text x="14" y="106" class="attr-normal">resource_type, resource_id</text>
+  <text x="14" y="124" class="attr-normal">is_read (BOOL), created_at</text>
+</g>
+
+<!-- ADMIN_AUDIT_LOGS (Column 2 lower) -->
+<g transform="translate(350, 700)">
+  <rect width="210" height="135" class="entity"/>
+  <rect width="210" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="210" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="210" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">admin_audit_logs</text>
+  <text x="14" y="52" class="attr-pk">PK  log_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-fk">FK  admin_id (BIGINT)</text>
+  <text x="14" y="88" class="attr-normal">action (VARCHAR)</text>
+  <text x="14" y="106" class="attr-normal">target_type, target_id</text>
+  <text x="14" y="124" class="attr-normal">details (JSONB), created_at</text>
+</g>
+
+<!-- Column 3: Canonical Catalogues (x: 640) -->
+<!-- SKILLS -->
+<g transform="translate(640, 100)">
+  <rect width="200" height="110" class="entity"/>
+  <rect width="200" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="200" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="200" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">skills</text>
+  <text x="14" y="52" class="attr-pk">PK  skill_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-uq">UQ  name (VARCHAR)</text>
+  <text x="14" y="88" class="attr-normal">category (VARCHAR)</text>
+  <text x="14" y="102" class="attr-normal">created_at</text>
+</g>
+
+<!-- INTERESTS -->
+<g transform="translate(640, 255)">
+  <rect width="200" height="110" class="entity"/>
+  <rect width="200" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="200" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="200" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">interests</text>
+  <text x="14" y="52" class="attr-pk">PK  interest_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-uq">UQ  name (VARCHAR)</text>
+  <text x="14" y="88" class="attr-normal">domain (VARCHAR)</text>
+  <text x="14" y="102" class="attr-normal">created_at</text>
+</g>
+
+<!-- ROLES -->
+<g transform="translate(640, 410)">
+  <rect width="200" height="110" class="entity"/>
+  <rect width="200" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="200" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="200" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">roles</text>
+  <text x="14" y="52" class="attr-pk">PK  role_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-uq">UQ  name (VARCHAR)</text>
+  <text x="14" y="88" class="attr-normal">description (TEXT)</text>
+  <text x="14" y="102" class="attr-normal">created_at</text>
+</g>
+
+<!-- Column 4: Project Core & Requirements (x: 910) -->
+<!-- PROJECT_SKILLS -->
+<g transform="translate(910, 100)">
+  <rect width="210" height="105" class="entity"/>
+  <rect width="210" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="210" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="210" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">project_skills</text>
+  <text x="14" y="52" class="attr-pk">PK,FK  project_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-pk">PK,FK  skill_id (BIGINT)</text>
+  <text x="14" y="88" class="attr-normal">is_required (BOOL)</text>
+</g>
+
+<!-- PROJECTS -->
+<g transform="translate(910, 240)">
+  <rect width="210" height="200" class="entity"/>
+  <rect width="210" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="210" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="210" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">projects</text>
+  <text x="14" y="52" class="attr-pk">PK  project_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-fk">FK  owner_id (BIGINT)</text>
+  <text x="14" y="88" class="attr-normal">title, summary, desc</text>
+  <text x="14" y="106" class="attr-normal">category, project_type</text>
+  <text x="14" y="124" class="attr-normal">status, visibility</text>
+  <text x="14" y="142" class="attr-normal">min_team_size, max_size</text>
+  <text x="14" y="160" class="attr-normal">deadline, start_date</text>
+  <text x="14" y="178" class="attr-normal">created_at, updated_at</text>
+</g>
+
+<!-- PROJECT_ROLES -->
+<g transform="translate(910, 480)">
+  <rect width="210" height="120" class="entity"/>
+  <rect width="210" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="210" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="210" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">project_roles</text>
+  <text x="14" y="52" class="attr-pk">PK  project_role_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-fk">FK  project_id (BIGINT)</text>
+  <text x="14" y="88" class="attr-fk">FK  role_id (BIGINT)</text>
+  <text x="14" y="104" class="attr-normal">open_positions, desc</text>
+</g>
+
+<!-- PROJECT_MEMBERS -->
+<g transform="translate(910, 640)">
+  <rect width="210" height="110" class="entity"/>
+  <rect width="210" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="210" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="210" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">project_members</text>
+  <text x="14" y="52" class="attr-pk">PK,FK  project_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-pk">PK,FK  user_id (BIGINT)</text>
+  <text x="14" y="88" class="attr-normal">role (OWNER/ADMIN/MEM)</text>
+  <text x="14" y="104" class="attr-normal">joined_at (TIMESTAMPTZ)</text>
+</g>
+
+<!-- Column 5: Applications & Realtime Chat (x: 1210) -->
+<!-- APPLICATIONS -->
+<g transform="translate(1210, 180)">
+  <rect width="230" height="150" class="entity"/>
+  <rect width="230" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="230" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="230" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">applications</text>
+  <text x="14" y="52" class="attr-pk">PK  application_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-fk">FK  project_id (BIGINT)</text>
+  <text x="14" y="88" class="attr-fk">FK  applicant_id (BIGINT)</text>
+  <text x="14" y="106" class="attr-fk">FK  role_id (BIGINT)</text>
+  <text x="14" y="124" class="attr-normal">status, message</text>
+  <text x="14" y="140" class="attr-normal">applied_at, reviewed_at</text>
+</g>
+
+<!-- CONVERSATIONS -->
+<g transform="translate(1210, 370)">
+  <rect width="230" height="105" class="entity"/>
+  <rect width="230" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="230" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="230" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">conversations</text>
+  <text x="14" y="52" class="attr-pk">PK  conversation_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-normal">type (DIRECT / GROUP)</text>
+  <text x="14" y="88" class="attr-fk">FK,UQ  project_id (BIGINT)</text>
+</g>
+
+<!-- CONVERSATION_MEMBERS -->
+<g transform="translate(1210, 515)">
+  <rect width="230" height="105" class="entity"/>
+  <rect width="230" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="230" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="230" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">conversation_members</text>
+  <text x="14" y="52" class="attr-pk">PK,FK  conversation_id</text>
+  <text x="14" y="70" class="attr-pk">PK,FK  user_id (BIGINT)</text>
+  <text x="14" y="88" class="attr-normal">last_read_sequence</text>
+</g>
+
+<!-- MESSAGES -->
+<g transform="translate(1210, 660)">
+  <rect width="230" height="150" class="entity"/>
+  <rect width="230" height="32" rx="8" class="entity-head"/>
+  <rect y="24" width="230" height="8" fill="#eff6ff"/>
+  <line x1="0" y1="32" x2="230" y2="32" class="divider"/>
+  <text x="14" y="22" class="entity-name">messages</text>
+  <text x="14" y="52" class="attr-pk">PK  message_id (BIGINT)</text>
+  <text x="14" y="70" class="attr-fk">FK  conversation_id (BIGINT)</text>
+  <text x="14" y="88" class="attr-fk">FK  sender_id (BIGINT)</text>
+  <text x="14" y="106" class="attr-uq">UQ  (conv, sequence_num)</text>
+  <text x="14" y="124" class="attr-uq">UQ  (conv, client_msg_id)</text>
+  <text x="14" y="140" class="attr-normal">content (TEXT), created_at</text>
+</g>
+
+<!-- Relationship Connectors & Cardinalities -->
+<!-- USERS <-> USER_PROFILES (1 : 1) -->
+<path d="M160 245 v35" class="rel-line"/>
+<text x="168" y="265" class="card-label">1 : 1</text>
+
+<!-- USERS <-> ACHIEVEMENTS (1 : N) -->
+<path d="M160 445 v35" class="rel-line"/>
+<text x="168" y="465" class="card-label">1 : N</text>
+
+<!-- USERS <-> SOCIAL_LINKS (1 : N) -->
+<path d="M160 595 v35" class="rel-line"/>
+<text x="168" y="615" class="card-label">1 : N</text>
+
+<!-- USERS <-> USER_SKILLS (1 : N) -->
+<path d="M270 140 h80" class="rel-line"/>
+<text x="295" y="132" class="card-label">1 : N</text>
+
+<!-- SKILLS <-> USER_SKILLS (1 : N) -->
+<path d="M640 140 h-80" class="rel-line"/>
+<text x="585" y="132" class="card-label">1 : N</text>
+
+<!-- USERS <-> USER_INTERESTS (1 : N) -->
+<path d="M270 170 C310 170 310 290 350 290" class="rel-line"/>
+<text x="295" y="225" class="card-label">1 : N</text>
+
+<!-- INTERESTS <-> USER_INTERESTS (1 : N) -->
+<path d="M640 290 h-80" class="rel-line"/>
+<text x="585" y="282" class="card-label">1 : N</text>
+
+<!-- USERS <-> USER_PREFERRED_ROLES (1 : N) -->
+<path d="M270 200 C320 200 310 420 350 420" class="rel-line"/>
+<text x="295" y="325" class="card-label">1 : N</text>
+
+<!-- ROLES <-> USER_PREFERRED_ROLES (1 : N) -->
+<path d="M640 430 h-80" class="rel-line"/>
+<text x="585" y="422" class="card-label">1 : N</text>
+
+<!-- SKILLS <-> PROJECT_SKILLS (1 : N) -->
+<path d="M840 140 h70" class="rel-line"/>
+<text x="860" y="132" class="card-label">1 : N</text>
+
+<!-- PROJECTS <-> PROJECT_SKILLS (1 : N) -->
+<path d="M1015 240 v-35" class="rel-line"/>
+<text x="1025" y="225" class="card-label">1 : N</text>
+
+<!-- PROJECTS <-> PROJECT_ROLES (1 : N) -->
+<path d="M1015 440 v40" class="rel-line"/>
+<text x="1025" y="465" class="card-label">1 : N</text>
+
+<!-- ROLES <-> PROJECT_ROLES (1 : N) -->
+<path d="M840 470 C870 470 870 520 910 520" class="rel-line"/>
+<text x="860" y="490" class="card-label">1 : N</text>
+
+<!-- PROJECTS <-> PROJECT_MEMBERS (1 : N) -->
+<path d="M1015 600 v40" class="rel-line"/>
+<text x="1025" y="625" class="card-label">1 : N</text>
+
+<!-- PROJECTS <-> APPLICATIONS (1 : N) -->
+<path d="M1120 280 h90" class="rel-line"/>
+<text x="1145" y="272" class="card-label">1 : N</text>
+
+<!-- PROJECTS <-> CONVERSATIONS (1 : 0..1) -->
+<path d="M1120 380 C1160 380 1170 410 1210 410" class="rel-line"/>
+<text x="1140" y="402" class="card-label">1 : 0..1</text>
+
+<!-- CONVERSATIONS <-> CONVERSATION_MEMBERS (1 : N) -->
+<path d="M1320 475 v40" class="rel-line"/>
+<text x="1330" y="500" class="card-label">1 : N</text>
+
+<!-- CONVERSATIONS <-> MESSAGES (1 : N) -->
+<path d="M1320 620 v40" class="rel-line"/>
+<text x="1330" y="645" class="card-label">1 : N</text>
+
+<!-- USERS <-> NOTIFICATIONS (1 : N) -->
+<path d="M270 220 C320 220 310 580 350 580" class="rel-line"/>
+<text x="295" y="480" class="card-label">1 : N</text>
+
+</svg>

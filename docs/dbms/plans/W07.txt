@@ -1,0 +1,71 @@
+Query ID: W07
+Type: WRITE
+Description: Submit project application
+
+SQL:
+INSERT INTO applications (project_id, applicant_id, role_id, status, message)
+VALUES (2, 50, 1, 'PENDING', 'Excited to contribute to the frontend architecture and UI!')
+RETURNING application_id, project_id, applicant_id, status;
+
+--- RUN 1 ---
+SET
+BEGIN
+                                               QUERY PLAN                                                
+---------------------------------------------------------------------------------------------------------
+ Insert on applications  (cost=0.00..0.01 rows=1 width=158) (actual time=0.822..0.823 rows=1.00 loops=1)
+   Buffers: shared hit=109
+   ->  Result  (cost=0.00..0.01 rows=1 width=158) (actual time=0.117..0.118 rows=1.00 loops=1)
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=3
+ Planning Time: 0.083 ms
+ Trigger for constraint applications_project_id_fkey: time=1.114 calls=1
+ Trigger for constraint applications_applicant_id_fkey: time=0.374 calls=1
+ Trigger for constraint applications_role_id_fkey: time=1.824 calls=1
+ Execution Time: 4.168 ms
+(11 rows)
+
+ROLLBACK
+
+
+--- RUN 2 ---
+SET
+BEGIN
+                                               QUERY PLAN                                                
+---------------------------------------------------------------------------------------------------------
+ Insert on applications  (cost=0.00..0.01 rows=1 width=158) (actual time=0.194..0.195 rows=1.00 loops=1)
+   Buffers: shared hit=110
+   ->  Result  (cost=0.00..0.01 rows=1 width=158) (actual time=0.024..0.025 rows=1.00 loops=1)
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=3
+ Planning Time: 0.627 ms
+ Trigger for constraint applications_project_id_fkey: time=0.372 calls=1
+ Trigger for constraint applications_applicant_id_fkey: time=0.167 calls=1
+ Trigger for constraint applications_role_id_fkey: time=0.110 calls=1
+ Execution Time: 0.860 ms
+(11 rows)
+
+ROLLBACK
+
+
+--- RUN 3 ---
+SET
+BEGIN
+                                               QUERY PLAN                                                
+---------------------------------------------------------------------------------------------------------
+ Insert on applications  (cost=0.00..0.01 rows=1 width=158) (actual time=0.172..0.173 rows=1.00 loops=1)
+   Buffers: shared hit=110
+   ->  Result  (cost=0.00..0.01 rows=1 width=158) (actual time=0.020..0.020 rows=1.00 loops=1)
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=3
+ Planning Time: 0.045 ms
+ Trigger for constraint applications_project_id_fkey: time=0.298 calls=1
+ Trigger for constraint applications_applicant_id_fkey: time=0.162 calls=1
+ Trigger for constraint applications_role_id_fkey: time=0.109 calls=1
+ Execution Time: 0.756 ms
+(11 rows)
+
+ROLLBACK
+

@@ -1,0 +1,72 @@
+Query ID: W05
+Type: WRITE
+Description: Attach or update student skill (upsert)
+
+SQL:
+INSERT INTO user_skills (user_id, skill_id, proficiency_level, years_experience)
+VALUES (1, 1, 'ADVANCED', 2.5)
+ON CONFLICT (user_id, skill_id) DO UPDATE
+SET proficiency_level = EXCLUDED.proficiency_level, years_experience = EXCLUDED.years_experience;
+
+--- RUN 1 ---
+SET
+BEGIN
+                                              QUERY PLAN                                              
+------------------------------------------------------------------------------------------------------
+ Insert on user_skills  (cost=0.00..0.01 rows=0 width=0) (actual time=0.211..0.211 rows=0.00 loops=1)
+   Conflict Resolution: UPDATE
+   Conflict Arbiter Indexes: user_skills_pkey
+   Tuples Inserted: 0
+   Conflicting Tuples: 1
+   Buffers: shared hit=45
+   ->  Result  (cost=0.00..0.01 rows=1 width=94) (actual time=0.003..0.003 rows=1.00 loops=1)
+ Planning:
+   Buffers: shared hit=47
+ Planning Time: 0.070 ms
+ Execution Time: 0.255 ms
+(11 rows)
+
+ROLLBACK
+
+
+--- RUN 2 ---
+SET
+BEGIN
+                                              QUERY PLAN                                              
+------------------------------------------------------------------------------------------------------
+ Insert on user_skills  (cost=0.00..0.01 rows=0 width=0) (actual time=0.162..0.163 rows=0.00 loops=1)
+   Conflict Resolution: UPDATE
+   Conflict Arbiter Indexes: user_skills_pkey
+   Tuples Inserted: 0
+   Conflicting Tuples: 1
+   Buffers: shared hit=43
+   ->  Result  (cost=0.00..0.01 rows=1 width=94) (actual time=0.003..0.003 rows=1.00 loops=1)
+ Planning:
+   Buffers: shared hit=47
+ Planning Time: 0.076 ms
+ Execution Time: 0.257 ms
+(11 rows)
+
+ROLLBACK
+
+
+--- RUN 3 ---
+SET
+BEGIN
+                                              QUERY PLAN                                              
+------------------------------------------------------------------------------------------------------
+ Insert on user_skills  (cost=0.00..0.01 rows=0 width=0) (actual time=0.142..0.142 rows=0.00 loops=1)
+   Conflict Resolution: UPDATE
+   Conflict Arbiter Indexes: user_skills_pkey
+   Tuples Inserted: 0
+   Conflicting Tuples: 1
+   Buffers: shared hit=43
+   ->  Result  (cost=0.00..0.01 rows=1 width=94) (actual time=0.003..0.003 rows=1.00 loops=1)
+ Planning:
+   Buffers: shared hit=47
+ Planning Time: 0.066 ms
+ Execution Time: 0.186 ms
+(11 rows)
+
+ROLLBACK
+

@@ -1,0 +1,100 @@
+Query ID: R09
+Type: READ
+Description: List canonical roles with active project openings
+
+SQL:
+SELECT r.role_id, r.name, r.description, COALESCE(SUM(pr.open_positions), 0) AS total_openings
+FROM roles r
+LEFT JOIN project_roles pr ON r.role_id = pr.role_id
+GROUP BY r.role_id, r.name, r.description
+ORDER BY total_openings DESC, r.name ASC;
+
+--- RUN 1 ---
+SET
+                                                             QUERY PLAN                                                             
+------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=12.39..12.41 rows=8 width=100) (actual time=0.094..0.095 rows=8.00 loops=1)
+   Sort Key: (COALESCE(sum(pr.open_positions), '0'::bigint)) DESC, r.name
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=12
+   ->  HashAggregate  (cost=12.19..12.27 rows=8 width=100) (actual time=0.079..0.080 rows=8.00 loops=1)
+         Group Key: r.name
+         Batches: 1  Memory Usage: 32kB
+         Buffers: shared hit=6
+         ->  Hash Right Join  (cost=1.18..10.61 rows=316 width=96) (actual time=0.013..0.054 rows=316.00 loops=1)
+               Hash Cond: (pr.role_id = r.role_id)
+               Buffers: shared hit=6
+               ->  Seq Scan on project_roles pr  (cost=0.00..8.16 rows=316 width=12) (actual time=0.002..0.016 rows=316.00 loops=1)
+                     Buffers: shared hit=5
+               ->  Hash  (cost=1.08..1.08 rows=8 width=92) (actual time=0.006..0.006 rows=8.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                     Buffers: shared hit=1
+                     ->  Seq Scan on roles r  (cost=0.00..1.08 rows=8 width=92) (actual time=0.003..0.003 rows=8.00 loops=1)
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=173
+ Planning Time: 0.362 ms
+ Execution Time: 0.135 ms
+(22 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                             QUERY PLAN                                                             
+------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=12.39..12.41 rows=8 width=100) (actual time=0.089..0.089 rows=8.00 loops=1)
+   Sort Key: (COALESCE(sum(pr.open_positions), '0'::bigint)) DESC, r.name
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=12
+   ->  HashAggregate  (cost=12.19..12.27 rows=8 width=100) (actual time=0.075..0.075 rows=8.00 loops=1)
+         Group Key: r.name
+         Batches: 1  Memory Usage: 32kB
+         Buffers: shared hit=6
+         ->  Hash Right Join  (cost=1.18..10.61 rows=316 width=96) (actual time=0.012..0.049 rows=316.00 loops=1)
+               Hash Cond: (pr.role_id = r.role_id)
+               Buffers: shared hit=6
+               ->  Seq Scan on project_roles pr  (cost=0.00..8.16 rows=316 width=12) (actual time=0.002..0.013 rows=316.00 loops=1)
+                     Buffers: shared hit=5
+               ->  Hash  (cost=1.08..1.08 rows=8 width=92) (actual time=0.006..0.006 rows=8.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                     Buffers: shared hit=1
+                     ->  Seq Scan on roles r  (cost=0.00..1.08 rows=8 width=92) (actual time=0.003..0.003 rows=8.00 loops=1)
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=173
+ Planning Time: 0.331 ms
+ Execution Time: 0.129 ms
+(22 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                             QUERY PLAN                                                             
+------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=12.39..12.41 rows=8 width=100) (actual time=0.091..0.092 rows=8.00 loops=1)
+   Sort Key: (COALESCE(sum(pr.open_positions), '0'::bigint)) DESC, r.name
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=12
+   ->  HashAggregate  (cost=12.19..12.27 rows=8 width=100) (actual time=0.077..0.078 rows=8.00 loops=1)
+         Group Key: r.name
+         Batches: 1  Memory Usage: 32kB
+         Buffers: shared hit=6
+         ->  Hash Right Join  (cost=1.18..10.61 rows=316 width=96) (actual time=0.013..0.050 rows=316.00 loops=1)
+               Hash Cond: (pr.role_id = r.role_id)
+               Buffers: shared hit=6
+               ->  Seq Scan on project_roles pr  (cost=0.00..8.16 rows=316 width=12) (actual time=0.002..0.014 rows=316.00 loops=1)
+                     Buffers: shared hit=5
+               ->  Hash  (cost=1.08..1.08 rows=8 width=92) (actual time=0.006..0.007 rows=8.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                     Buffers: shared hit=1
+                     ->  Seq Scan on roles r  (cost=0.00..1.08 rows=8 width=92) (actual time=0.003..0.004 rows=8.00 loops=1)
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=173
+ Planning Time: 0.327 ms
+ Execution Time: 0.132 ms
+(22 rows)
+
+

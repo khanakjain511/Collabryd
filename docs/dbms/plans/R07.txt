@@ -1,0 +1,113 @@
+Query ID: R07
+Type: READ
+Description: Search skills catalogue with student frequency
+
+SQL:
+SELECT s.skill_id, s.name, s.category, COUNT(us.user_id) AS student_count
+FROM skills s
+LEFT JOIN user_skills us ON s.skill_id = us.skill_id
+WHERE s.name ILIKE 'React%'
+GROUP BY s.skill_id, s.name, s.category
+ORDER BY student_count DESC;
+
+--- RUN 1 ---
+SET
+                                                                     QUERY PLAN                                                                      
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=25.00..25.00 rows=1 width=32) (actual time=0.107..0.108 rows=2.00 loops=1)
+   Sort Key: (count(us.user_id)) DESC
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=42
+   ->  HashAggregate  (cost=24.98..24.99 rows=1 width=32) (actual time=0.099..0.100 rows=2.00 loops=1)
+         Group Key: s.name
+         Batches: 1  Memory Usage: 32kB
+         Buffers: shared hit=39
+         ->  Nested Loop Left Join  (cost=4.79..24.65 rows=66 width=32) (actual time=0.023..0.087 rows=120.00 loops=1)
+               Buffers: shared hit=39
+               ->  Seq Scan on skills s  (cost=0.00..1.38 rows=1 width=24) (actual time=0.005..0.015 rows=2.00 loops=1)
+                     Filter: ((name)::text ~~* 'React%'::text)
+                     Rows Removed by Filter: 28
+                     Buffers: shared hit=1
+               ->  Bitmap Heap Scan on user_skills us  (cost=4.79..22.61 rows=66 width=16) (actual time=0.011..0.032 rows=60.00 loops=2)
+                     Recheck Cond: (s.skill_id = skill_id)
+                     Heap Blocks: exact=34
+                     Buffers: shared hit=38
+                     ->  Bitmap Index Scan on idx_user_skills_skill  (cost=0.00..4.77 rows=66 width=0) (actual time=0.008..0.008 rows=60.00 loops=2)
+                           Index Cond: (skill_id = s.skill_id)
+                           Index Searches: 2
+                           Buffers: shared hit=4
+ Planning:
+   Buffers: shared hit=178
+ Planning Time: 0.670 ms
+ Execution Time: 0.155 ms
+(26 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                                     QUERY PLAN                                                                      
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=25.00..25.00 rows=1 width=32) (actual time=0.080..0.081 rows=2.00 loops=1)
+   Sort Key: (count(us.user_id)) DESC
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=42
+   ->  HashAggregate  (cost=24.98..24.99 rows=1 width=32) (actual time=0.073..0.073 rows=2.00 loops=1)
+         Group Key: s.name
+         Batches: 1  Memory Usage: 32kB
+         Buffers: shared hit=39
+         ->  Nested Loop Left Join  (cost=4.79..24.65 rows=66 width=32) (actual time=0.015..0.061 rows=120.00 loops=1)
+               Buffers: shared hit=39
+               ->  Seq Scan on skills s  (cost=0.00..1.38 rows=1 width=24) (actual time=0.004..0.014 rows=2.00 loops=1)
+                     Filter: ((name)::text ~~* 'React%'::text)
+                     Rows Removed by Filter: 28
+                     Buffers: shared hit=1
+               ->  Bitmap Heap Scan on user_skills us  (cost=4.79..22.61 rows=66 width=16) (actual time=0.007..0.020 rows=60.00 loops=2)
+                     Recheck Cond: (s.skill_id = skill_id)
+                     Heap Blocks: exact=34
+                     Buffers: shared hit=38
+                     ->  Bitmap Index Scan on idx_user_skills_skill  (cost=0.00..4.77 rows=66 width=0) (actual time=0.004..0.004 rows=60.00 loops=2)
+                           Index Cond: (skill_id = s.skill_id)
+                           Index Searches: 2
+                           Buffers: shared hit=4
+ Planning:
+   Buffers: shared hit=178
+ Planning Time: 0.352 ms
+ Execution Time: 0.124 ms
+(26 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                                     QUERY PLAN                                                                      
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=25.00..25.00 rows=1 width=32) (actual time=0.078..0.079 rows=2.00 loops=1)
+   Sort Key: (count(us.user_id)) DESC
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=42
+   ->  HashAggregate  (cost=24.98..24.99 rows=1 width=32) (actual time=0.071..0.071 rows=2.00 loops=1)
+         Group Key: s.name
+         Batches: 1  Memory Usage: 32kB
+         Buffers: shared hit=39
+         ->  Nested Loop Left Join  (cost=4.79..24.65 rows=66 width=32) (actual time=0.014..0.059 rows=120.00 loops=1)
+               Buffers: shared hit=39
+               ->  Seq Scan on skills s  (cost=0.00..1.38 rows=1 width=24) (actual time=0.004..0.014 rows=2.00 loops=1)
+                     Filter: ((name)::text ~~* 'React%'::text)
+                     Rows Removed by Filter: 28
+                     Buffers: shared hit=1
+               ->  Bitmap Heap Scan on user_skills us  (cost=4.79..22.61 rows=66 width=16) (actual time=0.007..0.019 rows=60.00 loops=2)
+                     Recheck Cond: (s.skill_id = skill_id)
+                     Heap Blocks: exact=34
+                     Buffers: shared hit=38
+                     ->  Bitmap Index Scan on idx_user_skills_skill  (cost=0.00..4.77 rows=66 width=0) (actual time=0.004..0.004 rows=60.00 loops=2)
+                           Index Cond: (skill_id = s.skill_id)
+                           Index Searches: 2
+                           Buffers: shared hit=4
+ Planning:
+   Buffers: shared hit=178
+ Planning Time: 0.346 ms
+ Execution Time: 0.122 ms
+(26 rows)
+
+

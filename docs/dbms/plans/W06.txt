@@ -1,0 +1,65 @@
+Query ID: W06
+Type: WRITE
+Description: Create new project draft with owner
+
+SQL:
+INSERT INTO projects (owner_id, title, summary, description, category, project_type, status, visibility, min_team_size, max_team_size, application_deadline, start_date)
+VALUES (1, 'Decentralized Campus Identity', 'Decentralized credential verifier for student bodies', 'Full description for project', 'Blockchain', 'HACKATHON', 'DRAFT', 'PUBLIC', 2, 4, NOW() + INTERVAL '30 days', CURRENT_DATE)
+RETURNING project_id, title, status;
+
+--- RUN 1 ---
+SET
+BEGIN
+                                              QUERY PLAN                                              
+------------------------------------------------------------------------------------------------------
+ Insert on projects  (cost=0.00..0.03 rows=1 width=1450) (actual time=0.424..0.425 rows=1.00 loops=1)
+   Buffers: shared hit=100
+   ->  Result  (cost=0.00..0.03 rows=1 width=1450) (actual time=0.073..0.073 rows=1.00 loops=1)
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=3
+ Planning Time: 0.077 ms
+ Trigger for constraint projects_owner_id_fkey: time=0.616 calls=1
+ Execution Time: 1.079 ms
+(9 rows)
+
+ROLLBACK
+
+
+--- RUN 2 ---
+SET
+BEGIN
+                                              QUERY PLAN                                              
+------------------------------------------------------------------------------------------------------
+ Insert on projects  (cost=0.00..0.03 rows=1 width=1450) (actual time=0.178..0.179 rows=1.00 loops=1)
+   Buffers: shared hit=100
+   ->  Result  (cost=0.00..0.03 rows=1 width=1450) (actual time=0.025..0.026 rows=1.00 loops=1)
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=3
+ Planning Time: 0.046 ms
+ Trigger for constraint projects_owner_id_fkey: time=0.301 calls=1
+ Execution Time: 0.497 ms
+(9 rows)
+
+ROLLBACK
+
+
+--- RUN 3 ---
+SET
+BEGIN
+                                              QUERY PLAN                                              
+------------------------------------------------------------------------------------------------------
+ Insert on projects  (cost=0.00..0.03 rows=1 width=1450) (actual time=0.169..0.170 rows=1.00 loops=1)
+   Buffers: shared hit=100
+   ->  Result  (cost=0.00..0.03 rows=1 width=1450) (actual time=0.024..0.025 rows=1.00 loops=1)
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=3
+ Planning Time: 0.045 ms
+ Trigger for constraint projects_owner_id_fkey: time=0.278 calls=1
+ Execution Time: 0.462 ms
+(9 rows)
+
+ROLLBACK
+

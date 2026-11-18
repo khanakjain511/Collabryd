@@ -1,0 +1,82 @@
+Query ID: R06
+Type: READ
+Description: Public student profile view with visibility check
+
+SQL:
+SELECT up.user_id, up.display_name, up.bio, up.avatar_url, up.institution,
+       up.course_program, up.academic_year, up.availability_status
+FROM user_profiles up
+JOIN users u ON up.user_id = u.user_id
+WHERE up.user_id = 15 AND u.account_status = 'ACTIVE' AND up.profile_visibility != 'PRIVATE';
+
+--- RUN 1 ---
+SET
+                                                                   QUERY PLAN                                                                   
+------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop  (cost=0.55..16.60 rows=1 width=701) (actual time=0.009..0.010 rows=0.00 loops=1)
+   Buffers: shared hit=6
+   ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..8.29 rows=1 width=701) (actual time=0.009..0.009 rows=0.00 loops=1)
+         Index Cond: (user_id = 15)
+         Filter: ((profile_visibility)::text <> 'PRIVATE'::text)
+         Rows Removed by Filter: 1
+         Index Searches: 1
+         Buffers: shared hit=6
+   ->  Index Scan using users_pkey on users u  (cost=0.27..8.29 rows=1 width=8) (never executed)
+         Index Cond: (user_id = 15)
+         Filter: ((account_status)::text = 'ACTIVE'::text)
+         Index Searches: 0
+ Planning:
+   Buffers: shared hit=188
+ Planning Time: 0.336 ms
+ Execution Time: 0.031 ms
+(16 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                                   QUERY PLAN                                                                   
+------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop  (cost=0.55..16.60 rows=1 width=701) (actual time=0.011..0.011 rows=0.00 loops=1)
+   Buffers: shared hit=6
+   ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..8.29 rows=1 width=701) (actual time=0.011..0.011 rows=0.00 loops=1)
+         Index Cond: (user_id = 15)
+         Filter: ((profile_visibility)::text <> 'PRIVATE'::text)
+         Rows Removed by Filter: 1
+         Index Searches: 1
+         Buffers: shared hit=6
+   ->  Index Scan using users_pkey on users u  (cost=0.27..8.29 rows=1 width=8) (never executed)
+         Index Cond: (user_id = 15)
+         Filter: ((account_status)::text = 'ACTIVE'::text)
+         Index Searches: 0
+ Planning:
+   Buffers: shared hit=188
+ Planning Time: 0.438 ms
+ Execution Time: 0.034 ms
+(16 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                                   QUERY PLAN                                                                   
+------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop  (cost=0.55..16.60 rows=1 width=701) (actual time=0.010..0.010 rows=0.00 loops=1)
+   Buffers: shared hit=6
+   ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..8.29 rows=1 width=701) (actual time=0.010..0.010 rows=0.00 loops=1)
+         Index Cond: (user_id = 15)
+         Filter: ((profile_visibility)::text <> 'PRIVATE'::text)
+         Rows Removed by Filter: 1
+         Index Searches: 1
+         Buffers: shared hit=6
+   ->  Index Scan using users_pkey on users u  (cost=0.27..8.29 rows=1 width=8) (never executed)
+         Index Cond: (user_id = 15)
+         Filter: ((account_status)::text = 'ACTIVE'::text)
+         Index Searches: 0
+ Planning:
+   Buffers: shared hit=188
+ Planning Time: 0.338 ms
+ Execution Time: 0.033 ms
+(16 rows)
+
+

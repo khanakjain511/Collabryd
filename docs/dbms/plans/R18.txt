@@ -1,0 +1,137 @@
+Query ID: R18
+Type: READ
+Description: Student submitted applications tracker
+
+SQL:
+SELECT a.application_id, p.project_id, p.title AS project_title, p.status AS project_status,
+       up.display_name AS owner_name, r.name AS applied_role, a.status AS application_status, a.applied_at
+FROM applications a
+JOIN projects p ON a.project_id = p.project_id
+JOIN users u ON p.owner_id = u.user_id
+JOIN user_profiles up ON u.user_id = up.user_id
+LEFT JOIN roles r ON a.role_id = r.role_id
+WHERE a.applicant_id = 105
+ORDER BY a.applied_at DESC;
+
+--- RUN 1 ---
+SET
+                                                                                 QUERY PLAN                                                                                  
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=18.77..18.77 rows=1 width=111) (actual time=0.019..0.019 rows=0.00 loops=1)
+   Sort Key: a.applied_at DESC
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=7
+   ->  Nested Loop Left Join  (cost=0.84..18.76 rows=1 width=111) (actual time=0.007..0.007 rows=0.00 loops=1)
+         Join Filter: (a.role_id = r.role_id)
+         Buffers: shared hit=4
+         ->  Nested Loop  (cost=0.84..17.58 rows=1 width=101) (actual time=0.007..0.007 rows=0.00 loops=1)
+               Join Filter: (up.user_id = p.owner_id)
+               Buffers: shared hit=4
+               ->  Nested Loop  (cost=0.56..17.10 rows=1 width=105) (actual time=0.007..0.007 rows=0.00 loops=1)
+                     Buffers: shared hit=4
+                     ->  Nested Loop  (cost=0.29..16.43 rows=1 width=97) (actual time=0.007..0.007 rows=0.00 loops=1)
+                           Buffers: shared hit=4
+                           ->  Index Scan using idx_applications_applicant on applications a  (cost=0.15..8.17 rows=1 width=40) (actual time=0.007..0.007 rows=0.00 loops=1)
+                                 Index Cond: (applicant_id = 105)
+                                 Index Searches: 1
+                                 Buffers: shared hit=4
+                           ->  Index Scan using projects_pkey on projects p  (cost=0.14..8.16 rows=1 width=65) (never executed)
+                                 Index Cond: (project_id = a.project_id)
+                                 Index Searches: 0
+                     ->  Index Only Scan using users_pkey on users u  (cost=0.27..0.66 rows=1 width=8) (never executed)
+                           Index Cond: (user_id = p.owner_id)
+                           Heap Fetches: 0
+                           Index Searches: 0
+               ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..0.47 rows=1 width=20) (never executed)
+                     Index Cond: (user_id = u.user_id)
+                     Index Searches: 0
+         ->  Seq Scan on roles r  (cost=0.00..1.08 rows=8 width=26) (never executed)
+ Planning:
+   Buffers: shared hit=481
+ Planning Time: 0.901 ms
+ Execution Time: 0.057 ms
+(33 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                                                 QUERY PLAN                                                                                  
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=18.77..18.77 rows=1 width=111) (actual time=0.022..0.022 rows=0.00 loops=1)
+   Sort Key: a.applied_at DESC
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=7
+   ->  Nested Loop Left Join  (cost=0.84..18.76 rows=1 width=111) (actual time=0.008..0.008 rows=0.00 loops=1)
+         Join Filter: (a.role_id = r.role_id)
+         Buffers: shared hit=4
+         ->  Nested Loop  (cost=0.84..17.58 rows=1 width=101) (actual time=0.008..0.008 rows=0.00 loops=1)
+               Join Filter: (up.user_id = p.owner_id)
+               Buffers: shared hit=4
+               ->  Nested Loop  (cost=0.56..17.10 rows=1 width=105) (actual time=0.008..0.008 rows=0.00 loops=1)
+                     Buffers: shared hit=4
+                     ->  Nested Loop  (cost=0.29..16.43 rows=1 width=97) (actual time=0.008..0.008 rows=0.00 loops=1)
+                           Buffers: shared hit=4
+                           ->  Index Scan using idx_applications_applicant on applications a  (cost=0.15..8.17 rows=1 width=40) (actual time=0.007..0.007 rows=0.00 loops=1)
+                                 Index Cond: (applicant_id = 105)
+                                 Index Searches: 1
+                                 Buffers: shared hit=4
+                           ->  Index Scan using projects_pkey on projects p  (cost=0.14..8.16 rows=1 width=65) (never executed)
+                                 Index Cond: (project_id = a.project_id)
+                                 Index Searches: 0
+                     ->  Index Only Scan using users_pkey on users u  (cost=0.27..0.66 rows=1 width=8) (never executed)
+                           Index Cond: (user_id = p.owner_id)
+                           Heap Fetches: 0
+                           Index Searches: 0
+               ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..0.47 rows=1 width=20) (never executed)
+                     Index Cond: (user_id = u.user_id)
+                     Index Searches: 0
+         ->  Seq Scan on roles r  (cost=0.00..1.08 rows=8 width=26) (never executed)
+ Planning:
+   Buffers: shared hit=481
+ Planning Time: 1.355 ms
+ Execution Time: 0.062 ms
+(33 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                                                 QUERY PLAN                                                                                  
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=18.77..18.77 rows=1 width=111) (actual time=0.021..0.022 rows=0.00 loops=1)
+   Sort Key: a.applied_at DESC
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=7
+   ->  Nested Loop Left Join  (cost=0.84..18.76 rows=1 width=111) (actual time=0.008..0.008 rows=0.00 loops=1)
+         Join Filter: (a.role_id = r.role_id)
+         Buffers: shared hit=4
+         ->  Nested Loop  (cost=0.84..17.58 rows=1 width=101) (actual time=0.008..0.008 rows=0.00 loops=1)
+               Join Filter: (up.user_id = p.owner_id)
+               Buffers: shared hit=4
+               ->  Nested Loop  (cost=0.56..17.10 rows=1 width=105) (actual time=0.007..0.008 rows=0.00 loops=1)
+                     Buffers: shared hit=4
+                     ->  Nested Loop  (cost=0.29..16.43 rows=1 width=97) (actual time=0.007..0.008 rows=0.00 loops=1)
+                           Buffers: shared hit=4
+                           ->  Index Scan using idx_applications_applicant on applications a  (cost=0.15..8.17 rows=1 width=40) (actual time=0.007..0.007 rows=0.00 loops=1)
+                                 Index Cond: (applicant_id = 105)
+                                 Index Searches: 1
+                                 Buffers: shared hit=4
+                           ->  Index Scan using projects_pkey on projects p  (cost=0.14..8.16 rows=1 width=65) (never executed)
+                                 Index Cond: (project_id = a.project_id)
+                                 Index Searches: 0
+                     ->  Index Only Scan using users_pkey on users u  (cost=0.27..0.66 rows=1 width=8) (never executed)
+                           Index Cond: (user_id = p.owner_id)
+                           Heap Fetches: 0
+                           Index Searches: 0
+               ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..0.47 rows=1 width=20) (never executed)
+                     Index Cond: (user_id = u.user_id)
+                     Index Searches: 0
+         ->  Seq Scan on roles r  (cost=0.00..1.08 rows=8 width=26) (never executed)
+ Planning:
+   Buffers: shared hit=481
+ Planning Time: 1.050 ms
+ Execution Time: 0.069 ms
+(33 rows)
+
+
