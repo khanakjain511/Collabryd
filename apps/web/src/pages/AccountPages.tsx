@@ -2,8 +2,15 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import type { DemoData } from "../hooks/useDemoData";
 import { PublicLayout } from "../components/Layout";
-import { Avatar, EmptyState, Icon, PageHeading } from "../components/ui";
-import { isHttpUrl } from "../lib/validation";
+import {
+  Avatar,
+  Dialog,
+  EmptyState,
+  Icon,
+  PageHeading,
+} from "../components/ui";
+import { isHttpUrl, paginate } from "../lib/validation";
+import { Pagination } from "../components/Pagination";
 
 export function ProfileFormPage({
   demo,
@@ -299,6 +306,7 @@ export function SettingsPage({
   demo: DemoData;
 }) {
   const [saved, setSaved] = useState(false);
+  const [confirmDeletion, setConfirmDeletion] = useState(false);
   return (
     <>
       <PageHeading
@@ -343,6 +351,23 @@ export function SettingsPage({
                   <strong>Show my example profile in discovery</strong>
                   <small>
                     This previews a visibility preference. Nothing is uploaded.
+                  </small>
+                </span>
+              </label>
+              <label className="checkbox-label setting-toggle">
+                <input
+                  type="checkbox"
+                  checked={demo.notificationsEnabled}
+                  onChange={(event) => {
+                    demo.setNotificationsEnabled(event.target.checked);
+                    setSaved(false);
+                  }}
+                />
+                <span>
+                  <strong>Receive local activity updates</strong>
+                  <small>
+                    Pause new demo notifications. Action confirmations still
+                    stay visible.
                   </small>
                 </span>
               </label>
@@ -414,6 +439,29 @@ export function SettingsPage({
               >
                 Reset all demo changes
               </button>
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() =>
+                  demo.setProfile({ ...demo.profile, status: "Suspended" })
+                }
+              >
+                Preview suspended-account access
+              </button>
+              {demo.deletionRequested ? (
+                <p className="inline-info" role="status">
+                  Demo deletion request recorded. No account or real data was
+                  deleted.
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  className="text-button danger-text"
+                  onClick={() => setConfirmDeletion(true)}
+                >
+                  Preview account deletion request
+                </button>
+              )}
               <p className="field-hint">
                 Real account deletion, retention and password policies will need
                 a connected backend and campus policy.
@@ -436,13 +484,46 @@ export function SettingsPage({
           </div>
         </aside>
       </div>
+      {confirmDeletion && (
+        <Dialog
+          title="Preview an account deletion request?"
+          onClose={() => setConfirmDeletion(false)}
+        >
+          <p>
+            This records a local request only. No real account or data will be
+            deleted. A live product must explain its retention policy and
+            confirm the server outcome.
+          </p>
+          <div className="form-actions">
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => setConfirmDeletion(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="button button-danger"
+              onClick={() => {
+                demo.setDeletionRequested(true);
+                setConfirmDeletion(false);
+              }}
+            >
+              Record demo deletion request
+            </button>
+          </div>
+        </Dialog>
+      )}
     </>
   );
 }
 
 export function NotificationsPage({ demo }: { demo: DemoData }) {
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [page, setPage] = useState(1);
   const notices = demo.notices.filter((notice) => !unreadOnly || !notice.read);
+  const results = paginate(notices, page);
   return (
     <>
       <PageHeading
@@ -469,7 +550,10 @@ export function NotificationsPage({ demo }: { demo: DemoData }) {
           type="button"
           aria-pressed={!unreadOnly}
           className={!unreadOnly ? "active" : ""}
-          onClick={() => setUnreadOnly(false)}
+          onClick={() => {
+            setUnreadOnly(false);
+            setPage(1);
+          }}
         >
           All updates
         </button>
@@ -477,14 +561,17 @@ export function NotificationsPage({ demo }: { demo: DemoData }) {
           type="button"
           aria-pressed={unreadOnly}
           className={unreadOnly ? "active" : ""}
-          onClick={() => setUnreadOnly(true)}
+          onClick={() => {
+            setUnreadOnly(true);
+            setPage(1);
+          }}
         >
           Unread
         </button>
       </div>
       {notices.length ? (
         <div className="list-panel">
-          {notices.map((notice) => (
+          {results.items.map((notice) => (
             <article
               className={`notice-row ${notice.read ? "" : "notice-unread"}`}
               key={notice.id}
@@ -540,6 +627,17 @@ export function NotificationsPage({ demo }: { demo: DemoData }) {
             </a>
           }
         />
+      )}
+      <Pagination
+        page={results.page}
+        totalPages={results.totalPages}
+        onChange={setPage}
+      />
+      {!demo.notificationsEnabled && (
+        <p className="inline-info">
+          New local activity updates are paused. You can enable them in{" "}
+          <a href="#/settings/privacy">privacy settings</a>.
+        </p>
       )}
     </>
   );

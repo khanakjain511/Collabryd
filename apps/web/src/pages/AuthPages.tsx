@@ -285,6 +285,27 @@ export function AuthPage({
 }
 
 export function AccessPage({ demo }: { demo: DemoData }) {
+  if (demo.signedIn && demo.profile.status === "Suspended")
+    return (
+      <div className="access-page container">
+        <span className="access-symbol">
+          <Icon name="lock" size={36} />
+        </span>
+        <p className="eyebrow">ACCOUNT ACCESS / DEMO STATE</p>
+        <h1 tabIndex={-1}>This account is on pause.</h1>
+        <p>
+          The suspended-account preview blocks workspace screens.
+          <br />A live service must revoke access on the server.
+        </p>
+        <button
+          type="button"
+          className="button button-primary"
+          onClick={demo.signOut}
+        >
+          Leave suspended-account preview
+        </button>
+      </div>
+    );
   return (
     <div className="access-page container">
       <span className="access-symbol">

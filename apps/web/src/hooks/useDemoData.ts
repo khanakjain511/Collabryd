@@ -29,6 +29,8 @@ export function useDemoData() {
   const [reports, setReports] = useState<Report[]>([]);
   const [blockedIds, setBlockedIds] = useState<string[]>([]);
   const [visible, setVisible] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [deletionRequested, setDeletionRequested] = useState(false);
   const [feedback, setFeedback] = useState("");
 
   // Demo data lives here, so it survives page navigation and resets on refresh.
@@ -41,10 +43,11 @@ export function useDemoData() {
       href,
       read: false,
     };
-    setNotices((current) => [notice, ...current]);
+    if (notificationsEnabled) setNotices((current) => [notice, ...current]);
   }
 
   function openDemo() {
+    setProfile((current) => ({ ...current, status: "Active" }));
     setSignedIn(true);
     setVerified(true);
     window.location.hash = "/dashboard";
@@ -116,6 +119,11 @@ export function useDemoData() {
       setFeedback(
         "This team is full or no longer recruiting. The request is still pending.",
       );
+      return;
+    }
+    const applicant = people.find((person) => person.id === request.personId);
+    if (accept && applicant?.status && applicant.status !== "Active") {
+      setFeedback("This example applicant no longer has active campus access.");
       return;
     }
     setRequests((current) =>
@@ -314,11 +322,14 @@ export function useDemoData() {
 
   function transferLeadership(teamId: string, personId: string) {
     const team = teams.find((item) => item.id === teamId);
+    const nextLeader = people.find((person) => person.id === personId);
     if (
       !team ||
       team.leaderId !== "you" ||
       personId === "you" ||
-      !team.members.includes(personId)
+      !team.members.includes(personId) ||
+      !nextLeader ||
+      (nextLeader.status && nextLeader.status !== "Active")
     )
       return "Choose another current member to lead the team.";
     setTeams((current) =>
@@ -379,6 +390,13 @@ export function useDemoData() {
   }
 
   function moderateTeam(id: string, status: Team["status"]) {
+    const team = teams.find((item) => item.id === id);
+    if (status === "Recruiting" && !team?.leaderId) {
+      setFeedback(
+        "This archived example has no leader and cannot reopen recruitment.",
+      );
+      return;
+    }
     setTeams((current) =>
       current.map((team) => (team.id === id ? { ...team, status } : team)),
     );
@@ -457,6 +475,10 @@ export function useDemoData() {
     setBlockedIds,
     visible,
     setVisible,
+    notificationsEnabled,
+    setNotificationsEnabled,
+    deletionRequested,
+    setDeletionRequested,
     feedback,
     setFeedback,
     openDemo,

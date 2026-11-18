@@ -56,7 +56,7 @@ function App() {
     document
       .querySelector<HTMLElement>("main h1")
       ?.focus({ preventScroll: true });
-  }, [path, demo.signedIn, demo.verified]);
+  }, [path, demo.signedIn, demo.verified, demo.profile.status]);
 
   const [area, id, action] = path.slice(1).split("/");
   const authModes = [
@@ -99,7 +99,11 @@ function App() {
         </div>
       </PublicLayout>
     );
-  else if (!demo.signedIn || !demo.verified)
+  else if (
+    !demo.signedIn ||
+    !demo.verified ||
+    demo.profile.status === "Suspended"
+  )
     page = (
       <PublicLayout demo={demo}>
         <AccessPage demo={demo} />
