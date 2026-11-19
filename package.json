@@ -12,6 +12,9 @@
     "backend:dev": "pnpm --filter @repo/api dev",
     "backend:build": "pnpm --filter @repo/api build",
     "backend:test": "pnpm --filter @repo/api test",
+    "web:dev": "pnpm --filter web dev",
+    "web:build": "pnpm --filter web build",
+    "web:lint": "pnpm --filter web lint",
     "db:migrate": "pnpm --filter @collabryd/database db:migrate",
     "db:seed": "pnpm --filter @collabryd/database db:seed"
   },
