@@ -1,3 +1,16 @@
+## 19 November 2026 — refinement foundation checkpoint
+
+The user approved selective frontend refinement after reviewing the plan. Preserve the existing hash routes, fixture/state hooks, validation and MVP actions. New work is in progress; the earlier completed-demo verification below describes the prior release.
+
+- Replaced literal workspace colors with shared surface/text/border/status roles; added light/dark tokens, system-theme detection and a saved local preference.
+- Increased formerly tiny product labels and statuses; kept existing cards, forms and responsive layouts.
+- Installed GSAP 3.15.1, Lenis 1.3.27 and Three 0.187.0 with matching Three types. The user explicitly allowed the dependency-only root lockfile update; no other root/backend changes are authorized.
+- Applied the supplied `skills/skills/emil-design-eng` and `skills/skills/animate` guidance plus UI/UX Pro Max. No additional skill installation was needed.
+- Six existing Node tests pass. The current working draft passes TypeScript/Vite build and targeted ESLint. Browser checks confirm light/dark switching, login/signup switching, demo login and dark-mode discovery. Remaining motion/mobile/route checks are still pending.
+- Landing, navigation and authentication refinements remain a separate uncommitted slice at this checkpoint. The unfinished draft was narrowed to the presentation layer; existing product actions were retained.
+
+Next: complete public motion and native-dialog polish, verify mobile and preserved workflows, then record final screenshots and production checks.
+
 # Frontend progress
 
 Updated: 18 November 2026. Branch: `Akshay`.

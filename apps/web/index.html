@@ -4,11 +4,22 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#115e59" />
+    <meta name="theme-color" content="#f7f8fa" />
     <meta
       name="description"
       content="Find your people. Form your team. Collabyrd is a campus-first teammate and hackathon discovery frontend demo."
     />
+    <script>
+      try {
+        const theme = localStorage.getItem("collabyrd-theme");
+        document.documentElement.dataset.theme =
+          theme === "dark" || theme === "light"
+            ? theme
+            : matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+      } catch {}
+    </script>
     <title>Collabyrd · Good ideas need great people</title>
   </head>
   <body>

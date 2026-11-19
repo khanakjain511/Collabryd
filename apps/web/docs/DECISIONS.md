@@ -1,3 +1,11 @@
+## Refinement decisions — 19 November 2026
+
+The latest user approval supersedes earlier plan-only and no-library motion decisions. Apply selective presentation improvements within `apps/web`, with the expressly approved dependency-only `pnpm-lock.yaml` exception. Keep native hash routing, React state hooks, forms, validation and product boundaries.
+
+Use soft neutral surfaces, charcoal text and restrained indigo; supply explicit dark colors for surfaces, controls, status labels and focus. Store appearance preferences locally; fictional application data still resets on refresh. No external font is required.
+
+GSAP/ScrollTrigger supplies coordinated narrative motion. Lenis is landing-only. Three is lazy-loaded for one small original network illustration with meaningful content in HTML/SVG. Inspected Vanta NET source uses legacy `THREE.VertexColors`; avoid bringing an older renderer into the project solely for that effect. Vanta and React Bits are inspirations, not installed/copied components. Auth and navigation continue using native dialogs and existing form actions. No new routing, component or animation framework.
+
 # Collabyrd frontend handoff
 
 Updated: 18 November 2026. **Implementation is approved and a frontend demo is built.** Read this, FRONTEND_STATUS.md, PROGRESS.md, ROADMAP.md, CHECKLIST.md and DECISIONS.md, then inspect actual source and git status. Earlier planning specifications are prospective; this file and PROGRESS describe current implementation.

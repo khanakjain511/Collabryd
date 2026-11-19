@@ -1,3 +1,5 @@
+> Refinement in progress, 19 November 2026: the user approved the targeted plan and permitted the dependency-only root lockfile update. Read the newest PROGRESS/DECISIONS entries before the older completed-demo account below. Theme foundations are being committed first; public navigation, landing and auth changes are a separate working slice. Preserve the untracked user product PDF and supplied `skills/` folder. Do not stage those files incidentally. Backend scope is unchanged.
+
 # Collabyrd frontend handoff
 
 Updated: 18 November 2026. **Implementation is approved and a frontend demo is built.** Read this, FRONTEND_STATUS.md, PROGRESS.md, ROADMAP.md, CHECKLIST.md and DECISIONS.md, then inspect actual source and git status. Earlier planning specifications are prospective; this file and PROGRESS describe current implementation.
