@@ -1,0 +1,68 @@
+Query ID: W09
+Type: WRITE
+Description: Send chat message with sequence increment
+
+SQL:
+INSERT INTO messages (conversation_id, sender_id, client_message_id, sequence_number, content)
+VALUES (1, 1, 'cli_msg_unique_uuid_9999', 16, 'Integration tests passed. Ready for code review.')
+RETURNING message_id, conversation_id, sequence_number, created_at;
+
+--- RUN 1 ---
+SET
+BEGIN
+                                             QUERY PLAN                                              
+-----------------------------------------------------------------------------------------------------
+ Insert on messages  (cost=0.00..0.01 rows=1 width=290) (actual time=0.163..0.164 rows=1.00 loops=1)
+   Buffers: shared hit=106
+   ->  Result  (cost=0.00..0.01 rows=1 width=290) (actual time=0.027..0.027 rows=1.00 loops=1)
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=6
+ Planning Time: 0.046 ms
+ Trigger for constraint messages_conversation_id_fkey: time=0.242 calls=1
+ Trigger for constraint messages_sender_id_fkey: time=0.159 calls=1
+ Execution Time: 0.578 ms
+(10 rows)
+
+ROLLBACK
+
+
+--- RUN 2 ---
+SET
+BEGIN
+                                             QUERY PLAN                                              
+-----------------------------------------------------------------------------------------------------
+ Insert on messages  (cost=0.00..0.01 rows=1 width=290) (actual time=0.143..0.144 rows=1.00 loops=1)
+   Buffers: shared hit=108
+   ->  Result  (cost=0.00..0.01 rows=1 width=290) (actual time=0.020..0.020 rows=1.00 loops=1)
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=6
+ Planning Time: 0.046 ms
+ Trigger for constraint messages_conversation_id_fkey: time=0.255 calls=1
+ Trigger for constraint messages_sender_id_fkey: time=0.167 calls=1
+ Execution Time: 0.578 ms
+(10 rows)
+
+ROLLBACK
+
+
+--- RUN 3 ---
+SET
+BEGIN
+                                             QUERY PLAN                                              
+-----------------------------------------------------------------------------------------------------
+ Insert on messages  (cost=0.00..0.01 rows=1 width=290) (actual time=0.143..0.143 rows=1.00 loops=1)
+   Buffers: shared hit=108
+   ->  Result  (cost=0.00..0.01 rows=1 width=290) (actual time=0.020..0.020 rows=1.00 loops=1)
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=6
+ Planning Time: 0.043 ms
+ Trigger for constraint messages_conversation_id_fkey: time=0.234 calls=1
+ Trigger for constraint messages_sender_id_fkey: time=0.153 calls=1
+ Execution Time: 0.542 ms
+(10 rows)
+
+ROLLBACK
+

@@ -1,0 +1,133 @@
+Query ID: R22
+Type: READ
+Description: Cursor-paginated conversation message history
+
+SQL:
+SELECT m.message_id, m.conversation_id, m.sender_id, up.display_name AS sender_name,
+       m.sequence_number, m.content, m.created_at
+FROM messages m
+JOIN users u ON m.sender_id = u.user_id
+JOIN user_profiles up ON u.user_id = up.user_id
+WHERE m.conversation_id = 1 AND m.sequence_number > 5
+ORDER BY m.sequence_number ASC
+LIMIT 20;
+
+--- RUN 1 ---
+SET
+                                                                               QUERY PLAN                                                                               
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=35.49..35.52 rows=10 width=136) (actual time=0.043..0.044 rows=10.00 loops=1)
+   Buffers: shared hit=39
+   ->  Sort  (cost=35.49..35.52 rows=10 width=136) (actual time=0.043..0.043 rows=10.00 loops=1)
+         Sort Key: m.sequence_number
+         Sort Method: quicksort  Memory: 27kB
+         Buffers: shared hit=39
+         ->  Nested Loop  (cost=23.34..35.33 rows=10 width=136) (actual time=0.033..0.038 rows=10.00 loops=1)
+               Join Filter: (up.user_id = m.sender_id)
+               Buffers: shared hit=39
+               ->  Merge Join  (cost=23.07..30.54 rows=10 width=132) (actual time=0.031..0.032 rows=10.00 loops=1)
+                     Merge Cond: (u.user_id = m.sender_id)
+                     Buffers: shared hit=9
+                     ->  Index Only Scan using users_pkey on users u  (cost=0.27..36.77 rows=500 width=8) (actual time=0.003..0.005 rows=22.00 loops=1)
+                           Heap Fetches: 22
+                           Index Searches: 1
+                           Buffers: shared hit=3
+                     ->  Sort  (cost=22.64..22.67 rows=10 width=124) (actual time=0.022..0.023 rows=10.00 loops=1)
+                           Sort Key: m.sender_id
+                           Sort Method: quicksort  Memory: 26kB
+                           Buffers: shared hit=6
+                           ->  Index Scan using idx_messages_conv_seq on messages m  (cost=0.28..22.48 rows=10 width=124) (actual time=0.013..0.014 rows=10.00 loops=1)
+                                 Index Cond: ((conversation_id = 1) AND (sequence_number > 5))
+                                 Index Searches: 1
+                                 Buffers: shared hit=6
+               ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..0.47 rows=1 width=20) (actual time=0.000..0.000 rows=1.00 loops=10)
+                     Index Cond: (user_id = u.user_id)
+                     Index Searches: 10
+                     Buffers: shared hit=30
+ Planning:
+   Buffers: shared hit=271
+ Planning Time: 0.647 ms
+ Execution Time: 0.077 ms
+(32 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                                               QUERY PLAN                                                                               
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=35.49..35.52 rows=10 width=136) (actual time=0.040..0.041 rows=10.00 loops=1)
+   Buffers: shared hit=39
+   ->  Sort  (cost=35.49..35.52 rows=10 width=136) (actual time=0.039..0.039 rows=10.00 loops=1)
+         Sort Key: m.sequence_number
+         Sort Method: quicksort  Memory: 27kB
+         Buffers: shared hit=39
+         ->  Nested Loop  (cost=23.34..35.33 rows=10 width=136) (actual time=0.029..0.034 rows=10.00 loops=1)
+               Join Filter: (up.user_id = m.sender_id)
+               Buffers: shared hit=39
+               ->  Merge Join  (cost=23.07..30.54 rows=10 width=132) (actual time=0.027..0.028 rows=10.00 loops=1)
+                     Merge Cond: (u.user_id = m.sender_id)
+                     Buffers: shared hit=9
+                     ->  Index Only Scan using users_pkey on users u  (cost=0.27..36.77 rows=500 width=8) (actual time=0.003..0.005 rows=22.00 loops=1)
+                           Heap Fetches: 22
+                           Index Searches: 1
+                           Buffers: shared hit=3
+                     ->  Sort  (cost=22.64..22.67 rows=10 width=124) (actual time=0.019..0.019 rows=10.00 loops=1)
+                           Sort Key: m.sender_id
+                           Sort Method: quicksort  Memory: 26kB
+                           Buffers: shared hit=6
+                           ->  Index Scan using idx_messages_conv_seq on messages m  (cost=0.28..22.48 rows=10 width=124) (actual time=0.010..0.010 rows=10.00 loops=1)
+                                 Index Cond: ((conversation_id = 1) AND (sequence_number > 5))
+                                 Index Searches: 1
+                                 Buffers: shared hit=6
+               ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..0.47 rows=1 width=20) (actual time=0.000..0.000 rows=1.00 loops=10)
+                     Index Cond: (user_id = u.user_id)
+                     Index Searches: 10
+                     Buffers: shared hit=30
+ Planning:
+   Buffers: shared hit=271
+ Planning Time: 0.578 ms
+ Execution Time: 0.072 ms
+(32 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                                               QUERY PLAN                                                                               
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=35.49..35.52 rows=10 width=136) (actual time=0.042..0.043 rows=10.00 loops=1)
+   Buffers: shared hit=39
+   ->  Sort  (cost=35.49..35.52 rows=10 width=136) (actual time=0.041..0.042 rows=10.00 loops=1)
+         Sort Key: m.sequence_number
+         Sort Method: quicksort  Memory: 27kB
+         Buffers: shared hit=39
+         ->  Nested Loop  (cost=23.34..35.33 rows=10 width=136) (actual time=0.031..0.037 rows=10.00 loops=1)
+               Join Filter: (up.user_id = m.sender_id)
+               Buffers: shared hit=39
+               ->  Merge Join  (cost=23.07..30.54 rows=10 width=132) (actual time=0.029..0.031 rows=10.00 loops=1)
+                     Merge Cond: (u.user_id = m.sender_id)
+                     Buffers: shared hit=9
+                     ->  Index Only Scan using users_pkey on users u  (cost=0.27..36.77 rows=500 width=8) (actual time=0.003..0.005 rows=22.00 loops=1)
+                           Heap Fetches: 22
+                           Index Searches: 1
+                           Buffers: shared hit=3
+                     ->  Sort  (cost=22.64..22.67 rows=10 width=124) (actual time=0.021..0.021 rows=10.00 loops=1)
+                           Sort Key: m.sender_id
+                           Sort Method: quicksort  Memory: 26kB
+                           Buffers: shared hit=6
+                           ->  Index Scan using idx_messages_conv_seq on messages m  (cost=0.28..22.48 rows=10 width=124) (actual time=0.010..0.011 rows=10.00 loops=1)
+                                 Index Cond: ((conversation_id = 1) AND (sequence_number > 5))
+                                 Index Searches: 1
+                                 Buffers: shared hit=6
+               ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..0.47 rows=1 width=20) (actual time=0.000..0.000 rows=1.00 loops=10)
+                     Index Cond: (user_id = u.user_id)
+                     Index Searches: 10
+                     Buffers: shared hit=30
+ Planning:
+   Buffers: shared hit=271
+ Planning Time: 0.683 ms
+ Execution Time: 0.076 ms
+(32 rows)
+
+

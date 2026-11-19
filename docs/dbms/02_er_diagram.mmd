@@ -1,0 +1,158 @@
+erDiagram
+    USERS ||--|| USER_PROFILES : "has profile"
+    USERS ||--o{ EMAIL_VERIFICATION_TOKENS : "verifies"
+    USERS ||--o{ REFRESH_SESSIONS : "authenticates"
+    USERS ||--o{ ACHIEVEMENTS : "earns"
+    USERS ||--o{ SOCIAL_LINKS : "links"
+    USERS ||--o{ USER_SKILLS : "possesses"
+    SKILLS ||--o{ USER_SKILLS : "assigned_to"
+    USERS ||--o{ USER_INTERESTS : "interested_in"
+    INTERESTS ||--o{ USER_INTERESTS : "selected_by"
+    USERS ||--o{ USER_PREFERRED_ROLES : "prefers"
+    ROLES ||--o{ USER_PREFERRED_ROLES : "selected_by"
+
+    USERS ||--o{ PROJECTS : "owns"
+    PROJECTS ||--o{ PROJECT_SKILLS : "requires"
+    SKILLS ||--o{ PROJECT_SKILLS : "needed_for"
+    PROJECTS ||--o{ PROJECT_ROLES : "opens"
+    ROLES ||--o{ PROJECT_ROLES : "defined_for"
+
+    USERS ||--o{ APPLICATIONS : "submits"
+    PROJECTS ||--o{ APPLICATIONS : "receives"
+    ROLES o|--o{ APPLICATIONS : "applied_as"
+
+    USERS ||--o{ PROJECT_MEMBER : "member_of"
+    PROJECTS ||--o{ PROJECT_MEMBER : "composed_of"
+
+    PROJECTS o|--o| CONVERSATIONS : "associated_group_chat"
+    CONVERSATIONS ||--o{ CONVERSATION_MEMBERS : "includes"
+    USERS ||--o{ CONVERSATION_MEMBERS : "joins"
+
+    CONVERSATIONS ||--o{ MESSAGES : "contains"
+    USERS ||--o{ MESSAGES : "sends"
+
+    USERS ||--o{ NOTIFICATIONS : "receives"
+    USERS ||--|| NOTIFICATION_PREFERENCES : "configures"
+    USERS ||--o{ ADMIN_AUDIT_LOGS : "performed_by"
+
+    USERS {
+        bigint user_id PK
+        varchar email UK
+        varchar password_hash
+        varchar account_status
+        timestamptz created_at
+    }
+
+    USER_PROFILES {
+        bigint user_id PK,FK
+        varchar display_name
+        text bio
+        varchar institution
+        varchar course_program
+        varchar academic_year
+        varchar availability_status
+    }
+
+    SKILLS {
+        bigint skill_id PK
+        varchar name UK
+        varchar category
+    }
+
+    USER_SKILLS {
+        bigint user_id PK,FK
+        bigint skill_id PK,FK
+        varchar proficiency_level
+        numeric years_experience
+    }
+
+    INTERESTS {
+        bigint interest_id PK
+        varchar name UK
+        varchar domain
+    }
+
+    USER_INTERESTS {
+        bigint user_id PK,FK
+        bigint interest_id PK,FK
+    }
+
+    ROLES {
+        bigint role_id PK
+        varchar name UK
+        text description
+    }
+
+    USER_PREFERRED_ROLES {
+        bigint user_id PK,FK
+        bigint role_id PK,FK
+    }
+
+    PROJECTS {
+        bigint project_id PK
+        bigint owner_id FK
+        varchar title
+        varchar category
+        varchar project_type
+        varchar status
+        int min_team_size
+        int max_team_size
+    }
+
+    PROJECT_SKILLS {
+        bigint project_id PK,FK
+        bigint skill_id PK,FK
+        boolean is_required
+    }
+
+    PROJECT_ROLES {
+        bigint project_role_id PK
+        bigint project_id FK
+        bigint role_id FK
+        int open_positions
+    }
+
+    APPLICATIONS {
+        bigint application_id PK
+        bigint project_id FK
+        bigint applicant_id FK
+        bigint role_id FK
+        varchar status
+        text message
+    }
+
+    PROJECT_MEMBER {
+        bigint project_id PK,FK
+        bigint user_id PK,FK
+        varchar role
+        timestamptz joined_at
+    }
+
+    CONVERSATIONS {
+        bigint conversation_id PK
+        varchar type
+        bigint project_id FK,UK
+    }
+
+    CONVERSATION_MEMBERS {
+        bigint conversation_id PK,FK
+        bigint user_id PK,FK
+        bigint last_read_sequence
+    }
+
+    MESSAGES {
+        bigint message_id PK
+        bigint conversation_id FK
+        bigint sender_id FK
+        varchar client_message_id
+        bigint sequence_number
+        text content
+    }
+
+    NOTIFICATIONS {
+        bigint notification_id PK
+        bigint recipient_id FK
+        varchar type
+        boolean is_read
+    }
+

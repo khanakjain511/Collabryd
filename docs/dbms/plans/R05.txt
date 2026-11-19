@@ -1,0 +1,97 @@
+Query ID: R05
+Type: READ
+Description: Fetch student achievements and social links
+
+SQL:
+SELECT u.user_id, a.title AS achievement_title, a.issuer, a.date_achieved, sl.platform, sl.url
+FROM users u
+LEFT JOIN achievements a ON u.user_id = a.user_id
+LEFT JOIN social_links sl ON u.user_id = sl.user_id
+WHERE u.user_id = 42;
+
+--- RUN 1 ---
+SET
+                                                               QUERY PLAN                                                               
+----------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop Left Join  (cost=0.27..36.41 rows=2 width=97) (actual time=0.017..0.061 rows=2.00 loops=1)
+   Buffers: shared hit=21
+   ->  Nested Loop Left Join  (cost=0.27..16.41 rows=1 width=57) (actual time=0.014..0.024 rows=1.00 loops=1)
+         Buffers: shared hit=11
+         ->  Index Only Scan using users_pkey on users u  (cost=0.27..8.29 rows=1 width=8) (actual time=0.009..0.009 rows=1.00 loops=1)
+               Index Cond: (user_id = 42)
+               Heap Fetches: 1
+               Index Searches: 1
+               Buffers: shared hit=6
+         ->  Seq Scan on achievements a  (cost=0.00..8.11 rows=1 width=57) (actual time=0.004..0.014 rows=1.00 loops=1)
+               Filter: (user_id = 42)
+               Rows Removed by Filter: 248
+               Buffers: shared hit=5
+   ->  Seq Scan on social_links sl  (cost=0.00..19.98 rows=2 width=48) (actual time=0.003..0.036 rows=2.00 loops=1)
+         Filter: (user_id = 42)
+         Rows Removed by Filter: 796
+         Buffers: shared hit=10
+ Planning:
+   Buffers: shared hit=323
+ Planning Time: 0.451 ms
+ Execution Time: 0.089 ms
+(21 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                               QUERY PLAN                                                               
+----------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop Left Join  (cost=0.27..36.41 rows=2 width=97) (actual time=0.017..0.048 rows=2.00 loops=1)
+   Buffers: shared hit=21
+   ->  Nested Loop Left Join  (cost=0.27..16.41 rows=1 width=57) (actual time=0.013..0.022 rows=1.00 loops=1)
+         Buffers: shared hit=11
+         ->  Index Only Scan using users_pkey on users u  (cost=0.27..8.29 rows=1 width=8) (actual time=0.009..0.009 rows=1.00 loops=1)
+               Index Cond: (user_id = 42)
+               Heap Fetches: 1
+               Index Searches: 1
+               Buffers: shared hit=6
+         ->  Seq Scan on achievements a  (cost=0.00..8.11 rows=1 width=57) (actual time=0.004..0.011 rows=1.00 loops=1)
+               Filter: (user_id = 42)
+               Rows Removed by Filter: 248
+               Buffers: shared hit=5
+   ->  Seq Scan on social_links sl  (cost=0.00..19.98 rows=2 width=48) (actual time=0.003..0.026 rows=2.00 loops=1)
+         Filter: (user_id = 42)
+         Rows Removed by Filter: 796
+         Buffers: shared hit=10
+ Planning:
+   Buffers: shared hit=323
+ Planning Time: 0.412 ms
+ Execution Time: 0.075 ms
+(21 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                               QUERY PLAN                                                               
+----------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop Left Join  (cost=0.27..36.41 rows=2 width=97) (actual time=0.018..0.050 rows=2.00 loops=1)
+   Buffers: shared hit=21
+   ->  Nested Loop Left Join  (cost=0.27..16.41 rows=1 width=57) (actual time=0.014..0.023 rows=1.00 loops=1)
+         Buffers: shared hit=11
+         ->  Index Only Scan using users_pkey on users u  (cost=0.27..8.29 rows=1 width=8) (actual time=0.010..0.010 rows=1.00 loops=1)
+               Index Cond: (user_id = 42)
+               Heap Fetches: 1
+               Index Searches: 1
+               Buffers: shared hit=6
+         ->  Seq Scan on achievements a  (cost=0.00..8.11 rows=1 width=57) (actual time=0.004..0.012 rows=1.00 loops=1)
+               Filter: (user_id = 42)
+               Rows Removed by Filter: 248
+               Buffers: shared hit=5
+   ->  Seq Scan on social_links sl  (cost=0.00..19.98 rows=2 width=48) (actual time=0.003..0.027 rows=2.00 loops=1)
+         Filter: (user_id = 42)
+         Rows Removed by Filter: 796
+         Buffers: shared hit=10
+ Planning:
+   Buffers: shared hit=323
+ Planning Time: 0.426 ms
+ Execution Time: 0.080 ms
+(21 rows)
+
+

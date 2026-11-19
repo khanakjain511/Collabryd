@@ -1,0 +1,113 @@
+Query ID: R08
+Type: READ
+Description: Search interest domains by category
+
+SQL:
+SELECT i.interest_id, i.name, i.domain, COUNT(ui.user_id) AS follower_count
+FROM interests i
+LEFT JOIN user_interests ui ON i.interest_id = ui.interest_id
+WHERE i.domain = 'AI/ML'
+GROUP BY i.interest_id, i.name, i.domain
+ORDER BY follower_count DESC;
+
+--- RUN 1 ---
+SET
+                                                                         QUERY PLAN                                                                          
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=18.02..18.03 rows=1 width=40) (actual time=0.053..0.053 rows=1.00 loops=1)
+   Sort Key: (count(ui.user_id)) DESC
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=13
+   ->  HashAggregate  (cost=18.00..18.01 rows=1 width=40) (actual time=0.046..0.047 rows=1.00 loops=1)
+         Group Key: i.name
+         Batches: 1  Memory Usage: 32kB
+         Buffers: shared hit=10
+         ->  Nested Loop Left Join  (cost=4.97..17.48 rows=105 width=40) (actual time=0.013..0.035 rows=110.00 loops=1)
+               Buffers: shared hit=10
+               ->  Seq Scan on interests i  (cost=0.00..1.15 rows=1 width=32) (actual time=0.003..0.004 rows=1.00 loops=1)
+                     Filter: ((domain)::text = 'AI/ML'::text)
+                     Rows Removed by Filter: 11
+                     Buffers: shared hit=1
+               ->  Bitmap Heap Scan on user_interests ui  (cost=4.97..15.28 rows=105 width=16) (actual time=0.009..0.027 rows=110.00 loops=1)
+                     Recheck Cond: (i.interest_id = interest_id)
+                     Heap Blocks: exact=8
+                     Buffers: shared hit=9
+                     ->  Bitmap Index Scan on idx_user_interests_interest  (cost=0.00..4.94 rows=105 width=0) (actual time=0.003..0.003 rows=110.00 loops=1)
+                           Index Cond: (interest_id = i.interest_id)
+                           Index Searches: 1
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=170
+ Planning Time: 0.330 ms
+ Execution Time: 0.093 ms
+(26 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                                         QUERY PLAN                                                                          
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=18.02..18.03 rows=1 width=40) (actual time=0.048..0.048 rows=1.00 loops=1)
+   Sort Key: (count(ui.user_id)) DESC
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=13
+   ->  HashAggregate  (cost=18.00..18.01 rows=1 width=40) (actual time=0.041..0.041 rows=1.00 loops=1)
+         Group Key: i.name
+         Batches: 1  Memory Usage: 32kB
+         Buffers: shared hit=10
+         ->  Nested Loop Left Join  (cost=4.97..17.48 rows=105 width=40) (actual time=0.012..0.030 rows=110.00 loops=1)
+               Buffers: shared hit=10
+               ->  Seq Scan on interests i  (cost=0.00..1.15 rows=1 width=32) (actual time=0.003..0.003 rows=1.00 loops=1)
+                     Filter: ((domain)::text = 'AI/ML'::text)
+                     Rows Removed by Filter: 11
+                     Buffers: shared hit=1
+               ->  Bitmap Heap Scan on user_interests ui  (cost=4.97..15.28 rows=105 width=16) (actual time=0.009..0.022 rows=110.00 loops=1)
+                     Recheck Cond: (i.interest_id = interest_id)
+                     Heap Blocks: exact=8
+                     Buffers: shared hit=9
+                     ->  Bitmap Index Scan on idx_user_interests_interest  (cost=0.00..4.94 rows=105 width=0) (actual time=0.003..0.003 rows=110.00 loops=1)
+                           Index Cond: (interest_id = i.interest_id)
+                           Index Searches: 1
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=170
+ Planning Time: 0.332 ms
+ Execution Time: 0.088 ms
+(26 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                                         QUERY PLAN                                                                          
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=18.02..18.03 rows=1 width=40) (actual time=0.058..0.059 rows=1.00 loops=1)
+   Sort Key: (count(ui.user_id)) DESC
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=13
+   ->  HashAggregate  (cost=18.00..18.01 rows=1 width=40) (actual time=0.050..0.050 rows=1.00 loops=1)
+         Group Key: i.name
+         Batches: 1  Memory Usage: 32kB
+         Buffers: shared hit=10
+         ->  Nested Loop Left Join  (cost=4.97..17.48 rows=105 width=40) (actual time=0.019..0.039 rows=110.00 loops=1)
+               Buffers: shared hit=10
+               ->  Seq Scan on interests i  (cost=0.00..1.15 rows=1 width=32) (actual time=0.006..0.006 rows=1.00 loops=1)
+                     Filter: ((domain)::text = 'AI/ML'::text)
+                     Rows Removed by Filter: 11
+                     Buffers: shared hit=1
+               ->  Bitmap Heap Scan on user_interests ui  (cost=4.97..15.28 rows=105 width=16) (actual time=0.012..0.027 rows=110.00 loops=1)
+                     Recheck Cond: (i.interest_id = interest_id)
+                     Heap Blocks: exact=8
+                     Buffers: shared hit=9
+                     ->  Bitmap Index Scan on idx_user_interests_interest  (cost=0.00..4.94 rows=105 width=0) (actual time=0.004..0.004 rows=110.00 loops=1)
+                           Index Cond: (interest_id = i.interest_id)
+                           Index Searches: 1
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=170
+ Planning Time: 0.984 ms
+ Execution Time: 0.108 ms
+(26 rows)
+
+

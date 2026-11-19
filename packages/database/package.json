@@ -5,17 +5,25 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./schema": "./src/schema/index.ts"
+    "./schema": "./src/schema/index.ts",
+    "./migrate": "./src/migrate.ts",
+    "./seed": "./src/seed.ts"
   },
   "scripts": {
     "db:generate": "drizzle-kit generate",
-    "db:migrate": " drizzle-kit migrate",
+    "db:migrate": "tsx src/migrate.ts",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:seed": "tsx src/seed.ts",
+    "db:studio": "drizzle-kit studio",
+    "check-types": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/node": "^26.6.4",
     "@types/pg": "^8.23.1",
-    "drizzle-kit": "^0.31.11"
+    "argon2": "^0.43.0",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
   },
   "dependencies": {
     "dotenv": "^18.0.9",

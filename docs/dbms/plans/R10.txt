@@ -1,0 +1,133 @@
+Query ID: R10
+Type: READ
+Description: Project discovery directory filtered by category and type
+
+SQL:
+SELECT p.project_id, p.title, p.summary, p.category, p.project_type, p.status,
+       p.min_team_size, p.max_team_size, up.display_name AS owner_name, p.created_at
+FROM projects p
+JOIN users u ON p.owner_id = u.user_id
+JOIN user_profiles up ON u.user_id = up.user_id
+WHERE p.status = 'OPEN' AND p.category = 'Artificial Intelligence' AND p.project_type = 'HACKATHON'
+ORDER BY p.created_at DESC
+LIMIT 10;
+
+--- RUN 1 ---
+SET
+                                                                                    QUERY PLAN                                                                                     
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=19.38..19.38 rows=2 width=189) (actual time=0.070..0.071 rows=3.00 loops=1)
+   Buffers: shared hit=24
+   ->  Sort  (cost=19.38..19.38 rows=2 width=189) (actual time=0.070..0.070 rows=3.00 loops=1)
+         Sort Key: p.created_at DESC
+         Sort Method: quicksort  Memory: 25kB
+         Buffers: shared hit=24
+         ->  Nested Loop  (cost=11.18..19.37 rows=2 width=189) (actual time=0.050..0.065 rows=3.00 loops=1)
+               Join Filter: (up.user_id = p.owner_id)
+               Buffers: shared hit=21
+               ->  Merge Join  (cost=10.91..18.41 rows=2 width=193) (actual time=0.046..0.053 rows=3.00 loops=1)
+                     Merge Cond: (u.user_id = p.owner_id)
+                     Buffers: shared hit=12
+                     ->  Index Only Scan using users_pkey on users u  (cost=0.27..36.77 rows=500 width=8) (actual time=0.003..0.009 rows=72.00 loops=1)
+                           Heap Fetches: 72
+                           Index Searches: 1
+                           Buffers: shared hit=4
+                     ->  Sort  (cost=10.63..10.64 rows=2 width=185) (actual time=0.038..0.038 rows=3.00 loops=1)
+                           Sort Key: p.owner_id
+                           Sort Method: quicksort  Memory: 25kB
+                           Buffers: shared hit=8
+                           ->  Seq Scan on projects p  (cost=0.00..10.62 rows=2 width=185) (actual time=0.013..0.030 rows=3.00 loops=1)
+                                 Filter: (((status)::text = 'OPEN'::text) AND ((category)::text = 'Artificial Intelligence'::text) AND ((project_type)::text = 'HACKATHON'::text))
+                                 Rows Removed by Filter: 147
+                                 Buffers: shared hit=8
+               ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..0.47 rows=1 width=20) (actual time=0.003..0.003 rows=1.00 loops=3)
+                     Index Cond: (user_id = u.user_id)
+                     Index Searches: 3
+                     Buffers: shared hit=9
+ Planning:
+   Buffers: shared hit=361
+ Planning Time: 0.711 ms
+ Execution Time: 0.117 ms
+(32 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                                                    QUERY PLAN                                                                                     
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=19.38..19.38 rows=2 width=189) (actual time=0.055..0.056 rows=3.00 loops=1)
+   Buffers: shared hit=24
+   ->  Sort  (cost=19.38..19.38 rows=2 width=189) (actual time=0.055..0.055 rows=3.00 loops=1)
+         Sort Key: p.created_at DESC
+         Sort Method: quicksort  Memory: 25kB
+         Buffers: shared hit=24
+         ->  Nested Loop  (cost=11.18..19.37 rows=2 width=189) (actual time=0.040..0.051 rows=3.00 loops=1)
+               Join Filter: (up.user_id = p.owner_id)
+               Buffers: shared hit=21
+               ->  Merge Join  (cost=10.91..18.41 rows=2 width=193) (actual time=0.035..0.042 rows=3.00 loops=1)
+                     Merge Cond: (u.user_id = p.owner_id)
+                     Buffers: shared hit=12
+                     ->  Index Only Scan using users_pkey on users u  (cost=0.27..36.77 rows=500 width=8) (actual time=0.003..0.008 rows=72.00 loops=1)
+                           Heap Fetches: 72
+                           Index Searches: 1
+                           Buffers: shared hit=4
+                     ->  Sort  (cost=10.63..10.64 rows=2 width=185) (actual time=0.029..0.029 rows=3.00 loops=1)
+                           Sort Key: p.owner_id
+                           Sort Method: quicksort  Memory: 25kB
+                           Buffers: shared hit=8
+                           ->  Seq Scan on projects p  (cost=0.00..10.62 rows=2 width=185) (actual time=0.009..0.022 rows=3.00 loops=1)
+                                 Filter: (((status)::text = 'OPEN'::text) AND ((category)::text = 'Artificial Intelligence'::text) AND ((project_type)::text = 'HACKATHON'::text))
+                                 Rows Removed by Filter: 147
+                                 Buffers: shared hit=8
+               ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..0.47 rows=1 width=20) (actual time=0.002..0.002 rows=1.00 loops=3)
+                     Index Cond: (user_id = u.user_id)
+                     Index Searches: 3
+                     Buffers: shared hit=9
+ Planning:
+   Buffers: shared hit=361
+ Planning Time: 0.577 ms
+ Execution Time: 0.083 ms
+(32 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                                                    QUERY PLAN                                                                                     
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=19.38..19.38 rows=2 width=189) (actual time=0.063..0.064 rows=3.00 loops=1)
+   Buffers: shared hit=24
+   ->  Sort  (cost=19.38..19.38 rows=2 width=189) (actual time=0.063..0.063 rows=3.00 loops=1)
+         Sort Key: p.created_at DESC
+         Sort Method: quicksort  Memory: 25kB
+         Buffers: shared hit=24
+         ->  Nested Loop  (cost=11.18..19.37 rows=2 width=189) (actual time=0.048..0.058 rows=3.00 loops=1)
+               Join Filter: (up.user_id = p.owner_id)
+               Buffers: shared hit=21
+               ->  Merge Join  (cost=10.91..18.41 rows=2 width=193) (actual time=0.043..0.050 rows=3.00 loops=1)
+                     Merge Cond: (u.user_id = p.owner_id)
+                     Buffers: shared hit=12
+                     ->  Index Only Scan using users_pkey on users u  (cost=0.27..36.77 rows=500 width=8) (actual time=0.003..0.008 rows=72.00 loops=1)
+                           Heap Fetches: 72
+                           Index Searches: 1
+                           Buffers: shared hit=4
+                     ->  Sort  (cost=10.63..10.64 rows=2 width=185) (actual time=0.029..0.029 rows=3.00 loops=1)
+                           Sort Key: p.owner_id
+                           Sort Method: quicksort  Memory: 25kB
+                           Buffers: shared hit=8
+                           ->  Seq Scan on projects p  (cost=0.00..10.62 rows=2 width=185) (actual time=0.009..0.022 rows=3.00 loops=1)
+                                 Filter: (((status)::text = 'OPEN'::text) AND ((category)::text = 'Artificial Intelligence'::text) AND ((project_type)::text = 'HACKATHON'::text))
+                                 Rows Removed by Filter: 147
+                                 Buffers: shared hit=8
+               ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..0.47 rows=1 width=20) (actual time=0.002..0.002 rows=1.00 loops=3)
+                     Index Cond: (user_id = u.user_id)
+                     Index Searches: 3
+                     Buffers: shared hit=9
+ Planning:
+   Buffers: shared hit=361
+ Planning Time: 0.587 ms
+ Execution Time: 0.092 ms
+(32 rows)
+
+

@@ -1,0 +1,68 @@
+Query ID: W03
+Type: WRITE
+Description: Verify email and activate account
+
+SQL:
+UPDATE users
+SET account_status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP
+WHERE user_id = 1;
+
+--- RUN 1 ---
+SET
+BEGIN
+                                                         QUERY PLAN                                                         
+----------------------------------------------------------------------------------------------------------------------------
+ Update on users  (cost=0.27..8.29 rows=0 width=0) (actual time=0.134..0.135 rows=0.00 loops=1)
+   Buffers: shared hit=57
+   ->  Index Scan using users_pkey on users  (cost=0.27..8.29 rows=1 width=92) (actual time=0.014..0.014 rows=1.00 loops=1)
+         Index Cond: (user_id = 1)
+         Index Searches: 1
+         Buffers: shared hit=6
+ Planning:
+   Buffers: shared hit=95
+ Planning Time: 0.228 ms
+ Execution Time: 0.365 ms
+(10 rows)
+
+ROLLBACK
+
+
+--- RUN 2 ---
+SET
+BEGIN
+                                                         QUERY PLAN                                                         
+----------------------------------------------------------------------------------------------------------------------------
+ Update on users  (cost=0.27..8.29 rows=0 width=0) (actual time=0.133..0.133 rows=0.00 loops=1)
+   Buffers: shared hit=61
+   ->  Index Scan using users_pkey on users  (cost=0.27..8.29 rows=1 width=92) (actual time=0.017..0.020 rows=1.00 loops=1)
+         Index Cond: (user_id = 1)
+         Index Searches: 1
+         Buffers: shared hit=8
+ Planning:
+   Buffers: shared hit=95
+ Planning Time: 0.235 ms
+ Execution Time: 0.180 ms
+(10 rows)
+
+ROLLBACK
+
+
+--- RUN 3 ---
+SET
+BEGIN
+                                                         QUERY PLAN                                                         
+----------------------------------------------------------------------------------------------------------------------------
+ Update on users  (cost=0.27..8.29 rows=0 width=0) (actual time=0.131..0.131 rows=0.00 loops=1)
+   Buffers: shared hit=61
+   ->  Index Scan using users_pkey on users  (cost=0.27..8.29 rows=1 width=92) (actual time=0.016..0.020 rows=1.00 loops=1)
+         Index Cond: (user_id = 1)
+         Index Searches: 1
+         Buffers: shared hit=8
+ Planning:
+   Buffers: shared hit=95
+ Planning Time: 0.224 ms
+ Execution Time: 0.175 ms
+(10 rows)
+
+ROLLBACK
+

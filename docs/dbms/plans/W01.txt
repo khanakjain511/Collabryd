@@ -1,0 +1,62 @@
+Query ID: W01
+Type: WRITE
+Description: Register new student account
+
+SQL:
+INSERT INTO users (email, password_hash, account_status)
+VALUES ('new.student@university.edu', '$argon2id$v=19$m=65536,t=3,p=4$fakehash123', 'PENDING_VERIFICATION')
+RETURNING user_id, email, account_status;
+
+--- RUN 1 ---
+SET
+BEGIN
+                                            QUERY PLAN                                             
+---------------------------------------------------------------------------------------------------
+ Insert on users  (cost=0.00..0.02 rows=1 width=1134) (actual time=0.172..0.173 rows=1.00 loops=1)
+   Buffers: shared hit=90
+   ->  Result  (cost=0.00..0.02 rows=1 width=1134) (actual time=0.024..0.024 rows=1.00 loops=1)
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=9
+ Planning Time: 0.049 ms
+ Execution Time: 0.186 ms
+(8 rows)
+
+ROLLBACK
+
+
+--- RUN 2 ---
+SET
+BEGIN
+                                            QUERY PLAN                                             
+---------------------------------------------------------------------------------------------------
+ Insert on users  (cost=0.00..0.02 rows=1 width=1134) (actual time=0.225..0.226 rows=1.00 loops=1)
+   Buffers: shared hit=91
+   ->  Result  (cost=0.00..0.02 rows=1 width=1134) (actual time=0.026..0.026 rows=1.00 loops=1)
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=9
+ Planning Time: 0.053 ms
+ Execution Time: 0.245 ms
+(8 rows)
+
+ROLLBACK
+
+
+--- RUN 3 ---
+SET
+BEGIN
+                                            QUERY PLAN                                             
+---------------------------------------------------------------------------------------------------
+ Insert on users  (cost=0.00..0.02 rows=1 width=1134) (actual time=0.147..0.147 rows=1.00 loops=1)
+   Buffers: shared hit=91
+   ->  Result  (cost=0.00..0.02 rows=1 width=1134) (actual time=0.021..0.021 rows=1.00 loops=1)
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=9
+ Planning Time: 0.047 ms
+ Execution Time: 0.161 ms
+(8 rows)
+
+ROLLBACK
+

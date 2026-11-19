@@ -1,0 +1,171 @@
+Query ID: R04
+Type: READ
+Description: Fetch student interests and preferred contribution roles
+
+SQL:
+SELECT i.interest_id, i.name AS interest_name, i.domain, r.role_id, r.name AS preferred_role
+FROM users u
+LEFT JOIN user_interests ui ON u.user_id = ui.user_id
+LEFT JOIN interests i ON ui.interest_id = i.interest_id
+LEFT JOIN user_preferred_roles upr ON u.user_id = upr.user_id
+LEFT JOIN roles r ON upr.role_id = r.role_id
+WHERE u.user_id = 42;
+
+--- RUN 1 ---
+SET
+                                                                            QUERY PLAN                                                                            
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop Left Join  (cost=7.30..25.61 rows=6 width=58) (actual time=0.075..0.078 rows=3.00 loops=1)
+   Buffers: shared hit=14
+   ->  Hash Left Join  (cost=1.82..13.90 rows=2 width=40) (actual time=0.058..0.059 rows=1.00 loops=1)
+         Hash Cond: (ui.interest_id = i.interest_id)
+         Buffers: shared hit=10
+         ->  Nested Loop Left Join  (cost=0.55..12.62 rows=2 width=16) (actual time=0.047..0.047 rows=1.00 loops=1)
+               Buffers: shared hit=9
+               ->  Index Only Scan using users_pkey on users u  (cost=0.27..8.29 rows=1 width=8) (actual time=0.011..0.011 rows=1.00 loops=1)
+                     Index Cond: (user_id = 42)
+                     Heap Fetches: 1
+                     Index Searches: 1
+                     Buffers: shared hit=6
+               ->  Index Only Scan using user_interests_pkey on user_interests ui  (cost=0.28..4.31 rows=2 width=16) (actual time=0.035..0.035 rows=1.00 loops=1)
+                     Index Cond: (user_id = 42)
+                     Heap Fetches: 0
+                     Index Searches: 1
+                     Buffers: shared hit=3
+         ->  Hash  (cost=1.12..1.12 rows=12 width=32) (actual time=0.008..0.008 rows=12.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=1
+               ->  Seq Scan on interests i  (cost=0.00..1.12 rows=12 width=32) (actual time=0.002..0.003 rows=12.00 loops=1)
+                     Buffers: shared hit=1
+   ->  Materialize  (cost=5.48..11.65 rows=3 width=34) (actual time=0.016..0.017 rows=3.00 loops=1)
+         Storage: Memory  Maximum Storage: 17kB
+         Buffers: shared hit=4
+         ->  Hash Left Join  (cost=5.48..11.63 rows=3 width=34) (actual time=0.013..0.014 rows=3.00 loops=1)
+               Hash Cond: (upr.role_id = r.role_id)
+               Buffers: shared hit=4
+               ->  Bitmap Heap Scan on user_preferred_roles upr  (cost=4.30..10.44 rows=3 width=16) (actual time=0.006..0.007 rows=3.00 loops=1)
+                     Recheck Cond: (user_id = 42)
+                     Heap Blocks: exact=1
+                     Buffers: shared hit=3
+                     ->  Bitmap Index Scan on user_preferred_roles_pkey  (cost=0.00..4.30 rows=3 width=0) (actual time=0.005..0.005 rows=3.00 loops=1)
+                           Index Cond: (user_id = 42)
+                           Index Searches: 1
+                           Buffers: shared hit=2
+               ->  Hash  (cost=1.08..1.08 rows=8 width=26) (actual time=0.004..0.004 rows=8.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                     Buffers: shared hit=1
+                     ->  Seq Scan on roles r  (cost=0.00..1.08 rows=8 width=26) (actual time=0.002..0.003 rows=8.00 loops=1)
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=442
+ Planning Time: 0.777 ms
+ Execution Time: 0.127 ms
+(45 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                                            QUERY PLAN                                                                            
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop Left Join  (cost=7.30..25.61 rows=6 width=58) (actual time=0.061..0.063 rows=3.00 loops=1)
+   Buffers: shared hit=14
+   ->  Hash Left Join  (cost=1.82..13.90 rows=2 width=40) (actual time=0.046..0.046 rows=1.00 loops=1)
+         Hash Cond: (ui.interest_id = i.interest_id)
+         Buffers: shared hit=10
+         ->  Nested Loop Left Join  (cost=0.55..12.62 rows=2 width=16) (actual time=0.035..0.035 rows=1.00 loops=1)
+               Buffers: shared hit=9
+               ->  Index Only Scan using users_pkey on users u  (cost=0.27..8.29 rows=1 width=8) (actual time=0.010..0.010 rows=1.00 loops=1)
+                     Index Cond: (user_id = 42)
+                     Heap Fetches: 1
+                     Index Searches: 1
+                     Buffers: shared hit=6
+               ->  Index Only Scan using user_interests_pkey on user_interests ui  (cost=0.28..4.31 rows=2 width=16) (actual time=0.023..0.024 rows=1.00 loops=1)
+                     Index Cond: (user_id = 42)
+                     Heap Fetches: 0
+                     Index Searches: 1
+                     Buffers: shared hit=3
+         ->  Hash  (cost=1.12..1.12 rows=12 width=32) (actual time=0.007..0.007 rows=12.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=1
+               ->  Seq Scan on interests i  (cost=0.00..1.12 rows=12 width=32) (actual time=0.002..0.003 rows=12.00 loops=1)
+                     Buffers: shared hit=1
+   ->  Materialize  (cost=5.48..11.65 rows=3 width=34) (actual time=0.015..0.016 rows=3.00 loops=1)
+         Storage: Memory  Maximum Storage: 17kB
+         Buffers: shared hit=4
+         ->  Hash Left Join  (cost=5.48..11.63 rows=3 width=34) (actual time=0.012..0.013 rows=3.00 loops=1)
+               Hash Cond: (upr.role_id = r.role_id)
+               Buffers: shared hit=4
+               ->  Bitmap Heap Scan on user_preferred_roles upr  (cost=4.30..10.44 rows=3 width=16) (actual time=0.006..0.006 rows=3.00 loops=1)
+                     Recheck Cond: (user_id = 42)
+                     Heap Blocks: exact=1
+                     Buffers: shared hit=3
+                     ->  Bitmap Index Scan on user_preferred_roles_pkey  (cost=0.00..4.30 rows=3 width=0) (actual time=0.004..0.004 rows=3.00 loops=1)
+                           Index Cond: (user_id = 42)
+                           Index Searches: 1
+                           Buffers: shared hit=2
+               ->  Hash  (cost=1.08..1.08 rows=8 width=26) (actual time=0.004..0.004 rows=8.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                     Buffers: shared hit=1
+                     ->  Seq Scan on roles r  (cost=0.00..1.08 rows=8 width=26) (actual time=0.002..0.002 rows=8.00 loops=1)
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=442
+ Planning Time: 0.666 ms
+ Execution Time: 0.110 ms
+(45 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                                            QUERY PLAN                                                                            
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop Left Join  (cost=7.30..25.61 rows=6 width=58) (actual time=0.062..0.064 rows=3.00 loops=1)
+   Buffers: shared hit=14
+   ->  Hash Left Join  (cost=1.82..13.90 rows=2 width=40) (actual time=0.047..0.047 rows=1.00 loops=1)
+         Hash Cond: (ui.interest_id = i.interest_id)
+         Buffers: shared hit=10
+         ->  Nested Loop Left Join  (cost=0.55..12.62 rows=2 width=16) (actual time=0.036..0.036 rows=1.00 loops=1)
+               Buffers: shared hit=9
+               ->  Index Only Scan using users_pkey on users u  (cost=0.27..8.29 rows=1 width=8) (actual time=0.011..0.011 rows=1.00 loops=1)
+                     Index Cond: (user_id = 42)
+                     Heap Fetches: 1
+                     Index Searches: 1
+                     Buffers: shared hit=6
+               ->  Index Only Scan using user_interests_pkey on user_interests ui  (cost=0.28..4.31 rows=2 width=16) (actual time=0.024..0.025 rows=1.00 loops=1)
+                     Index Cond: (user_id = 42)
+                     Heap Fetches: 0
+                     Index Searches: 1
+                     Buffers: shared hit=3
+         ->  Hash  (cost=1.12..1.12 rows=12 width=32) (actual time=0.007..0.007 rows=12.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=1
+               ->  Seq Scan on interests i  (cost=0.00..1.12 rows=12 width=32) (actual time=0.002..0.002 rows=12.00 loops=1)
+                     Buffers: shared hit=1
+   ->  Materialize  (cost=5.48..11.65 rows=3 width=34) (actual time=0.015..0.016 rows=3.00 loops=1)
+         Storage: Memory  Maximum Storage: 17kB
+         Buffers: shared hit=4
+         ->  Hash Left Join  (cost=5.48..11.63 rows=3 width=34) (actual time=0.012..0.013 rows=3.00 loops=1)
+               Hash Cond: (upr.role_id = r.role_id)
+               Buffers: shared hit=4
+               ->  Bitmap Heap Scan on user_preferred_roles upr  (cost=4.30..10.44 rows=3 width=16) (actual time=0.006..0.006 rows=3.00 loops=1)
+                     Recheck Cond: (user_id = 42)
+                     Heap Blocks: exact=1
+                     Buffers: shared hit=3
+                     ->  Bitmap Index Scan on user_preferred_roles_pkey  (cost=0.00..4.30 rows=3 width=0) (actual time=0.004..0.004 rows=3.00 loops=1)
+                           Index Cond: (user_id = 42)
+                           Index Searches: 1
+                           Buffers: shared hit=2
+               ->  Hash  (cost=1.08..1.08 rows=8 width=26) (actual time=0.004..0.004 rows=8.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                     Buffers: shared hit=1
+                     ->  Seq Scan on roles r  (cost=0.00..1.08 rows=8 width=26) (actual time=0.002..0.002 rows=8.00 loops=1)
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=442
+ Planning Time: 0.702 ms
+ Execution Time: 0.110 ms
+(45 rows)
+
+
