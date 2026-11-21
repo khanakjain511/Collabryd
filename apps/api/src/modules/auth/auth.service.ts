@@ -9,6 +9,7 @@ import {
 } from "@collabryd/database";
 import { env } from "../../config/env.js";
 import {
+  AppError,
   BadRequestError,
   ConflictError,
   ForbiddenError,
@@ -31,6 +32,9 @@ import type {
   LoginInput,
   RegisterInput,
 } from "./auth.schemas.js";
+
+import { sendVerificationEmail } from "./verification-email.js";
+import { logger } from "../../config/logger.js";
 
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -116,9 +120,10 @@ export async function registerStudent(input: RegisterInput) {
     return { user: user!, profile: profile! };
   });
 
+  await sendVerificationEmail(email, rawVerificationToken);
   return {
     ...created,
-    ...(env.NODE_ENV !== "production"
+    ...(env.EMAIL_PROVIDER === "local"
       ? { verificationToken: rawVerificationToken }
       : {}),
   };
@@ -193,50 +198,32 @@ export async function verifyEmail(rawToken: string) {
 export async function resendVerification(rawEmail: string) {
   const email = normalizeEmail(rawEmail);
 
-  const [user] = await db
-    .select({
-      userId: users.userId,
-      accountStatus: users.accountStatus,
-    })
-    .from(users)
-    .where(sql`LOWER(${users.email}) = ${email}`)
-    .limit(1);
+  const message = "If an unverified account exists for this email, a new verification link has been issued.";
+  try {
+    return await db.transaction(async (tx) => {
+      // Serialize resends. Roll back rotation if the provider rejects the replacement.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${email}, 0))`);
+      const [user] = await tx.select({ userId: users.userId }).from(users)
+        .where(and(sql`LOWER(${users.email}) = ${email}`, eq(users.accountStatus, "PENDING_VERIFICATION")))
+        .limit(1);
+      if (!user) return { message };
 
-  if (!user || user.accountStatus !== "PENDING_VERIFICATION") {
-    return {
-      message:
-        "If an unverified account exists for this email, a new verification link has been issued.",
-    };
-  }
-
-  const rawToken = generateSecureToken(32);
-  const tokenHash = sha256(rawToken);
-  const expiresAt = new Date(Date.now() + VERIFICATION_TTL_MS);
-
-  await db.transaction(async (tx) => {
-    await tx
-      .update(emailVerificationTokens)
-      .set({ isUsed: true })
-      .where(
-        and(
-          eq(emailVerificationTokens.userId, user.userId),
-          eq(emailVerificationTokens.isUsed, false)
-        )
-      );
-
-    await tx.insert(emailVerificationTokens).values({
-      userId: user.userId,
-      tokenHash,
-      expiresAt,
-      isUsed: false,
+      const rawToken = generateSecureToken(32);
+      await tx.update(emailVerificationTokens).set({ isUsed: true }).where(and(
+        eq(emailVerificationTokens.userId, user.userId), eq(emailVerificationTokens.isUsed, false)
+      ));
+      await tx.insert(emailVerificationTokens).values({
+        userId: user.userId, tokenHash: sha256(rawToken),
+        expiresAt: new Date(Date.now() + VERIFICATION_TTL_MS),
+      });
+      await sendVerificationEmail(email, rawToken);
+      return { message, ...(env.EMAIL_PROVIDER === "local" ? { verificationToken: rawToken } : {}) };
     });
-  });
-
-  return {
-    message:
-      "If an unverified account exists for this email, a new verification link has been issued.",
-    ...(env.NODE_ENV !== "production" ? { verificationToken: rawToken } : {}),
-  };
+  } catch (err) {
+    if (!(err instanceof AppError) || err.code !== "EMAIL_DELIVERY_UNAVAILABLE") throw err;
+    logger.warn("Verification email delivery unavailable");
+    return { message };
+  }
 }
 
 export async function loginStudent(input: LoginInput) {

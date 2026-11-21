@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { env } from "../../src/config/env.js";
 import request from "supertest";
 import { eq, sql } from "drizzle-orm";
 import {
@@ -31,6 +32,7 @@ describe("Collabryd End-to-End Integration Suite", () => {
   const emailAdmin = `admin.${runSuffix}@campus.edu`;
   const password = "Password123!";
 
+  let providerUserId = 0;
   let userAId = 0;
   let userBId = 0;
   let userCId = 0;
@@ -95,7 +97,7 @@ describe("Collabryd End-to-End Integration Suite", () => {
           sql`DELETE FROM collabryd.conversations WHERE conversation_id = ${directConversationId}`
         );
       }
-      const ids = [userAId, userBId, userCId, adminId].filter((id) => id > 0);
+      const ids = [userAId, userBId, userCId, adminId, providerUserId].filter((id) => id > 0);
       for (const id of ids) {
         await db.execute(
           sql`DELETE FROM collabryd.admin_audit_logs WHERE admin_id = ${id}`
@@ -168,6 +170,38 @@ describe("Collabryd End-to-End Integration Suite", () => {
     const res = await request(app).get("/api/health/ready");
     expect(res.status).toBe(200);
     expect(res.body.data.database).toBe("connected");
+  });
+
+  it("sends verification and resend mail and preserves the last delivered token on failure", async () => {
+    const email = `provider.${runSuffix}@campus.edu`;
+    const original = { ...env };
+    Object.assign(env, { EMAIL_PROVIDER: "resend", VERIFICATION_PAGE_URL: "https://example.test/verify",
+      EMAIL_FROM: "verify@example.test", RESEND_API_KEY: "test" });
+    const provider = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 202 }));
+    const tokenFromMail = () => {
+      const mail = JSON.parse(String(provider.mock.lastCall?.[1]?.body));
+      expect(mail.to).toEqual([email]);
+      return new URLSearchParams(new URL(mail.text.split(" ").at(-1)).hash.slice(1)).get("token");
+    };
+    try {
+      const reg = await request(app).post("/api/v1/auth/register").send({
+        email, password, displayName: "Mail Test", institution: "Campus", courseProgram: "CS", academicYear: "3",
+      }).expect(201);
+      providerUserId = reg.body.data.user.userId;
+      expect(reg.body.data.verificationToken).toBeUndefined();
+      const first = tokenFromMail();
+      const resend = () => request(app).post("/api/v1/auth/resend-verification").send({ email });
+      const secondResponse = await resend().expect(200);
+      const second = tokenFromMail();
+      expect(second).not.toBe(first);
+      provider.mockRejectedValueOnce(new Error("provider unavailable"));
+      expect((await resend()).body).toEqual(secondResponse.body);
+      await request(app).post("/api/v1/auth/verify-email").send({ token: first }).expect(400);
+      await request(app).post("/api/v1/auth/verify-email").send({ token: second }).expect(200);
+    } finally {
+      Object.assign(env, original);
+      provider.mockRestore();
+    }
   });
 
   it("2. Auth lifecycle: unverified login blocked, verify, refresh rotation & reuse detection", async () => {

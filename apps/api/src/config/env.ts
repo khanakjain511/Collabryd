@@ -30,6 +30,10 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
   JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
   ALLOWED_EMAIL_DOMAINS: z.string().default(""),
+  EMAIL_PROVIDER: z.enum(["local", "resend"]).optional(),
+  EMAIL_FROM: z.string().email().optional(),
+  RESEND_API_KEY: z.string().min(1).optional(),
+  VERIFICATION_PAGE_URL: z.string().url().optional(),
   REDIS_URL: z.string().optional(),
 });
 
@@ -52,8 +56,18 @@ if (
   );
 }
 
+const provider = parsed.data.EMAIL_PROVIDER ?? (parsed.data.NODE_ENV === "production" ? "resend" : "local");
+if (provider === "local" && parsed.data.NODE_ENV === "production") {
+  throw new Error("Production requires email delivery.");
+}
+if (provider === "resend" && (!parsed.data.RESEND_API_KEY || !parsed.data.EMAIL_FROM ||
+    !parsed.data.VERIFICATION_PAGE_URL?.startsWith("https://"))) {
+  throw new Error("Resend requires RESEND_API_KEY, EMAIL_FROM and an HTTPS VERIFICATION_PAGE_URL.");
+}
+
 export const env = {
   ...parsed.data,
+  EMAIL_PROVIDER: provider,
   PORT: parsed.data.BACKEND_PORT,
   LOG_LEVEL:
     parsed.data.LOG_LEVEL ??
