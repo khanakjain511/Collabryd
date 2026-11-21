@@ -15,30 +15,13 @@ import {
 } from "../../common/errors/app-error.js";
 import type { AuthenticatedUser } from "../../common/types/express.js";
 import { dispatchNotifications } from "../notifications/notifications.dispatcher.js";
-import { assertCanViewProject } from "../projects/projects.service.js";
+import { requireVisibleProject } from "../projects/projects.service.js";
 
 export async function listProjectMembers(
   projectId: number,
   viewer?: AuthenticatedUser
 ) {
-  const [project] = await db
-    .select({
-      projectId: projects.projectId,
-      ownerId: projects.ownerId,
-      visibility: projects.visibility,
-      status: projects.status,
-      ownerInstitution: userProfiles.institution,
-    })
-    .from(projects)
-    .leftJoin(userProfiles, eq(projects.ownerId, userProfiles.userId))
-    .where(eq(projects.projectId, projectId))
-    .limit(1);
-
-  if (!project) {
-    throw new NotFoundError("Project not found", "PROJECT_NOT_FOUND");
-  }
-
-  await assertCanViewProject(project, viewer);
+  await requireVisibleProject(projectId, viewer);
 
   // Implements R13
   return db

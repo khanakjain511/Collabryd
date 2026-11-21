@@ -25,6 +25,7 @@ import {
 import type { AuthenticatedUser } from "../../common/types/express.js";
 import { buildPaginationMeta } from "../../common/utils/pagination.js";
 import {
+  buildProfileVisibilityCondition,
   buildProjectVisibilityCondition,
   isSameInstitution,
 } from "../../common/utils/visibility.js";
@@ -249,6 +250,12 @@ export async function listProjects(
 
   if (query.status) {
     conditions.push(eq(projects.status, query.status));
+    if (query.status === "DRAFT" && viewer?.systemRole !== "ADMIN") {
+      conditions.push(viewer ? sql`EXISTS (
+        SELECT 1 FROM collabryd.project_members pm
+        WHERE pm.project_id = ${projects.projectId} AND pm.user_id = ${viewer.userId}
+      )` : sql`false`);
+    }
   } else if (!isViewingOwnProjects && viewer?.systemRole !== "ADMIN") {
     conditions.push(eq(projects.status, "OPEN"));
   }
@@ -516,47 +523,50 @@ export async function updateProject(
 ) {
   await assertProjectManager(projectId, actor);
 
-  const [existing] = await db
-    .select()
-    .from(projects)
-    .where(eq(projects.projectId, projectId))
-    .limit(1);
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(projects)
+      .where(eq(projects.projectId, projectId))
+      .for("update")
+      .limit(1);
 
-  if (!existing) {
-    throw new NotFoundError("Project not found", "PROJECT_NOT_FOUND");
-  }
+    if (!existing) {
+      throw new NotFoundError("Project not found", "PROJECT_NOT_FOUND");
+    }
 
-  const nextMin = input.minTeamSize ?? existing.minTeamSize;
-  const nextMax = input.maxTeamSize ?? existing.maxTeamSize;
-  if (nextMax < nextMin) {
-    throw new BadRequestError(
-      "maxTeamSize must be greater than or equal to minTeamSize",
-      "INVALID_TEAM_SIZE_RANGE"
-    );
-  }
+    const nextMin = input.minTeamSize ?? existing.minTeamSize;
+    const nextMax = input.maxTeamSize ?? existing.maxTeamSize;
+    if (nextMax < nextMin) {
+      throw new BadRequestError(
+        "maxTeamSize must be greater than or equal to minTeamSize",
+        "INVALID_TEAM_SIZE_RANGE"
+      );
+    }
 
-  const [memberCountRow] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(projectMembers)
-    .where(eq(projectMembers.projectId, projectId));
+    const [memberCountRow] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(projectMembers)
+      .where(eq(projectMembers.projectId, projectId));
 
-  if (nextMax < (memberCountRow?.count ?? 0)) {
-    throw new BadRequestError(
-      `maxTeamSize cannot be smaller than current team size (${memberCountRow?.count})`,
-      "TEAM_SIZE_BELOW_CURRENT_MEMBERS"
-    );
-  }
+    if (nextMax < (memberCountRow?.count ?? 0)) {
+      throw new BadRequestError(
+        `maxTeamSize cannot be smaller than current team size (${memberCountRow?.count})`,
+        "TEAM_SIZE_BELOW_CURRENT_MEMBERS"
+      );
+    }
 
-  const [updated] = await db
-    .update(projects)
-    .set({
-      ...input,
-      updatedAt: new Date(),
-    })
-    .where(eq(projects.projectId, projectId))
-    .returning();
+    const [updated] = await tx
+      .update(projects)
+      .set({
+        ...input,
+        updatedAt: new Date(),
+      })
+      .where(eq(projects.projectId, projectId))
+      .returning();
 
-  return updated!;
+    return updated!;
+  });
 }
 
 export async function updateProjectStatus(
@@ -779,7 +789,29 @@ export async function removeProjectRole(
   }
 }
 
-export async function getProjectCapacity(projectId: number) {
+export async function requireVisibleProject(projectId: number, viewer?: AuthenticatedUser) {
+  const [project] = await db
+    .select({
+      projectId: projects.projectId,
+      ownerId: projects.ownerId,
+      visibility: projects.visibility,
+      status: projects.status,
+      ownerInstitution: userProfiles.institution,
+    })
+    .from(projects)
+    .leftJoin(userProfiles, eq(projects.ownerId, userProfiles.userId))
+    .where(eq(projects.projectId, projectId))
+    .limit(1);
+
+  if (!project) {
+    throw new NotFoundError("Project not found", "PROJECT_NOT_FOUND");
+  }
+
+  await assertCanViewProject(project, viewer);
+}
+
+export async function getProjectCapacity(projectId: number, viewer?: AuthenticatedUser) {
+  await requireVisibleProject(projectId, viewer);
   // Implements R19
   const [row] = await db
     .select({
@@ -836,6 +868,7 @@ export async function recommendCandidatesForProject(
         eq(projectSkills.projectId, projectId),
         eq(users.accountStatus, "ACTIVE"),
         ne(userProfiles.profileVisibility, "PRIVATE"),
+        buildProfileVisibilityCondition(actor),
         sql`${users.userId} NOT IN (SELECT pm.user_id FROM collabryd.project_members pm WHERE pm.project_id = ${projectId})`
       )
     )

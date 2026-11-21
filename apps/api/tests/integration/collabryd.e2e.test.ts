@@ -410,7 +410,7 @@ describe("Collabryd End-to-End Integration Suite", () => {
           "Full-stack campus collaboration project requiring TypeScript and Python developers.",
         category: "Artificial Intelligence",
         projectType: "HACKATHON",
-        status: "OPEN",
+        status: "DRAFT",
         visibility: "PUBLIC",
         minTeamSize: 1,
         maxTeamSize: 2,
@@ -428,12 +428,30 @@ describe("Collabryd End-to-End Integration Suite", () => {
     expect(createRes.body.data.currentMemberCount).toBe(1);
     expect(createRes.body.data.remainingCapacity).toBe(1);
 
+    const projectPath = `/api/v1/projects/${projectId}`;
+    const directory = await request(app).get("/api/v1/projects").query({ ownerId: userAId, status: "DRAFT" }).expect(200);
+    expect(directory.body.data).toEqual([]);
+    await request(app).patch(`${projectPath}/status`).set("Authorization", `Bearer ${tokenA}`).send({ status: "OPEN" }).expect(200);
+    await request(app).patch(projectPath).set("Authorization", `Bearer ${tokenA}`)
+      .send({ visibility: "PRIVATE" }).expect(200);
+    await request(app).get(`${projectPath}/capacity`).expect(403);
+    await request(app).patch(projectPath).set("Authorization", `Bearer ${tokenA}`)
+      .send({ visibility: "PUBLIC", title: "Updated campus project" }).expect(200);
+    expect((await request(app).get(projectPath).expect(200)).body.data.title).toBe("Updated campus project");
+
     // R15: Project owner gets User B recommended (matched 2 skills)
     const candRecs = await request(app)
       .get(`/api/v1/projects/${projectId}/recommendations`)
       .set("Authorization", `Bearer ${tokenA}`);
     expect(candRecs.status).toBe(200);
     expect(candRecs.body.data.some((c: { userId: number }) => c.userId === userBId)).toBe(true);
+
+    await request(app).put("/api/v1/profiles/me").set("Authorization", `Bearer ${tokenB}`)
+      .send({ displayName: "Applicant One", institution: "Other Campus", courseProgram: "CS",
+        academicYear: "3", profileVisibility: "CAMPUS_ONLY" }).expect(200);
+    const filtered = await request(app).get(`/api/v1/projects/${projectId}/recommendations`)
+      .set("Authorization", `Bearer ${tokenA}`).expect(200);
+    expect(filtered.body.data.some((candidate: { userId: number }) => candidate.userId === userBId)).toBe(false);
 
     // R16: User B gets project recommended
     const projRecs = await request(app)
