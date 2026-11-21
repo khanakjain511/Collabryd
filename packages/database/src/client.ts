@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client, Pool } from "pg";
+import { resolveDatabaseUrl } from "./database-url.js";
 import * as schema from "./schema/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -12,28 +13,6 @@ const __dirname = path.dirname(__filename);
 dotenv.config({
   path: path.resolve(__dirname, "../../../.env"),
 });
-
-export function resolveDatabaseUrl(): string {
-  if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim().length > 0) {
-    return process.env.DATABASE_URL;
-  }
-
-  const {
-    POSTGRES_USER,
-    POSTGRES_PASSWORD,
-    POSTGRES_DB,
-    DATABASE_PORT,
-    DATABASE_HOST = "localhost",
-  } = process.env;
-
-  if (!POSTGRES_USER || !POSTGRES_PASSWORD || !POSTGRES_DB || !DATABASE_PORT) {
-    throw new Error(
-      "Database configuration missing: set DATABASE_URL or POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, and DATABASE_PORT in .env"
-    );
-  }
-
-  return `postgresql://${encodeURIComponent(POSTGRES_USER)}:${encodeURIComponent(POSTGRES_PASSWORD)}@${DATABASE_HOST}:${DATABASE_PORT}/${encodeURIComponent(POSTGRES_DB)}`;
-}
 
 const DATABASE_URL = resolveDatabaseUrl();
 

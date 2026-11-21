@@ -1,9 +1,7 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import {
   adminAuditLogs,
-  applications,
   db,
-  messages,
   projectMembers,
   projects,
   refreshSessions,
@@ -325,7 +323,3 @@ export async function overrideProjectMemberRole(
     return updated!;
   });
 }
-
-// Keep unused imports clean for Drizzle table visibility
-void applications;
-void messages;
