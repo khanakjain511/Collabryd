@@ -44,6 +44,8 @@ export const pool = new Pool({
   connectionTimeoutMillis: 5_000,
 });
 
+pool.on("error", () => console.error("Idle PostgreSQL connection lost"));
+
 export const db = drizzle(pool, {
   schema,
 });

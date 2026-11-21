@@ -13,6 +13,7 @@ export async function runMigrations(): Promise<string[]> {
   const appliedNow: string[] = [];
 
   try {
+    await client.query("SELECT pg_advisory_lock(824512002)");
     await client.query(`CREATE SCHEMA IF NOT EXISTS collabryd;`);
     await client.query(`
       CREATE TABLE IF NOT EXISTS collabryd._schema_migrations (
@@ -64,7 +65,8 @@ export async function runMigrations(): Promise<string[]> {
 
     return appliedNow;
   } finally {
-    client.release();
+    // Closing this dedicated session releases the migration lock and search_path.
+    client.release(true);
   }
 }
 
