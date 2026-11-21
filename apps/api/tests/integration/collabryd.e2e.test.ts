@@ -61,7 +61,7 @@ describe("Collabryd End-to-End Integration Suite", () => {
 
   beforeAll(async () => {
     dbAvailable = await checkDatabase();
-    if (!dbAvailable) return;
+    if (!dbAvailable) throw new Error("Integration tests require a reachable PostgreSQL database. Check DATABASE_URL.");
 
     await runMigrations();
 
@@ -171,7 +171,6 @@ describe("Collabryd End-to-End Integration Suite", () => {
   }
 
   it("1. Health readiness checks PostgreSQL connectivity", async () => {
-    if (!dbAvailable) return;
     const res = await request(app).get("/api/health/ready");
     expect(res.status).toBe(200);
     expect(res.body.data.database).toBe("connected");
@@ -210,7 +209,6 @@ describe("Collabryd End-to-End Integration Suite", () => {
   });
 
   it("2. Auth lifecycle: unverified login blocked, verify, refresh rotation & reuse detection", async () => {
-    if (!dbAvailable) return;
 
     const reg = await request(app).post("/api/v1/auth/register").send({
       email: emailA,
@@ -324,7 +322,6 @@ describe("Collabryd End-to-End Integration Suite", () => {
   });
 
   it("3. Profiles, skills, visibility enforcement (CAMPUS_ONLY / PRIVATE), and catalog", async () => {
-    if (!dbAvailable) return;
 
     // Attach skills, interests, preferred roles, achievement, social link to User B
     const putSkills = await request(app)
@@ -398,7 +395,6 @@ describe("Collabryd End-to-End Integration Suite", () => {
   });
 
   it("4. Project creation, discovery, capacity, and skill recommendations (R15 & R16)", async () => {
-    if (!dbAvailable) return;
 
     const createRes = await request(app)
       .post("/api/v1/projects")
@@ -464,7 +460,6 @@ describe("Collabryd End-to-End Integration Suite", () => {
   });
 
   it("5. Applications lifecycle: duplicate guard, withdraw + reapply, transactional accept & capacity enforcement", async () => {
-    if (!dbAvailable) return;
 
     // Owner cannot apply to own project
     await request(app)
@@ -540,7 +535,6 @@ describe("Collabryd End-to-End Integration Suite", () => {
   });
 
   it("6. Messaging: DM deduplication, sequenced idempotent messages, cursor pagination & unread counts", async () => {
-    if (!dbAvailable) return;
 
     // Create DIRECT conversation A <-> B twice -> returns same conversationId
     const dm1 = await request(app)
@@ -674,7 +668,6 @@ describe("Collabryd End-to-End Integration Suite", () => {
   });
 
   it("7. Notifications, preferences, team member removal, and Admin RBAC + audit logs", async () => {
-    if (!dbAvailable) return;
 
     // User B has unread notifications (accepted + messages)
     const unreadRes = await request(app)
