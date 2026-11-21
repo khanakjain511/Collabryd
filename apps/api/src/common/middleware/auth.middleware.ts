@@ -85,8 +85,8 @@ export async function optionalAuth(
     if (user.accountStatus === "ACTIVE") {
       req.user = user;
     }
-  } catch {
-    // Ignore invalid/expired token on optional-auth routes
+  } catch (err) {
+    if (!(err instanceof UnauthorizedError)) throw err;
   }
   next();
 }
