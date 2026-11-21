@@ -12,7 +12,7 @@ function extractBearerToken(req: Request): string | null {
   return token;
 }
 
-async function resolveAuthenticatedUser(token: string) {
+export async function resolveAuthenticatedUser(token: string) {
   const payload = verifyAccessToken(token);
 
   const [record] = await db

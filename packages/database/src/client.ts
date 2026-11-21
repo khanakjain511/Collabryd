@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
+import { Client, Pool } from "pg";
 import * as schema from "./schema/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -54,4 +54,8 @@ export type Database = typeof db;
 
 export async function closePool(): Promise<void> {
   await pool.end();
+}
+
+export function createNotificationListener() {
+  return new Client({ connectionString: DATABASE_URL, connectionTimeoutMillis: 5000 });
 }

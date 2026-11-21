@@ -1,4 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { createServer } from "node:http";
+import { once } from "node:events";
+import { io } from "socket.io-client";
+import type { AddressInfo } from "node:net";
+import { attachNotificationSockets } from "../../src/modules/notifications/notifications.socket.js";
 import { env } from "../../src/config/env.js";
 import request from "supertest";
 import { eq, sql } from "drizzle-orm";
@@ -598,6 +603,52 @@ describe("Collabryd End-to-End Integration Suite", () => {
       (c: { conversationId: number }) => c.conversationId === groupConversationId
     );
     expect(groupAfter.unreadMessagesCount).toBe(0);
+  });
+
+  it("delivers committed notifications only to the authenticated recipient", async () => {
+    const server = createServer(app);
+    const close = await attachNotificationSockets(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const connect = (token: string) => io(url, { auth: { token }, transports: ["websocket"], reconnection: false });
+    const recipient = connect(tokenB);
+    const observer = connect(tokenC);
+    const invalid = connect("invalid");
+    const observed = vi.fn();
+    observer.on("notification:new", observed);
+    try {
+      await Promise.all([once(recipient, "connect"), once(observer, "connect"), once(invalid, "connect_error")]);
+      const delivered = once(recipient, "notification:new");
+      await request(app).post(`/api/v1/conversations/${groupConversationId}/messages`)
+        .set("Authorization", `Bearer ${tokenA}`)
+        .send({ clientMessageId: runSuffix, content: "Live delivery" }).expect(201);
+      const [notification] = await delivered;
+      expect(notification.recipientId).toBe(userBId);
+      expect(notification.type).toBe("NEW_MESSAGE");
+      const list = await request(app).get("/api/v1/notifications").set("Authorization", `Bearer ${tokenB}`).expect(200);
+      expect(list.body.data).toContainEqual(notification);
+      const send = (clientMessageId: string, content: string) =>
+        request(app).post(`/api/v1/conversations/${groupConversationId}/messages`)
+          .set("Authorization", `Bearer ${tokenA}`).send({ clientMessageId, content });
+      await send(runSuffix, "Live delivery").expect(200);
+      const preferences = (enabled: boolean) => request(app).patch("/api/v1/notifications/preferences")
+        .set("Authorization", `Bearer ${tokenB}`).send({ inappNotifications: enabled });
+      await preferences(false).expect(200);
+      await send(`${runSuffix}-muted`, "Muted message").expect(201);
+      await preferences(true).expect(200);
+      const after = await request(app).get("/api/v1/notifications").set("Authorization", `Bearer ${tokenB}`).expect(200);
+      expect(after.body.data).toEqual(list.body.data);
+      const path = `/api/v1/notifications/${notification.notificationId}/read`;
+      await request(app).patch(path).set("Authorization", `Bearer ${tokenC}`).expect(404);
+      expect((await request(app).patch(path).set("Authorization", `Bearer ${tokenB}`)).body.data.isRead).toBe(true);
+      expect(observed).not.toHaveBeenCalled();
+    } finally {
+      recipient.close();
+      observer.close();
+      invalid.close();
+      await close();
+    }
   });
 
   it("7. Notifications, preferences, team member removal, and Admin RBAC + audit logs", async () => {
