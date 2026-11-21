@@ -580,6 +580,10 @@ describe("Collabryd End-to-End Integration Suite", () => {
     expect(msg1Retry.body.meta.deduplicated).toBe(true);
     expect(msg1Retry.body.data.sequenceNumber).toBe(1);
 
+    await request(app).post(`/api/v1/conversations/${groupConversationId}/messages`)
+      .set("Authorization", `Bearer ${tokenB}`)
+      .send({ clientMessageId: `cli-${runSuffix}-1`, content: "Different message" }).expect(409);
+
     // Send message #2
     const msg2 = await request(app)
       .post(`/api/v1/conversations/${groupConversationId}/messages`)
