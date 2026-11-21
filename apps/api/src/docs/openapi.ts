@@ -117,6 +117,41 @@ export const openApiSpec = {
         summary: "Replace full student skills portfolio",
       },
     },
+    "/profiles/me/skills/{skillId}": {
+      delete: { tags: ["Profiles & Students"], security: [{ bearerAuth: [] }], summary: "Remove a profile skill" },
+    },
+    "/profiles/me/interests": {
+      put: { tags: ["Profiles & Students"], security: [{ bearerAuth: [] }], summary: "Replace profile interests" },
+    },
+    "/profiles/me/preferred-roles": {
+      put: { tags: ["Profiles & Students"], security: [{ bearerAuth: [] }], summary: "Replace preferred roles" },
+    },
+    "/profiles/me/achievements": {
+      post: { tags: ["Profiles & Students"], security: [{ bearerAuth: [] }], summary: "Create an achievement" },
+    },
+    "/profiles/me/achievements/{achievementId}": {
+      patch: { tags: ["Profiles & Students"], security: [{ bearerAuth: [] }], summary: "Update an achievement" },
+      delete: { tags: ["Profiles & Students"], security: [{ bearerAuth: [] }], summary: "Remove an achievement" },
+    },
+    "/profiles/me/social-links": {
+      post: { tags: ["Profiles & Students"], security: [{ bearerAuth: [] }], summary: "Add a social link" },
+    },
+    "/profiles/me/social-links/{linkId}": {
+      patch: { tags: ["Profiles & Students"], security: [{ bearerAuth: [] }], summary: "Update a social link" },
+      delete: { tags: ["Profiles & Students"], security: [{ bearerAuth: [] }], summary: "Remove a social link" },
+    },
+    "/projects/{projectId}/skills": {
+      put: { tags: ["Projects"], security: [{ bearerAuth: [] }], summary: "Replace project skills" },
+    },
+    "/projects/{projectId}/skills/{skillId}": {
+      delete: { tags: ["Projects"], security: [{ bearerAuth: [] }], summary: "Remove a project skill" },
+    },
+    "/projects/{projectId}/roles": {
+      put: { tags: ["Projects"], security: [{ bearerAuth: [] }], summary: "Replace project roles" },
+    },
+    "/projects/{projectId}/roles/{roleId}": {
+      delete: { tags: ["Projects"], security: [{ bearerAuth: [] }], summary: "Remove a project role" },
+    },
     "/students": {
       get: {
         tags: ["Profiles & Students"],
