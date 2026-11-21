@@ -740,6 +740,8 @@ describe("Collabryd End-to-End Integration Suite", () => {
       .send({ status: "PAUSED", reason: "Policy review" })
       .expect(200);
 
+    await request(app).post(`/api/v1/admin/projects/${projectId}/members/${userAId}/role-override`)
+      .set("Authorization", `Bearer ${tokenAdmin}`).send({ role: "MEMBER", reason: "Role review" }).expect(400);
     const auditLogs = await request(app)
       .get("/api/v1/admin/audit-logs")
       .set("Authorization", `Bearer ${tokenAdmin}`);

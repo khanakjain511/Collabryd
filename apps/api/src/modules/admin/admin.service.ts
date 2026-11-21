@@ -279,6 +279,9 @@ export async function overrideProjectMemberRole(
       throw new NotFoundError("Project member not found", "MEMBER_NOT_FOUND");
     }
 
+    if (targetUserId === project.ownerId && input.role !== "OWNER") {
+      throw new BadRequestError("Transfer ownership before demoting the owner", "CANNOT_DEMOTE_SOLE_OWNER");
+    }
     if (input.role === "OWNER" && targetUserId !== project.ownerId) {
       await tx
         .update(projectMembers)
