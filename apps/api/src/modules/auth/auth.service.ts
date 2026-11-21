@@ -286,10 +286,16 @@ export async function loginStudent(input: LoginInput) {
     Date.now() + parseDurationToMs(env.JWT_REFRESH_EXPIRES_IN)
   );
 
-  await db.insert(refreshSessions).values({
-    userId: row.userId,
-    tokenHash: sha256(refreshToken),
-    expiresAt: refreshExpiresAt,
+  await db.transaction(async (tx) => {
+    const [current] = await tx.select({ userId: users.userId }).from(users)
+      .where(and(eq(users.userId, row.userId), eq(users.passwordHash, row.passwordHash),
+        eq(users.accountStatus, "ACTIVE"))).for("share").limit(1);
+    if (!current) throw new UnauthorizedError("Credentials changed. Please log in again.");
+    await tx.insert(refreshSessions).values({
+      userId: row.userId,
+      tokenHash: sha256(refreshToken),
+      expiresAt: refreshExpiresAt,
+    });
   });
 
   return {
@@ -316,6 +322,19 @@ export async function refreshAuthSession(rawRefreshToken: string) {
   const tokenHash = sha256(rawRefreshToken);
 
   const outcome = await db.transaction(async (tx) => {
+    // Lock the account before its sessions, as password changes and suspension do.
+    const [user] = await tx
+      .select({
+        userId: users.userId,
+        email: users.email,
+        accountStatus: users.accountStatus,
+        systemRole: users.systemRole,
+      })
+      .from(users)
+      .where(eq(users.userId, decoded.userId))
+      .for("update")
+      .limit(1);
+
     const [session] = await tx
       .select()
       .from(refreshSessions)
@@ -347,17 +366,6 @@ export async function refreshAuthSession(rawRefreshToken: string) {
     if (session.expiresAt.getTime() < Date.now()) {
       throw new UnauthorizedError("Refresh session has expired", "SESSION_EXPIRED");
     }
-
-    const [user] = await tx
-      .select({
-        userId: users.userId,
-        email: users.email,
-        accountStatus: users.accountStatus,
-        systemRole: users.systemRole,
-      })
-      .from(users)
-      .where(eq(users.userId, decoded.userId))
-      .limit(1);
 
     if (!user || user.accountStatus !== "ACTIVE") {
       throw new ForbiddenError("Account is not active", "ACCOUNT_INACTIVE");
@@ -415,15 +423,18 @@ export async function logoutSession(rawRefreshToken: string): Promise<void> {
 }
 
 export async function logoutAllSessions(userId: number): Promise<void> {
-  await db
-    .update(refreshSessions)
-    .set({ revokedAt: new Date() })
-    .where(
-      and(
-        eq(refreshSessions.userId, userId),
-        isNull(refreshSessions.revokedAt)
-      )
-    );
+  await db.transaction(async (tx) => {
+    await tx.select({ userId: users.userId }).from(users).where(eq(users.userId, userId)).for("update");
+    await tx
+      .update(refreshSessions)
+      .set({ revokedAt: new Date() })
+      .where(
+        and(
+          eq(refreshSessions.userId, userId),
+          isNull(refreshSessions.revokedAt)
+        )
+      );
+  });
 }
 
 export async function getCurrentUser(userId: number) {
@@ -483,10 +494,11 @@ export async function changePassword(
 
   const newHash = await hashPassword(input.newPassword);
   await db.transaction(async (tx) => {
-    await tx
-      .update(users)
+    const [updated] = await tx.update(users)
       .set({ passwordHash: newHash, updatedAt: new Date() })
-      .where(eq(users.userId, userId));
+      .where(and(eq(users.userId, userId), eq(users.passwordHash, user.passwordHash)))
+      .returning({ userId: users.userId });
+    if (!updated) throw new UnauthorizedError("Current password is incorrect", "INVALID_CURRENT_PASSWORD");
 
     await tx
       .update(refreshSessions)

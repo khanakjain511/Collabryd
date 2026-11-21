@@ -278,6 +278,11 @@ describe("Collabryd End-to-End Integration Suite", () => {
     tokenA = relogin.body.data.tokens.accessToken;
     refreshA = relogin.body.data.tokens.refreshToken;
     expect(refreshA).toBeTruthy();
+    const changePassword = (newPassword: string) => request(app).patch("/api/v1/auth/password")
+      .set("Authorization", `Bearer ${tokenA}`).send({ currentPassword: password, newPassword });
+    const changes = await Promise.all([changePassword("NewPassword1!"), changePassword("NewPassword2!")]);
+    expect(changes.map(r => r.status).sort()).toEqual([200, 401]);
+    await request(app).post("/api/v1/auth/refresh").send({ refreshToken: refreshA }).expect(401);
 
     // Register User B (same campus), User C (different campus), and Admin
     const b = await registerAndVerify({

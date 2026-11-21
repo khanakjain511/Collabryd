@@ -27,8 +27,8 @@ const envSchema = z.object({
     .string()
     .min(32)
     .default("dev_collabryd_refresh_secret_change_me_in_production_32chars"),
-  JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
-  JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
+  JWT_ACCESS_EXPIRES_IN: z.string().regex(/^[1-9]\d*[smhd]$/).default("15m"),
+  JWT_REFRESH_EXPIRES_IN: z.string().regex(/^[1-9]\d*[smhd]$/).default("7d"),
   ALLOWED_EMAIL_DOMAINS: z.string().default(""),
   EMAIL_PROVIDER: z.enum(["local", "resend"]).optional(),
   EMAIL_FROM: z.string().email().optional(),
