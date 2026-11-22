@@ -515,7 +515,7 @@ function EventEditor({ id, demo }: { id: string; demo: DemoData }) {
     };
     const result = demo.saveEvent(values);
     if (result) setError(result);
-    else window.location.hash = "/admin/hackathons";
+    else window.location.assign("#/admin/hackathons");
   }
   return (
     <>
