@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import { once } from "node:events";
 import { io } from "socket.io-client";
 import type { AddressInfo } from "node:net";
-import { attachNotificationSockets } from "../../src/modules/notifications/notifications.socket.js";
+import { attachNotificationSockets } from "../../src/services/notifications.socket.js";
 import { env } from "../../src/config/env.js";
 import request from "supertest";
 import { eq, sql } from "drizzle-orm";

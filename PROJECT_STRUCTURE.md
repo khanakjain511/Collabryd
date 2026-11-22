@@ -28,38 +28,40 @@ The root `package.json` lists commands you can run from the repository root. pnp
 
 ## From Express route to database row
 
-Most changes start in `apps/api/src/modules/<feature>/`. A feature's `index.ts` exports its router for the central route registry. For the project creation example, follow these files in order.
+Collabryd organizes backend logic using a classic **Model-View-Controller with Services (MVC+S)** architecture under `apps/api/src/`. For the project creation example, follow these layers in order:
 
-| File in `modules/projects/` | Responsibility |
+| Layer / File | Responsibility |
 | --- | --- |
-| `projects.routes.ts` | Matches the HTTP method and path. Lists the middleware to run before calling the controller. |
-| `projects.schemas.ts` | Defines which incoming values are valid using Zod. TypeScript types help during development. Zod also checks the actual JSON or query parameters when a request arrives. |
-| `projects.controller.ts` | Reads the validated input and authenticated user from the request, calls the service, and sends the HTTP response. |
-| `projects.service.ts` | Applies project rules, executes Drizzle queries and groups related writes into transactions. |
+| `src/routes/projects.routes.ts` | Matches the HTTP method and path (`POST /api/v1/projects`). Binds validation and auth middlewares. |
+| `src/schemas/projects.schemas.ts` | Defines and validates input values using Zod schemas (`createProjectSchema`). Checks payload bounds before reaching handlers. |
+| `src/controllers/projects.controller.ts` | Extracts validated payload and authenticated user (`req.user`), delegates to the service layer, and calls the view formatter. |
+| `src/services/projects.service.ts` | Applies business rules, executes Drizzle transactions atomically, and dispatches events. |
+| `src/models/project.model.ts` | Typed domain representations and re-exports of table schemas from `@collabryd/database`. |
+| `src/views/response.view.ts` | Standardizes outbound HTTP JSON responses (`sendCreated(res, project)` -> `{ success: true, data }`). |
 
-The word *schema* has two meanings here. A file under an API feature describes acceptable **request input**. A file under `packages/database/src/schema/` describes **stored data**, including columns, keys and relationships.
+The word *schema* has two meanings here. A file under `apps/api/src/schemas/` describes acceptable **request input validation**. A file under `packages/database/src/schema/` describes **stored database tables**, including columns, keys, and constraints.
 
-### Which feature owns a change?
+### Architecture Layer Overview
 
-| Module | Start here for |
+| Directory | Layer Responsibility |
 | --- | --- |
-| `auth` | Registration, verification email delivery and resend, login, refresh-token rotation, logout and password changes. |
-| `profiles` | Student profiles, visibility, student discovery, skills, interests, preferred roles, achievements and social links. |
-| `catalog` | Shared lists of skills, interests and roles used across profiles and projects. Redis can cache these reads. |
-| `projects` | Project creation, discovery, status, team capacity, required skills, open roles and recommendations. |
-| `applications` | Applying, withdrawing and reviewing applications. Acceptance also adds the applicant to the team and group conversation. |
-| `members` | Team rosters, ownership transfers, role changes and membership removal. |
-| `conversations` | Direct and project chats, messages, retry handling, read positions and unread counts. |
-| `notifications` | The inbox, read state, preferences, stored notification creation and authenticated Socket.IO delivery. |
-| `admin` | Platform metrics, moderation, administrative role overrides and audit entries. |
+| `src/models/` | Domain entity definitions and typed schema re-exports from `@collabryd/database`. |
+| `src/views/` | Response formatters (`response.view.ts` for uniform `{ success, data, meta }` JSON, `docs.view.ts` for interactive HTML docs). |
+| `src/controllers/` | Thin request handlers coordinating input extraction, calling services, and invoking views. |
+| `src/services/` | Business logic, transaction orchestration, password hashing, and notification socket dispatchers. |
+| `src/routes/` | Express routers defining endpoints mounted under `/api/v1` (`auth`, `projects`, `profiles`, etc.). |
+| `src/middlewares/` | Cross-cutting middleware (`auth`, `guards`, `rate-limit`, `validate`, `request-id`, `error`). |
+| `src/schemas/` | Zod validation schemas for request bodies, queries, and path parameters. |
+| `src/utils/` | Shared utilities for cryptography, JWT tokens, pagination calculations, visibility checks, and cache. |
+| `src/errors/` | Application domain error hierarchy (`AppError`, `NotFoundError`, `ConflictError`, etc.). |
 
 ## Startup, authentication and errors
 
-1. `apps/api/src/server.ts` imports the Express app, creates an HTTP server, attaches Socket.IO, then listens on `BACKEND_PORT`. It also handles shutdown. Tests can import `app.ts` directly.
+1. `apps/api/src/server.ts` imports the Express app, creates an HTTP server, attaches Socket.IO via `services/notifications.socket.ts`, then listens on `BACKEND_PORT`. It also handles graceful shutdown. Tests can import `app.ts` directly.
 2. `app.ts` installs the request ID, security headers, CORS, body parsing, logging and rate limiting. It mounts the root API router at `/api`. The `config/` folder contains environment validation, logging and the optional Redis connection.
 3. `routes/index.ts` mounts health checks and API v1. Look in `routes/v1.routes.ts` for the first part of a feature's URL. For example, `/projects/:projectId/applications` mounts the **applications** router.
-4. On protected routes, `common/middleware/auth.middleware.ts` verifies the Bearer access token and loads the current account from PostgreSQL. Additional middleware and service checks enforce admin, project, conversation and visibility rules.
-5. The controller sends the result using `common/utils/response.ts`. The central error middleware maps validation, application and database errors to HTTP responses. `common/types/express.d.ts` tells TypeScript about fields middleware adds to a request, such as `req.user`.
+4. On protected routes, `middlewares/auth.middleware.ts` verifies the Bearer access token and loads the current account from PostgreSQL. Additional middlewares (`project-guard.middleware.ts`, `conversation-guard.middleware.ts`) enforce project and conversation membership.
+5. The controller sends the result using `views/response.view.ts`. The central error middleware (`middlewares/error.middleware.ts`) maps validation, application and database errors to HTTP responses. `types/express.d.ts` tells TypeScript about fields middleware adds to a request, such as `req.user`.
 
 ## Where PostgreSQL fits
 

@@ -8,7 +8,7 @@ import {
   errorHandler,
   notFoundHandler,
   requestIdMiddleware,
-} from "./common/index.js";
+} from "./middlewares/index.js";
 import apiRouter from "./routes/index.js";
 
 export function createApp(): Express {

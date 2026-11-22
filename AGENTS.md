@@ -119,13 +119,18 @@ pnpm --filter @collabryd/database db:studio
 
 ### Backend Layering (`apps/api`)
 
-Follow the established feature module layout under `src/modules/<feature>/`:
+Follow the established **Model-View-Controller with Services (MVC+S)** architecture:
 
-- **`*.routes.ts`**: Route registration, HTTP methods, paths, and middleware binding.
-- **`*.schemas.ts`**: Zod schemas for request body, query params, and route parameters.
-- **`*.controller.ts`**: Thin handlers extracting validated input, invoking services, and sending responses.
-- **`*.service.ts`**: Core business logic, validation rules, and Drizzle database transactions.
-- Keep route handlers thin; do not embed SQL queries or business logic in route definitions.
+- **`src/models/`**: Typed domain data models and database entity re-exports (`@collabryd/database`).
+- **`src/views/`**: Presentation response formatters (`response.view.ts` for JSON standards, `docs.view.ts` for HTML API docs).
+- **`src/controllers/`**: Thin request controllers extracting validated input, delegating to services, and invoking views.
+- **`src/services/`**: Core business logic, domain rules, notification dispatching, and Drizzle database transactions.
+- **`src/routes/`**: Route definitions, HTTP method bindings, and middleware pipelines mounted under `/api/v1`.
+- **`src/middlewares/`**: Cross-cutting request processing (auth, guards, rate limits, request ID, error handling).
+- **`src/schemas/`**: Zod validation schemas for request bodies, query params, and URL parameters.
+- **`src/utils/`**: Pure stateless helpers (crypto, JWT tokens, pagination, visibility, cache).
+- **`src/errors/`**: Standard application error classes (`AppError`, `NotFoundError`, `ConflictError`, etc.).
+- Keep controllers and route handlers thin; never embed raw SQL queries or business logic in route definitions or controllers.
 
 ### Database & Drizzle ORM (`packages/database`)
 

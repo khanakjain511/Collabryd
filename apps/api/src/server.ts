@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { closePool } from "@collabryd/database";
 import app from "./app.js";
 import { closeRedis, logger, PORT } from "./config/index.js";
-import { attachNotificationSockets } from "./modules/notifications/notifications.socket.js";
+import { attachNotificationSockets } from "./services/notifications.socket.js";
 
 const server = createServer(app);
 const closeSockets = await attachNotificationSockets(server);

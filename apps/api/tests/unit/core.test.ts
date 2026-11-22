@@ -5,20 +5,20 @@ import {
   hashPassword,
   sha256,
   verifyPassword,
-} from "../../src/common/utils/crypto.js";
+} from "../../src/utils/crypto.js";
 import {
   parseDurationToMs,
   signAccessToken,
   signRefreshToken,
   verifyAccessToken,
   verifyRefreshToken,
-} from "../../src/common/utils/jwt.js";
-import { buildPaginationMeta } from "../../src/common/utils/pagination.js";
-import { isSameInstitution } from "../../src/common/utils/visibility.js";
-import { getOrSetCache } from "../../src/common/cache/cache.service.js";
-import { mapPostgresError } from "../../src/common/errors/app-error.js";
-import { registerSchema } from "../../src/modules/auth/auth.schemas.js";
-import { createProjectSchema } from "../../src/modules/projects/projects.schemas.js";
+} from "../../src/utils/jwt.js";
+import { buildPaginationMeta } from "../../src/utils/pagination.js";
+import { isSameInstitution } from "../../src/utils/visibility.js";
+import { getOrSetCache } from "../../src/utils/cache.js";
+import { mapPostgresError } from "../../src/errors/app-error.js";
+import { registerSchema } from "../../src/schemas/auth.schemas.js";
+import { createProjectSchema } from "../../src/schemas/projects.schemas.js";
 import app from "../../src/app.js";
 
 describe("Core utilities & security primitives", () => {
