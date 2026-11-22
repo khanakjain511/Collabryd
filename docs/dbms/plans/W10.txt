@@ -1,0 +1,68 @@
+Query ID: W10
+Type: WRITE
+Description: Mark in-app notifications as read
+
+SQL:
+UPDATE notifications
+SET is_read = TRUE
+WHERE recipient_id = 12 AND is_read = FALSE;
+
+--- RUN 1 ---
+SET
+BEGIN
+                                                                        QUERY PLAN                                                                         
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+ Update on notifications  (cost=0.27..8.29 rows=0 width=0) (actual time=0.084..0.084 rows=0.00 loops=1)
+   Buffers: shared hit=29
+   ->  Index Scan using idx_notifications_recipient_unread on notifications  (cost=0.27..8.29 rows=1 width=7) (actual time=0.013..0.013 rows=1.00 loops=1)
+         Index Cond: ((recipient_id = 12) AND (is_read = false))
+         Index Searches: 1
+         Buffers: shared hit=6
+ Planning:
+   Buffers: shared hit=101
+ Planning Time: 0.201 ms
+ Execution Time: 0.138 ms
+(10 rows)
+
+ROLLBACK
+
+
+--- RUN 2 ---
+SET
+BEGIN
+                                                                        QUERY PLAN                                                                         
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+ Update on notifications  (cost=0.27..8.29 rows=0 width=0) (actual time=0.080..0.081 rows=0.00 loops=1)
+   Buffers: shared hit=30
+   ->  Index Scan using idx_notifications_recipient_unread on notifications  (cost=0.27..8.29 rows=1 width=7) (actual time=0.023..0.023 rows=1.00 loops=1)
+         Index Cond: ((recipient_id = 12) AND (is_read = false))
+         Index Searches: 1
+         Buffers: shared hit=6
+ Planning:
+   Buffers: shared hit=101
+ Planning Time: 0.216 ms
+ Execution Time: 0.130 ms
+(10 rows)
+
+ROLLBACK
+
+
+--- RUN 3 ---
+SET
+BEGIN
+                                                                        QUERY PLAN                                                                         
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+ Update on notifications  (cost=0.27..8.29 rows=0 width=0) (actual time=0.080..0.080 rows=0.00 loops=1)
+   Buffers: shared hit=30
+   ->  Index Scan using idx_notifications_recipient_unread on notifications  (cost=0.27..8.29 rows=1 width=7) (actual time=0.023..0.023 rows=1.00 loops=1)
+         Index Cond: ((recipient_id = 12) AND (is_read = false))
+         Index Searches: 1
+         Buffers: shared hit=6
+ Planning:
+   Buffers: shared hit=101
+ Planning Time: 0.192 ms
+ Execution Time: 0.128 ms
+(10 rows)
+
+ROLLBACK
+

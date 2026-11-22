@@ -20,7 +20,7 @@ export function EventsPage({ demo }: { demo: DemoData }) {
     sort: "date",
     page: "1",
   });
-  const [today] = useState(Date.now);
+  const [now] = useState(() => Date.now());
   const catalog = demo.events.filter(
     (event) => !event.publication || event.publication === "Published",
   );
@@ -36,8 +36,8 @@ export function EventsPage({ demo }: { demo: DemoData }) {
       (!filters.until || event.date.slice(0, 10) <= filters.until) &&
       (!filters.time ||
         (filters.time === "upcoming"
-          ? new Date(event.date).getTime() >= today
-          : new Date(event.date).getTime() < today)),
+          ? new Date(event.date).getTime() >= now
+          : new Date(event.date).getTime() < now)),
   );
   const direction = sortDirection(filters.sort);
   const recruiting = demo.teams.filter((team) => openSeats(team) > 0);

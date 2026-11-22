@@ -1,0 +1,123 @@
+Query ID: R25
+Type: READ
+Description: Admin audit log report with administrator details
+
+SQL:
+SELECT al.log_id, al.admin_id, up.display_name AS admin_name, al.action,
+       al.target_type, al.target_id, al.details, al.created_at
+FROM admin_audit_logs al
+JOIN users u ON al.admin_id = u.user_id
+JOIN user_profiles up ON u.user_id = up.user_id
+ORDER BY al.created_at DESC
+LIMIT 20;
+
+--- RUN 1 ---
+SET
+                                                                             QUERY PLAN                                                                             
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=6.43..6.48 rows=20 width=125) (actual time=0.043..0.045 rows=20.00 loops=1)
+   Buffers: shared hit=10
+   ->  Sort  (cost=6.43..6.56 rows=50 width=125) (actual time=0.043..0.044 rows=20.00 loops=1)
+         Sort Key: al.created_at DESC
+         Sort Method: top-N heapsort  Memory: 34kB
+         Buffers: shared hit=10
+         ->  Merge Join  (cost=3.46..5.10 rows=50 width=125) (actual time=0.025..0.031 rows=50.00 loops=1)
+               Merge Cond: (u.user_id = al.admin_id)
+               Buffers: shared hit=7
+               ->  Merge Join  (cost=0.55..89.05 rows=500 width=28) (actual time=0.010..0.012 rows=6.00 loops=1)
+                     Merge Cond: (u.user_id = up.user_id)
+                     Buffers: shared hit=6
+                     ->  Index Only Scan using users_pkey on users u  (cost=0.27..36.77 rows=500 width=8) (actual time=0.003..0.004 rows=6.00 loops=1)
+                           Heap Fetches: 6
+                           Index Searches: 1
+                           Buffers: shared hit=3
+                     ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..44.77 rows=500 width=20) (actual time=0.005..0.005 rows=6.00 loops=1)
+                           Index Searches: 1
+                           Buffers: shared hit=3
+               ->  Sort  (cost=2.91..3.04 rows=50 width=113) (actual time=0.013..0.014 rows=50.00 loops=1)
+                     Sort Key: al.admin_id
+                     Sort Method: quicksort  Memory: 31kB
+                     Buffers: shared hit=1
+                     ->  Seq Scan on admin_audit_logs al  (cost=0.00..1.50 rows=50 width=113) (actual time=0.003..0.004 rows=50.00 loops=1)
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=305
+ Planning Time: 0.539 ms
+ Execution Time: 0.073 ms
+(29 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                                             QUERY PLAN                                                                             
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=6.43..6.48 rows=20 width=125) (actual time=0.044..0.046 rows=20.00 loops=1)
+   Buffers: shared hit=10
+   ->  Sort  (cost=6.43..6.56 rows=50 width=125) (actual time=0.044..0.044 rows=20.00 loops=1)
+         Sort Key: al.created_at DESC
+         Sort Method: top-N heapsort  Memory: 34kB
+         Buffers: shared hit=10
+         ->  Merge Join  (cost=3.46..5.10 rows=50 width=125) (actual time=0.025..0.032 rows=50.00 loops=1)
+               Merge Cond: (u.user_id = al.admin_id)
+               Buffers: shared hit=7
+               ->  Merge Join  (cost=0.55..89.05 rows=500 width=28) (actual time=0.011..0.012 rows=6.00 loops=1)
+                     Merge Cond: (u.user_id = up.user_id)
+                     Buffers: shared hit=6
+                     ->  Index Only Scan using users_pkey on users u  (cost=0.27..36.77 rows=500 width=8) (actual time=0.003..0.004 rows=6.00 loops=1)
+                           Heap Fetches: 6
+                           Index Searches: 1
+                           Buffers: shared hit=3
+                     ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..44.77 rows=500 width=20) (actual time=0.005..0.005 rows=6.00 loops=1)
+                           Index Searches: 1
+                           Buffers: shared hit=3
+               ->  Sort  (cost=2.91..3.04 rows=50 width=113) (actual time=0.013..0.014 rows=50.00 loops=1)
+                     Sort Key: al.admin_id
+                     Sort Method: quicksort  Memory: 31kB
+                     Buffers: shared hit=1
+                     ->  Seq Scan on admin_audit_logs al  (cost=0.00..1.50 rows=50 width=113) (actual time=0.003..0.003 rows=50.00 loops=1)
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=305
+ Planning Time: 0.504 ms
+ Execution Time: 0.074 ms
+(29 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                                             QUERY PLAN                                                                             
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=6.43..6.48 rows=20 width=125) (actual time=0.046..0.048 rows=20.00 loops=1)
+   Buffers: shared hit=10
+   ->  Sort  (cost=6.43..6.56 rows=50 width=125) (actual time=0.046..0.046 rows=20.00 loops=1)
+         Sort Key: al.created_at DESC
+         Sort Method: top-N heapsort  Memory: 34kB
+         Buffers: shared hit=10
+         ->  Merge Join  (cost=3.46..5.10 rows=50 width=125) (actual time=0.028..0.034 rows=50.00 loops=1)
+               Merge Cond: (u.user_id = al.admin_id)
+               Buffers: shared hit=7
+               ->  Merge Join  (cost=0.55..89.05 rows=500 width=28) (actual time=0.012..0.014 rows=6.00 loops=1)
+                     Merge Cond: (u.user_id = up.user_id)
+                     Buffers: shared hit=6
+                     ->  Index Only Scan using users_pkey on users u  (cost=0.27..36.77 rows=500 width=8) (actual time=0.003..0.004 rows=6.00 loops=1)
+                           Heap Fetches: 6
+                           Index Searches: 1
+                           Buffers: shared hit=3
+                     ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..44.77 rows=500 width=20) (actual time=0.006..0.007 rows=6.00 loops=1)
+                           Index Searches: 1
+                           Buffers: shared hit=3
+               ->  Sort  (cost=2.91..3.04 rows=50 width=113) (actual time=0.015..0.016 rows=50.00 loops=1)
+                     Sort Key: al.admin_id
+                     Sort Method: quicksort  Memory: 31kB
+                     Buffers: shared hit=1
+                     ->  Seq Scan on admin_audit_logs al  (cost=0.00..1.50 rows=50 width=113) (actual time=0.003..0.004 rows=50.00 loops=1)
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=305
+ Planning Time: 0.537 ms
+ Execution Time: 0.077 ms
+(29 rows)
+
+

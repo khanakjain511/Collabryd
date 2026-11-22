@@ -1,0 +1,65 @@
+Query ID: W02
+Type: WRITE
+Description: Create email verification token
+
+SQL:
+INSERT INTO email_verification_tokens (user_id, token_hash, expires_at, is_used)
+VALUES (1, 'verification_token_hash_xyz789', NOW() + INTERVAL '24 hours', FALSE)
+RETURNING token_id, user_id, expires_at;
+
+--- RUN 1 ---
+SET
+BEGIN
+                                                      QUERY PLAN                                                      
+----------------------------------------------------------------------------------------------------------------------
+ Insert on email_verification_tokens  (cost=0.00..0.02 rows=1 width=549) (actual time=0.120..0.121 rows=1.00 loops=1)
+   Buffers: shared hit=67
+   ->  Result  (cost=0.00..0.02 rows=1 width=549) (actual time=0.023..0.024 rows=1.00 loops=1)
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=6
+ Planning Time: 0.045 ms
+ Trigger for constraint email_verification_tokens_user_id_fkey: time=0.281 calls=1
+ Execution Time: 0.412 ms
+(9 rows)
+
+ROLLBACK
+
+
+--- RUN 2 ---
+SET
+BEGIN
+                                                      QUERY PLAN                                                      
+----------------------------------------------------------------------------------------------------------------------
+ Insert on email_verification_tokens  (cost=0.00..0.02 rows=1 width=549) (actual time=0.112..0.113 rows=1.00 loops=1)
+   Buffers: shared hit=68
+   ->  Result  (cost=0.00..0.02 rows=1 width=549) (actual time=0.021..0.021 rows=1.00 loops=1)
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=6
+ Planning Time: 0.045 ms
+ Trigger for constraint email_verification_tokens_user_id_fkey: time=0.275 calls=1
+ Execution Time: 0.399 ms
+(9 rows)
+
+ROLLBACK
+
+
+--- RUN 3 ---
+SET
+BEGIN
+                                                      QUERY PLAN                                                      
+----------------------------------------------------------------------------------------------------------------------
+ Insert on email_verification_tokens  (cost=0.00..0.02 rows=1 width=549) (actual time=0.103..0.104 rows=1.00 loops=1)
+   Buffers: shared hit=68
+   ->  Result  (cost=0.00..0.02 rows=1 width=549) (actual time=0.021..0.021 rows=1.00 loops=1)
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=6
+ Planning Time: 0.045 ms
+ Trigger for constraint email_verification_tokens_user_id_fkey: time=0.334 calls=1
+ Execution Time: 0.448 ms
+(9 rows)
+
+ROLLBACK
+

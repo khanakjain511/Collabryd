@@ -1,0 +1,109 @@
+Query ID: R21
+Type: READ
+Description: Direct conversation lookup between two users
+
+SQL:
+SELECT c.conversation_id
+FROM conversations c
+JOIN conversation_members cm1 ON c.conversation_id = cm1.conversation_id
+JOIN conversation_members cm2 ON c.conversation_id = cm2.conversation_id
+WHERE c.type = 'DIRECT' AND cm1.user_id = 12 AND cm2.user_id = 45;
+
+--- RUN 1 ---
+SET
+                                                                            QUERY PLAN                                                                            
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop  (cost=4.41..7.41 rows=1 width=8) (actual time=0.027..0.027 rows=0.00 loops=1)
+   Buffers: shared hit=7
+   ->  Hash Join  (cost=4.26..6.34 rows=1 width=16) (actual time=0.020..0.022 rows=1.00 loops=1)
+         Hash Cond: (c.conversation_id = cm1.conversation_id)
+         Buffers: shared hit=3
+         ->  Seq Scan on conversations c  (cost=0.00..2.00 rows=30 width=8) (actual time=0.004..0.006 rows=30.00 loops=1)
+               Filter: ((type)::text = 'DIRECT'::text)
+               Rows Removed by Filter: 50
+               Buffers: shared hit=1
+         ->  Hash  (cost=4.25..4.25 rows=1 width=8) (actual time=0.011..0.011 rows=1.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=2
+               ->  Seq Scan on conversation_members cm1  (cost=0.00..4.25 rows=1 width=8) (actual time=0.006..0.008 rows=1.00 loops=1)
+                     Filter: (user_id = 12)
+                     Rows Removed by Filter: 179
+                     Buffers: shared hit=2
+   ->  Index Only Scan using conversation_members_pkey on conversation_members cm2  (cost=0.14..0.70 rows=1 width=8) (actual time=0.004..0.004 rows=0.00 loops=1)
+         Index Cond: ((conversation_id = c.conversation_id) AND (user_id = 45))
+         Heap Fetches: 0
+         Index Searches: 1
+         Buffers: shared hit=4
+ Planning:
+   Buffers: shared hit=235
+ Planning Time: 0.428 ms
+ Execution Time: 0.060 ms
+(25 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                                            QUERY PLAN                                                                            
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop  (cost=4.41..7.41 rows=1 width=8) (actual time=0.028..0.029 rows=0.00 loops=1)
+   Buffers: shared hit=7
+   ->  Hash Join  (cost=4.26..6.34 rows=1 width=16) (actual time=0.021..0.023 rows=1.00 loops=1)
+         Hash Cond: (c.conversation_id = cm1.conversation_id)
+         Buffers: shared hit=3
+         ->  Seq Scan on conversations c  (cost=0.00..2.00 rows=30 width=8) (actual time=0.005..0.006 rows=30.00 loops=1)
+               Filter: ((type)::text = 'DIRECT'::text)
+               Rows Removed by Filter: 50
+               Buffers: shared hit=1
+         ->  Hash  (cost=4.25..4.25 rows=1 width=8) (actual time=0.012..0.012 rows=1.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=2
+               ->  Seq Scan on conversation_members cm1  (cost=0.00..4.25 rows=1 width=8) (actual time=0.006..0.008 rows=1.00 loops=1)
+                     Filter: (user_id = 12)
+                     Rows Removed by Filter: 179
+                     Buffers: shared hit=2
+   ->  Index Only Scan using conversation_members_pkey on conversation_members cm2  (cost=0.14..0.70 rows=1 width=8) (actual time=0.004..0.004 rows=0.00 loops=1)
+         Index Cond: ((conversation_id = c.conversation_id) AND (user_id = 45))
+         Heap Fetches: 0
+         Index Searches: 1
+         Buffers: shared hit=4
+ Planning:
+   Buffers: shared hit=235
+ Planning Time: 0.509 ms
+ Execution Time: 0.063 ms
+(25 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                                            QUERY PLAN                                                                            
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop  (cost=4.41..7.41 rows=1 width=8) (actual time=0.027..0.028 rows=0.00 loops=1)
+   Buffers: shared hit=7
+   ->  Hash Join  (cost=4.26..6.34 rows=1 width=16) (actual time=0.021..0.023 rows=1.00 loops=1)
+         Hash Cond: (c.conversation_id = cm1.conversation_id)
+         Buffers: shared hit=3
+         ->  Seq Scan on conversations c  (cost=0.00..2.00 rows=30 width=8) (actual time=0.005..0.006 rows=30.00 loops=1)
+               Filter: ((type)::text = 'DIRECT'::text)
+               Rows Removed by Filter: 50
+               Buffers: shared hit=1
+         ->  Hash  (cost=4.25..4.25 rows=1 width=8) (actual time=0.012..0.012 rows=1.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=2
+               ->  Seq Scan on conversation_members cm1  (cost=0.00..4.25 rows=1 width=8) (actual time=0.006..0.009 rows=1.00 loops=1)
+                     Filter: (user_id = 12)
+                     Rows Removed by Filter: 179
+                     Buffers: shared hit=2
+   ->  Index Only Scan using conversation_members_pkey on conversation_members cm2  (cost=0.14..0.70 rows=1 width=8) (actual time=0.005..0.005 rows=0.00 loops=1)
+         Index Cond: ((conversation_id = c.conversation_id) AND (user_id = 45))
+         Heap Fetches: 0
+         Index Searches: 1
+         Buffers: shared hit=4
+ Planning:
+   Buffers: shared hit=235
+ Planning Time: 0.493 ms
+ Execution Time: 0.062 ms
+(25 rows)
+
+

@@ -1,0 +1,132 @@
+Query ID: R11
+Type: READ
+Description: Project discovery filtered by required skill
+
+SQL:
+SELECT p.project_id, p.title, p.summary, p.status, s.name AS matched_skill, ps.is_required
+FROM projects p
+JOIN project_skills ps ON p.project_id = ps.project_id
+JOIN skills s ON ps.skill_id = s.skill_id
+WHERE p.status = 'OPEN' AND s.name = 'Python'
+ORDER BY p.created_at DESC
+LIMIT 15;
+
+--- RUN 1 ---
+SET
+                                                                          QUERY PLAN                                                                          
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=14.53..14.56 rows=10 width=155) (actual time=0.044..0.045 rows=11.00 loops=1)
+   Buffers: shared hit=49
+   ->  Sort  (cost=14.53..14.56 rows=10 width=155) (actual time=0.043..0.044 rows=11.00 loops=1)
+         Sort Key: p.created_at DESC
+         Sort Method: quicksort  Memory: 27kB
+         Buffers: shared hit=49
+         ->  Nested Loop  (cost=4.43..14.37 rows=10 width=155) (actual time=0.014..0.031 rows=11.00 loops=1)
+               Buffers: shared hit=46
+               ->  Nested Loop  (cost=4.29..10.07 rows=18 width=18) (actual time=0.010..0.015 rows=20.00 loops=1)
+                     Buffers: shared hit=6
+                     ->  Seq Scan on skills s  (cost=0.00..1.38 rows=1 width=17) (actual time=0.003..0.004 rows=1.00 loops=1)
+                           Filter: ((name)::text = 'Python'::text)
+                           Rows Removed by Filter: 29
+                           Buffers: shared hit=1
+                     ->  Bitmap Heap Scan on project_skills ps  (cost=4.29..8.51 rows=18 width=17) (actual time=0.005..0.009 rows=20.00 loops=1)
+                           Recheck Cond: (skill_id = s.skill_id)
+                           Heap Blocks: exact=4
+                           Buffers: shared hit=5
+                           ->  Bitmap Index Scan on idx_project_skills_skill  (cost=0.00..4.29 rows=18 width=0) (actual time=0.003..0.003 rows=20.00 loops=1)
+                                 Index Cond: (skill_id = s.skill_id)
+                                 Index Searches: 1
+                                 Buffers: shared hit=1
+               ->  Index Scan using projects_pkey on projects p  (cost=0.14..0.24 rows=1 width=145) (actual time=0.001..0.001 rows=0.55 loops=20)
+                     Index Cond: (project_id = ps.project_id)
+                     Filter: ((status)::text = 'OPEN'::text)
+                     Rows Removed by Filter: 0
+                     Index Searches: 20
+                     Buffers: shared hit=40
+ Planning:
+   Buffers: shared hit=336
+ Planning Time: 0.578 ms
+ Execution Time: 0.069 ms
+(32 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                                          QUERY PLAN                                                                          
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=14.53..14.56 rows=10 width=155) (actual time=0.086..0.088 rows=11.00 loops=1)
+   Buffers: shared hit=49
+   ->  Sort  (cost=14.53..14.56 rows=10 width=155) (actual time=0.085..0.086 rows=11.00 loops=1)
+         Sort Key: p.created_at DESC
+         Sort Method: quicksort  Memory: 27kB
+         Buffers: shared hit=49
+         ->  Nested Loop  (cost=4.43..14.37 rows=10 width=155) (actual time=0.031..0.063 rows=11.00 loops=1)
+               Buffers: shared hit=46
+               ->  Nested Loop  (cost=4.29..10.07 rows=18 width=18) (actual time=0.022..0.032 rows=20.00 loops=1)
+                     Buffers: shared hit=6
+                     ->  Seq Scan on skills s  (cost=0.00..1.38 rows=1 width=17) (actual time=0.010..0.012 rows=1.00 loops=1)
+                           Filter: ((name)::text = 'Python'::text)
+                           Rows Removed by Filter: 29
+                           Buffers: shared hit=1
+                     ->  Bitmap Heap Scan on project_skills ps  (cost=4.29..8.51 rows=18 width=17) (actual time=0.011..0.016 rows=20.00 loops=1)
+                           Recheck Cond: (skill_id = s.skill_id)
+                           Heap Blocks: exact=4
+                           Buffers: shared hit=5
+                           ->  Bitmap Index Scan on idx_project_skills_skill  (cost=0.00..4.29 rows=18 width=0) (actual time=0.005..0.005 rows=20.00 loops=1)
+                                 Index Cond: (skill_id = s.skill_id)
+                                 Index Searches: 1
+                                 Buffers: shared hit=1
+               ->  Index Scan using projects_pkey on projects p  (cost=0.14..0.24 rows=1 width=145) (actual time=0.001..0.001 rows=0.55 loops=20)
+                     Index Cond: (project_id = ps.project_id)
+                     Filter: ((status)::text = 'OPEN'::text)
+                     Rows Removed by Filter: 0
+                     Index Searches: 20
+                     Buffers: shared hit=40
+ Planning:
+   Buffers: shared hit=336
+ Planning Time: 6.476 ms
+ Execution Time: 0.135 ms
+(32 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                                          QUERY PLAN                                                                          
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=14.53..14.56 rows=10 width=155) (actual time=0.084..0.086 rows=11.00 loops=1)
+   Buffers: shared hit=49
+   ->  Sort  (cost=14.53..14.56 rows=10 width=155) (actual time=0.083..0.084 rows=11.00 loops=1)
+         Sort Key: p.created_at DESC
+         Sort Method: quicksort  Memory: 27kB
+         Buffers: shared hit=49
+         ->  Nested Loop  (cost=4.43..14.37 rows=10 width=155) (actual time=0.029..0.062 rows=11.00 loops=1)
+               Buffers: shared hit=46
+               ->  Nested Loop  (cost=4.29..10.07 rows=18 width=18) (actual time=0.020..0.030 rows=20.00 loops=1)
+                     Buffers: shared hit=6
+                     ->  Seq Scan on skills s  (cost=0.00..1.38 rows=1 width=17) (actual time=0.008..0.010 rows=1.00 loops=1)
+                           Filter: ((name)::text = 'Python'::text)
+                           Rows Removed by Filter: 29
+                           Buffers: shared hit=1
+                     ->  Bitmap Heap Scan on project_skills ps  (cost=4.29..8.51 rows=18 width=17) (actual time=0.010..0.016 rows=20.00 loops=1)
+                           Recheck Cond: (skill_id = s.skill_id)
+                           Heap Blocks: exact=4
+                           Buffers: shared hit=5
+                           ->  Bitmap Index Scan on idx_project_skills_skill  (cost=0.00..4.29 rows=18 width=0) (actual time=0.005..0.005 rows=20.00 loops=1)
+                                 Index Cond: (skill_id = s.skill_id)
+                                 Index Searches: 1
+                                 Buffers: shared hit=1
+               ->  Index Scan using projects_pkey on projects p  (cost=0.14..0.24 rows=1 width=145) (actual time=0.001..0.001 rows=0.55 loops=20)
+                     Index Cond: (project_id = ps.project_id)
+                     Filter: ((status)::text = 'OPEN'::text)
+                     Rows Removed by Filter: 0
+                     Index Searches: 20
+                     Buffers: shared hit=40
+ Planning:
+   Buffers: shared hit=336
+ Planning Time: 5.975 ms
+ Execution Time: 0.129 ms
+(32 rows)
+
+

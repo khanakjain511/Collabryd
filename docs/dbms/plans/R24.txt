@@ -1,0 +1,130 @@
+Query ID: R24
+Type: READ
+Description: Admin platform summary operational metrics
+
+SQL:
+SELECT
+    (SELECT COUNT(*) FROM users WHERE account_status = 'ACTIVE') AS active_students,
+    (SELECT COUNT(*) FROM projects WHERE status = 'OPEN') AS open_projects,
+    (SELECT COUNT(*) FROM applications WHERE status = 'PENDING') AS pending_applications,
+    (SELECT COUNT(*) FROM messages) AS total_messages_sent;
+
+--- RUN 1 ---
+SET
+                                                         QUERY PLAN                                                         
+----------------------------------------------------------------------------------------------------------------------------
+ Result  (cost=81.59..81.60 rows=1 width=32) (actual time=0.210..0.211 rows=1.00 loops=1)
+   Buffers: shared hit=52
+   InitPlan 1
+     ->  Aggregate  (cost=17.10..17.11 rows=1 width=8) (actual time=0.043..0.043 rows=1.00 loops=1)
+           Buffers: shared hit=10
+           ->  Seq Scan on users  (cost=0.00..16.25 rows=339 width=0) (actual time=0.005..0.033 rows=339.00 loops=1)
+                 Filter: ((account_status)::text = 'ACTIVE'::text)
+                 Rows Removed by Filter: 161
+                 Buffers: shared hit=10
+   InitPlan 2
+     ->  Aggregate  (cost=10.08..10.09 rows=1 width=8) (actual time=0.019..0.019 rows=1.00 loops=1)
+           Buffers: shared hit=8
+           ->  Seq Scan on projects  (cost=0.00..9.88 rows=81 width=0) (actual time=0.002..0.017 rows=81.00 loops=1)
+                 Filter: ((status)::text = 'OPEN'::text)
+                 Rows Removed by Filter: 69
+                 Buffers: shared hit=8
+   InitPlan 3
+     ->  Aggregate  (cost=14.37..14.38 rows=1 width=8) (actual time=0.042..0.042 rows=1.00 loops=1)
+           Buffers: shared hit=9
+           ->  Seq Scan on applications  (cost=0.00..13.98 rows=158 width=0) (actual time=0.008..0.039 rows=158.00 loops=1)
+                 Filter: ((status)::text = 'PENDING'::text)
+                 Rows Removed by Filter: 240
+                 Buffers: shared hit=9
+   InitPlan 4
+     ->  Aggregate  (cost=40.00..40.01 rows=1 width=8) (actual time=0.104..0.104 rows=1.00 loops=1)
+           Buffers: shared hit=25
+           ->  Seq Scan on messages  (cost=0.00..37.00 rows=1200 width=0) (actual time=0.004..0.079 rows=1200.00 loops=1)
+                 Buffers: shared hit=25
+ Planning:
+   Buffers: shared hit=286
+ Planning Time: 0.681 ms
+ Execution Time: 0.260 ms
+(32 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                         QUERY PLAN                                                         
+----------------------------------------------------------------------------------------------------------------------------
+ Result  (cost=81.59..81.60 rows=1 width=32) (actual time=0.179..0.180 rows=1.00 loops=1)
+   Buffers: shared hit=52
+   InitPlan 1
+     ->  Aggregate  (cost=17.10..17.11 rows=1 width=8) (actual time=0.042..0.042 rows=1.00 loops=1)
+           Buffers: shared hit=10
+           ->  Seq Scan on users  (cost=0.00..16.25 rows=339 width=0) (actual time=0.005..0.032 rows=339.00 loops=1)
+                 Filter: ((account_status)::text = 'ACTIVE'::text)
+                 Rows Removed by Filter: 161
+                 Buffers: shared hit=10
+   InitPlan 2
+     ->  Aggregate  (cost=10.08..10.09 rows=1 width=8) (actual time=0.019..0.019 rows=1.00 loops=1)
+           Buffers: shared hit=8
+           ->  Seq Scan on projects  (cost=0.00..9.88 rows=81 width=0) (actual time=0.002..0.018 rows=81.00 loops=1)
+                 Filter: ((status)::text = 'OPEN'::text)
+                 Rows Removed by Filter: 69
+                 Buffers: shared hit=8
+   InitPlan 3
+     ->  Aggregate  (cost=14.37..14.38 rows=1 width=8) (actual time=0.029..0.029 rows=1.00 loops=1)
+           Buffers: shared hit=9
+           ->  Seq Scan on applications  (cost=0.00..13.98 rows=158 width=0) (actual time=0.003..0.025 rows=158.00 loops=1)
+                 Filter: ((status)::text = 'PENDING'::text)
+                 Rows Removed by Filter: 240
+                 Buffers: shared hit=9
+   InitPlan 4
+     ->  Aggregate  (cost=40.00..40.01 rows=1 width=8) (actual time=0.087..0.087 rows=1.00 loops=1)
+           Buffers: shared hit=25
+           ->  Seq Scan on messages  (cost=0.00..37.00 rows=1200 width=0) (actual time=0.004..0.062 rows=1200.00 loops=1)
+                 Buffers: shared hit=25
+ Planning:
+   Buffers: shared hit=286
+ Planning Time: 0.607 ms
+ Execution Time: 0.225 ms
+(32 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                         QUERY PLAN                                                         
+----------------------------------------------------------------------------------------------------------------------------
+ Result  (cost=81.59..81.60 rows=1 width=32) (actual time=0.183..0.184 rows=1.00 loops=1)
+   Buffers: shared hit=52
+   InitPlan 1
+     ->  Aggregate  (cost=17.10..17.11 rows=1 width=8) (actual time=0.043..0.043 rows=1.00 loops=1)
+           Buffers: shared hit=10
+           ->  Seq Scan on users  (cost=0.00..16.25 rows=339 width=0) (actual time=0.005..0.033 rows=339.00 loops=1)
+                 Filter: ((account_status)::text = 'ACTIVE'::text)
+                 Rows Removed by Filter: 161
+                 Buffers: shared hit=10
+   InitPlan 2
+     ->  Aggregate  (cost=10.08..10.09 rows=1 width=8) (actual time=0.020..0.020 rows=1.00 loops=1)
+           Buffers: shared hit=8
+           ->  Seq Scan on projects  (cost=0.00..9.88 rows=81 width=0) (actual time=0.002..0.018 rows=81.00 loops=1)
+                 Filter: ((status)::text = 'OPEN'::text)
+                 Rows Removed by Filter: 69
+                 Buffers: shared hit=8
+   InitPlan 3
+     ->  Aggregate  (cost=14.37..14.38 rows=1 width=8) (actual time=0.031..0.031 rows=1.00 loops=1)
+           Buffers: shared hit=9
+           ->  Seq Scan on applications  (cost=0.00..13.98 rows=158 width=0) (actual time=0.003..0.027 rows=158.00 loops=1)
+                 Filter: ((status)::text = 'PENDING'::text)
+                 Rows Removed by Filter: 240
+                 Buffers: shared hit=9
+   InitPlan 4
+     ->  Aggregate  (cost=40.00..40.01 rows=1 width=8) (actual time=0.088..0.088 rows=1.00 loops=1)
+           Buffers: shared hit=25
+           ->  Seq Scan on messages  (cost=0.00..37.00 rows=1200 width=0) (actual time=0.004..0.063 rows=1200.00 loops=1)
+                 Buffers: shared hit=25
+ Planning:
+   Buffers: shared hit=286
+ Planning Time: 0.605 ms
+ Execution Time: 0.221 ms
+(32 rows)
+
+

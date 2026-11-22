@@ -1,0 +1,76 @@
+Query ID: R02
+Type: READ
+Description: Fetch student profile with academic details
+
+SQL:
+SELECT u.user_id, u.email, up.display_name, up.bio, up.avatar_url, up.institution,
+       up.course_program, up.academic_year, up.department, up.availability_status
+FROM users u
+JOIN user_profiles up ON u.user_id = up.user_id
+WHERE u.user_id = 42;
+
+--- RUN 1 ---
+SET
+                                                                   QUERY PLAN                                                                   
+------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop  (cost=0.55..16.59 rows=1 width=749) (actual time=0.018..0.018 rows=1.00 loops=1)
+   Buffers: shared hit=9
+   ->  Index Scan using users_pkey on users u  (cost=0.27..8.29 rows=1 width=38) (actual time=0.011..0.011 rows=1.00 loops=1)
+         Index Cond: (user_id = 42)
+         Index Searches: 1
+         Buffers: shared hit=6
+   ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..8.29 rows=1 width=719) (actual time=0.005..0.006 rows=1.00 loops=1)
+         Index Cond: (user_id = 42)
+         Index Searches: 1
+         Buffers: shared hit=3
+ Planning:
+   Buffers: shared hit=188
+ Planning Time: 0.318 ms
+ Execution Time: 0.040 ms
+(14 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                                   QUERY PLAN                                                                   
+------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop  (cost=0.55..16.59 rows=1 width=749) (actual time=0.014..0.014 rows=1.00 loops=1)
+   Buffers: shared hit=9
+   ->  Index Scan using users_pkey on users u  (cost=0.27..8.29 rows=1 width=38) (actual time=0.010..0.010 rows=1.00 loops=1)
+         Index Cond: (user_id = 42)
+         Index Searches: 1
+         Buffers: shared hit=6
+   ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..8.29 rows=1 width=719) (actual time=0.003..0.003 rows=1.00 loops=1)
+         Index Cond: (user_id = 42)
+         Index Searches: 1
+         Buffers: shared hit=3
+ Planning:
+   Buffers: shared hit=188
+ Planning Time: 0.336 ms
+ Execution Time: 0.038 ms
+(14 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                                   QUERY PLAN                                                                   
+------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop  (cost=0.55..16.59 rows=1 width=749) (actual time=0.014..0.014 rows=1.00 loops=1)
+   Buffers: shared hit=9
+   ->  Index Scan using users_pkey on users u  (cost=0.27..8.29 rows=1 width=38) (actual time=0.009..0.010 rows=1.00 loops=1)
+         Index Cond: (user_id = 42)
+         Index Searches: 1
+         Buffers: shared hit=6
+   ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..8.29 rows=1 width=719) (actual time=0.004..0.004 rows=1.00 loops=1)
+         Index Cond: (user_id = 42)
+         Index Searches: 1
+         Buffers: shared hit=3
+ Planning:
+   Buffers: shared hit=188
+ Planning Time: 0.334 ms
+ Execution Time: 0.038 ms
+(14 rows)
+
+

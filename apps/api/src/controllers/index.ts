@@ -1,0 +1,9 @@
+export * as authController from "./auth.controller.js";
+export * as catalogController from "./catalog.controller.js";
+export * as profilesController from "./profiles.controller.js";
+export * as projectsController from "./projects.controller.js";
+export * as applicationsController from "./applications.controller.js";
+export * as membersController from "./members.controller.js";
+export * as conversationsController from "./conversations.controller.js";
+export * as notificationsController from "./notifications.controller.js";
+export * as adminController from "./admin.controller.js";

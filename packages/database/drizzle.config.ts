@@ -1,24 +1,21 @@
 import dotenv from "dotenv";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { resolveDatabaseUrl } from "./src/database-url.js";
 import { defineConfig } from "drizzle-kit";
 
-dotenv.config({ path: "../../.env" });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const { POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB,DATABASE_PORT } = process.env;
-
-if (!POSTGRES_USER || !POSTGRES_PASSWORD || !POSTGRES_DB||!DATABASE_PORT) {
-  throw new Error(
-    "POSTGRES_USER, POSTGRES_PASSWORD, and POSTGRES_DB must be defined in .env"
-  );
-}
-
-const DATABASE_URL = `postgresql://${encodeURIComponent(POSTGRES_USER)}:${encodeURIComponent(POSTGRES_PASSWORD)}@localhost:${DATABASE_PORT}/${encodeURIComponent(POSTGRES_DB)}`;
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 export default defineConfig({
-  schema: "./src/schema/**/*.ts",
+  schema: "./src/schema/index.ts",
   out: "./drizzle",
   dialect: "postgresql",
+  schemaFilter: ["collabryd"],
   dbCredentials: {
-    url: DATABASE_URL,
+    url: resolveDatabaseUrl(),
   },
   strict: true,
   verbose: true,

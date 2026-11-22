@@ -1,0 +1,147 @@
+Query ID: R20
+Type: READ
+Description: Student conversation inbox with unread counts
+
+SQL:
+SELECT c.conversation_id, c.type, p.title AS project_title,
+       cm.last_read_sequence, MAX(m.sequence_number) AS latest_sequence,
+       (COALESCE(MAX(m.sequence_number), 0) - cm.last_read_sequence) AS unread_messages_count
+FROM conversation_members cm
+JOIN conversations c ON cm.conversation_id = c.conversation_id
+LEFT JOIN projects p ON c.project_id = p.project_id
+LEFT JOIN messages m ON c.conversation_id = m.conversation_id
+WHERE cm.user_id = 12
+GROUP BY c.conversation_id, c.type, p.title, cm.last_read_sequence
+ORDER BY latest_sequence DESC NULLS LAST;
+
+--- RUN 1 ---
+SET
+                                                                          QUERY PLAN                                                                           
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=9.87..9.91 rows=15 width=80) (actual time=0.061..0.061 rows=1.00 loops=1)
+   Sort Key: (max(m.sequence_number)) DESC NULLS LAST
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=10
+   ->  HashAggregate  (cost=9.39..9.58 rows=15 width=80) (actual time=0.052..0.053 rows=1.00 loops=1)
+         Group Key: c.conversation_id, p.title, cm.last_read_sequence
+         Batches: 1  Memory Usage: 32kB
+         Buffers: shared hit=7
+         ->  Nested Loop Left Join  (cost=4.68..9.24 rows=15 width=72) (actual time=0.041..0.047 rows=15.00 loops=1)
+               Buffers: shared hit=7
+               ->  Nested Loop Left Join  (cost=4.41..6.95 rows=1 width=64) (actual time=0.022..0.024 rows=1.00 loops=1)
+                     Buffers: shared hit=3
+                     ->  Hash Join  (cost=4.26..6.28 rows=1 width=30) (actual time=0.020..0.022 rows=1.00 loops=1)
+                           Hash Cond: (c.conversation_id = cm.conversation_id)
+                           Buffers: shared hit=3
+                           ->  Seq Scan on conversations c  (cost=0.00..1.80 rows=80 width=22) (actual time=0.004..0.006 rows=80.00 loops=1)
+                                 Buffers: shared hit=1
+                           ->  Hash  (cost=4.25..4.25 rows=1 width=16) (actual time=0.010..0.010 rows=1.00 loops=1)
+                                 Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                 Buffers: shared hit=2
+                                 ->  Seq Scan on conversation_members cm  (cost=0.00..4.25 rows=1 width=16) (actual time=0.006..0.007 rows=1.00 loops=1)
+                                       Filter: (user_id = 12)
+                                       Rows Removed by Filter: 179
+                                       Buffers: shared hit=2
+                     ->  Index Scan using projects_pkey on projects p  (cost=0.14..0.66 rows=1 width=50) (actual time=0.001..0.001 rows=0.00 loops=1)
+                           Index Cond: (project_id = c.project_id)
+                           Index Searches: 0
+               ->  Index Only Scan using idx_messages_conv_seq on messages m  (cost=0.28..2.14 rows=15 width=16) (actual time=0.019..0.023 rows=15.00 loops=1)
+                     Index Cond: (conversation_id = c.conversation_id)
+                     Heap Fetches: 15
+                     Index Searches: 1
+                     Buffers: shared hit=4
+ Planning:
+   Buffers: shared hit=332
+ Planning Time: 0.915 ms
+ Execution Time: 0.113 ms
+(36 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                                          QUERY PLAN                                                                           
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=9.87..9.91 rows=15 width=80) (actual time=0.046..0.046 rows=1.00 loops=1)
+   Sort Key: (max(m.sequence_number)) DESC NULLS LAST
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=10
+   ->  HashAggregate  (cost=9.39..9.58 rows=15 width=80) (actual time=0.038..0.039 rows=1.00 loops=1)
+         Group Key: c.conversation_id, p.title, cm.last_read_sequence
+         Batches: 1  Memory Usage: 32kB
+         Buffers: shared hit=7
+         ->  Nested Loop Left Join  (cost=4.68..9.24 rows=15 width=72) (actual time=0.029..0.034 rows=15.00 loops=1)
+               Buffers: shared hit=7
+               ->  Nested Loop Left Join  (cost=4.41..6.95 rows=1 width=64) (actual time=0.019..0.021 rows=1.00 loops=1)
+                     Buffers: shared hit=3
+                     ->  Hash Join  (cost=4.26..6.28 rows=1 width=30) (actual time=0.018..0.020 rows=1.00 loops=1)
+                           Hash Cond: (c.conversation_id = cm.conversation_id)
+                           Buffers: shared hit=3
+                           ->  Seq Scan on conversations c  (cost=0.00..1.80 rows=80 width=22) (actual time=0.003..0.004 rows=80.00 loops=1)
+                                 Buffers: shared hit=1
+                           ->  Hash  (cost=4.25..4.25 rows=1 width=16) (actual time=0.009..0.009 rows=1.00 loops=1)
+                                 Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                 Buffers: shared hit=2
+                                 ->  Seq Scan on conversation_members cm  (cost=0.00..4.25 rows=1 width=16) (actual time=0.005..0.007 rows=1.00 loops=1)
+                                       Filter: (user_id = 12)
+                                       Rows Removed by Filter: 179
+                                       Buffers: shared hit=2
+                     ->  Index Scan using projects_pkey on projects p  (cost=0.14..0.66 rows=1 width=50) (actual time=0.000..0.000 rows=0.00 loops=1)
+                           Index Cond: (project_id = c.project_id)
+                           Index Searches: 0
+               ->  Index Only Scan using idx_messages_conv_seq on messages m  (cost=0.28..2.14 rows=15 width=16) (actual time=0.010..0.012 rows=15.00 loops=1)
+                     Index Cond: (conversation_id = c.conversation_id)
+                     Heap Fetches: 15
+                     Index Searches: 1
+                     Buffers: shared hit=4
+ Planning:
+   Buffers: shared hit=332
+ Planning Time: 0.701 ms
+ Execution Time: 0.102 ms
+(36 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                                          QUERY PLAN                                                                           
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=9.87..9.91 rows=15 width=80) (actual time=0.049..0.050 rows=1.00 loops=1)
+   Sort Key: (max(m.sequence_number)) DESC NULLS LAST
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=10
+   ->  HashAggregate  (cost=9.39..9.58 rows=15 width=80) (actual time=0.041..0.042 rows=1.00 loops=1)
+         Group Key: c.conversation_id, p.title, cm.last_read_sequence
+         Batches: 1  Memory Usage: 32kB
+         Buffers: shared hit=7
+         ->  Nested Loop Left Join  (cost=4.68..9.24 rows=15 width=72) (actual time=0.031..0.036 rows=15.00 loops=1)
+               Buffers: shared hit=7
+               ->  Nested Loop Left Join  (cost=4.41..6.95 rows=1 width=64) (actual time=0.022..0.024 rows=1.00 loops=1)
+                     Buffers: shared hit=3
+                     ->  Hash Join  (cost=4.26..6.28 rows=1 width=30) (actual time=0.020..0.022 rows=1.00 loops=1)
+                           Hash Cond: (c.conversation_id = cm.conversation_id)
+                           Buffers: shared hit=3
+                           ->  Seq Scan on conversations c  (cost=0.00..1.80 rows=80 width=22) (actual time=0.003..0.005 rows=80.00 loops=1)
+                                 Buffers: shared hit=1
+                           ->  Hash  (cost=4.25..4.25 rows=1 width=16) (actual time=0.010..0.011 rows=1.00 loops=1)
+                                 Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                 Buffers: shared hit=2
+                                 ->  Seq Scan on conversation_members cm  (cost=0.00..4.25 rows=1 width=16) (actual time=0.006..0.008 rows=1.00 loops=1)
+                                       Filter: (user_id = 12)
+                                       Rows Removed by Filter: 179
+                                       Buffers: shared hit=2
+                     ->  Index Scan using projects_pkey on projects p  (cost=0.14..0.66 rows=1 width=50) (actual time=0.001..0.001 rows=0.00 loops=1)
+                           Index Cond: (project_id = c.project_id)
+                           Index Searches: 0
+               ->  Index Only Scan using idx_messages_conv_seq on messages m  (cost=0.28..2.14 rows=15 width=16) (actual time=0.009..0.012 rows=15.00 loops=1)
+                     Index Cond: (conversation_id = c.conversation_id)
+                     Heap Fetches: 15
+                     Index Searches: 1
+                     Buffers: shared hit=4
+ Planning:
+   Buffers: shared hit=332
+ Planning Time: 0.931 ms
+ Execution Time: 0.110 ms
+(36 rows)
+
+

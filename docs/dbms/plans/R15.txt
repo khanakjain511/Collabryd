@@ -1,0 +1,233 @@
+Query ID: R15
+Type: READ
+Description: Candidate recommendation matching for project requirements
+
+SQL:
+SELECT u.user_id, up.display_name, up.institution, up.academic_year,
+       COUNT(DISTINCT ps.skill_id) AS matching_skills_count,
+       STRING_AGG(s.name, ', ' ORDER BY s.name) AS matched_skills
+FROM users u
+JOIN user_profiles up ON u.user_id = up.user_id
+JOIN user_skills us ON u.user_id = us.user_id
+JOIN project_skills ps ON us.skill_id = ps.skill_id
+JOIN skills s ON ps.skill_id = s.skill_id
+WHERE ps.project_id = 5
+  AND u.account_status = 'ACTIVE'
+  AND u.user_id NOT IN (SELECT user_id FROM project_members WHERE project_id = 5)
+GROUP BY u.user_id, up.display_name, up.institution, up.academic_year
+HAVING COUNT(DISTINCT ps.skill_id) >= 1
+ORDER BY matching_skills_count DESC
+LIMIT 10;
+
+--- RUN 1 ---
+SET
+                                                                                         QUERY PLAN                                                                                         
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=66.23..66.26 rows=10 width=93) (actual time=0.728..0.729 rows=10.00 loops=1)
+   Buffers: shared hit=298
+   ->  Sort  (cost=66.23..66.27 rows=15 width=93) (actual time=0.727..0.728 rows=10.00 loops=1)
+         Sort Key: (count(DISTINCT ps.skill_id)) DESC
+         Sort Method: top-N heapsort  Memory: 26kB
+         Buffers: shared hit=298
+         ->  GroupAggregate  (cost=64.48..65.94 rows=15 width=93) (actual time=0.663..0.713 rows=70.00 loops=1)
+               Group Key: u.user_id, up.display_name, up.institution, up.academic_year
+               Filter: (count(DISTINCT ps.skill_id) >= 1)
+               Buffers: shared hit=295
+               ->  Sort  (cost=64.48..64.59 rows=45 width=70) (actual time=0.304..0.306 rows=78.00 loops=1)
+                     Sort Key: u.user_id, up.display_name, up.institution, up.academic_year, ps.skill_id
+                     Sort Method: quicksort  Memory: 31kB
+                     Buffers: shared hit=295
+                     ->  Nested Loop  (cost=29.31..63.24 rows=45 width=70) (actual time=0.098..0.278 rows=78.00 loops=1)
+                           Join Filter: (u.user_id = up.user_id)
+                           Buffers: shared hit=292
+                           ->  Hash Join  (cost=29.04..47.62 rows=45 width=33) (actual time=0.095..0.181 rows=78.00 loops=1)
+                                 Hash Cond: (u.user_id = us.user_id)
+                                 Buffers: shared hit=58
+                                 ->  Seq Scan on users u  (cost=7.52..25.02 rows=169 width=8) (actual time=0.022..0.087 rows=337.00 loops=1)
+                                       Filter: ((NOT (ANY (user_id = (hashed SubPlan 1).col1))) AND ((account_status)::text = 'ACTIVE'::text))
+                                       Rows Removed by Filter: 163
+                                       Buffers: shared hit=13
+                                       SubPlan 1
+                                         ->  Seq Scan on project_members  (cost=0.00..7.51 rows=2 width=8) (actual time=0.003..0.013 rows=2.00 loops=1)
+                                               Filter: (project_id = 5)
+                                               Rows Removed by Filter: 359
+                                               Buffers: shared hit=3
+                                 ->  Hash  (cost=19.87..19.87 rows=132 width=25) (actual time=0.069..0.069 rows=112.00 loops=1)
+                                       Buckets: 1024  Batches: 1  Memory Usage: 15kB
+                                       Buffers: shared hit=45
+                                       ->  Nested Loop  (cost=8.38..19.87 rows=132 width=25) (actual time=0.022..0.063 rows=112.00 loops=1)
+                                             Join Filter: (us.skill_id = ps.skill_id)
+                                             Buffers: shared hit=45
+                                             ->  Hash Join  (cost=8.10..9.49 rows=2 width=25) (actual time=0.016..0.019 rows=2.00 loops=1)
+                                                   Hash Cond: (s.skill_id = ps.skill_id)
+                                                   Buffers: shared hit=7
+                                                   ->  Seq Scan on skills s  (cost=0.00..1.30 rows=30 width=17) (actual time=0.001..0.002 rows=30.00 loops=1)
+                                                         Buffers: shared hit=1
+                                                   ->  Hash  (cost=8.07..8.07 rows=2 width=8) (actual time=0.012..0.012 rows=2.00 loops=1)
+                                                         Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                                         Buffers: shared hit=6
+                                                         ->  Bitmap Heap Scan on project_skills ps  (cost=4.29..8.07 rows=2 width=8) (actual time=0.009..0.010 rows=2.00 loops=1)
+                                                               Recheck Cond: (project_id = 5)
+                                                               Heap Blocks: exact=1
+                                                               Buffers: shared hit=6
+                                                               ->  Bitmap Index Scan on project_skills_pkey  (cost=0.00..4.29 rows=2 width=0) (actual time=0.007..0.007 rows=2.00 loops=1)
+                                                                     Index Cond: (project_id = 5)
+                                                                     Index Searches: 1
+                                                                     Buffers: shared hit=5
+                                             ->  Index Scan using idx_user_skills_skill on user_skills us  (cost=0.28..4.37 rows=66 width=16) (actual time=0.003..0.018 rows=56.00 loops=2)
+                                                   Index Cond: (skill_id = s.skill_id)
+                                                   Index Searches: 2
+                                                   Buffers: shared hit=38
+                           ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..0.33 rows=1 width=53) (actual time=0.001..0.001 rows=1.00 loops=78)
+                                 Index Cond: (user_id = us.user_id)
+                                 Index Searches: 78
+                                 Buffers: shared hit=234
+ Planning:
+   Buffers: shared hit=391
+ Planning Time: 1.625 ms
+ Execution Time: 0.798 ms
+(63 rows)
+
+
+
+--- RUN 2 ---
+SET
+                                                                                         QUERY PLAN                                                                                         
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=66.23..66.26 rows=10 width=93) (actual time=0.349..0.350 rows=10.00 loops=1)
+   Buffers: shared hit=298
+   ->  Sort  (cost=66.23..66.27 rows=15 width=93) (actual time=0.348..0.349 rows=10.00 loops=1)
+         Sort Key: (count(DISTINCT ps.skill_id)) DESC
+         Sort Method: top-N heapsort  Memory: 26kB
+         Buffers: shared hit=298
+         ->  GroupAggregate  (cost=64.48..65.94 rows=15 width=93) (actual time=0.268..0.315 rows=70.00 loops=1)
+               Group Key: u.user_id, up.display_name, up.institution, up.academic_year
+               Filter: (count(DISTINCT ps.skill_id) >= 1)
+               Buffers: shared hit=295
+               ->  Sort  (cost=64.48..64.59 rows=45 width=70) (actual time=0.251..0.253 rows=78.00 loops=1)
+                     Sort Key: u.user_id, up.display_name, up.institution, up.academic_year, ps.skill_id
+                     Sort Method: quicksort  Memory: 31kB
+                     Buffers: shared hit=295
+                     ->  Nested Loop  (cost=29.31..63.24 rows=45 width=70) (actual time=0.120..0.229 rows=78.00 loops=1)
+                           Join Filter: (u.user_id = up.user_id)
+                           Buffers: shared hit=292
+                           ->  Hash Join  (cost=29.04..47.62 rows=45 width=33) (actual time=0.116..0.175 rows=78.00 loops=1)
+                                 Hash Cond: (u.user_id = us.user_id)
+                                 Buffers: shared hit=58
+                                 ->  Seq Scan on users u  (cost=7.52..25.02 rows=169 width=8) (actual time=0.041..0.084 rows=337.00 loops=1)
+                                       Filter: ((NOT (ANY (user_id = (hashed SubPlan 1).col1))) AND ((account_status)::text = 'ACTIVE'::text))
+                                       Rows Removed by Filter: 163
+                                       Buffers: shared hit=13
+                                       SubPlan 1
+                                         ->  Seq Scan on project_members  (cost=0.00..7.51 rows=2 width=8) (actual time=0.021..0.030 rows=2.00 loops=1)
+                                               Filter: (project_id = 5)
+                                               Rows Removed by Filter: 359
+                                               Buffers: shared hit=3
+                                 ->  Hash  (cost=19.87..19.87 rows=132 width=25) (actual time=0.070..0.070 rows=112.00 loops=1)
+                                       Buckets: 1024  Batches: 1  Memory Usage: 15kB
+                                       Buffers: shared hit=45
+                                       ->  Nested Loop  (cost=8.38..19.87 rows=132 width=25) (actual time=0.025..0.063 rows=112.00 loops=1)
+                                             Join Filter: (us.skill_id = ps.skill_id)
+                                             Buffers: shared hit=45
+                                             ->  Hash Join  (cost=8.10..9.49 rows=2 width=25) (actual time=0.019..0.021 rows=2.00 loops=1)
+                                                   Hash Cond: (s.skill_id = ps.skill_id)
+                                                   Buffers: shared hit=7
+                                                   ->  Seq Scan on skills s  (cost=0.00..1.30 rows=30 width=17) (actual time=0.002..0.002 rows=30.00 loops=1)
+                                                         Buffers: shared hit=1
+                                                   ->  Hash  (cost=8.07..8.07 rows=2 width=8) (actual time=0.013..0.014 rows=2.00 loops=1)
+                                                         Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                                         Buffers: shared hit=6
+                                                         ->  Bitmap Heap Scan on project_skills ps  (cost=4.29..8.07 rows=2 width=8) (actual time=0.011..0.012 rows=2.00 loops=1)
+                                                               Recheck Cond: (project_id = 5)
+                                                               Heap Blocks: exact=1
+                                                               Buffers: shared hit=6
+                                                               ->  Bitmap Index Scan on project_skills_pkey  (cost=0.00..4.29 rows=2 width=0) (actual time=0.008..0.008 rows=2.00 loops=1)
+                                                                     Index Cond: (project_id = 5)
+                                                                     Index Searches: 1
+                                                                     Buffers: shared hit=5
+                                             ->  Index Scan using idx_user_skills_skill on user_skills us  (cost=0.28..4.37 rows=66 width=16) (actual time=0.003..0.018 rows=56.00 loops=2)
+                                                   Index Cond: (skill_id = s.skill_id)
+                                                   Index Searches: 2
+                                                   Buffers: shared hit=38
+                           ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..0.33 rows=1 width=53) (actual time=0.001..0.001 rows=1.00 loops=78)
+                                 Index Cond: (user_id = us.user_id)
+                                 Index Searches: 78
+                                 Buffers: shared hit=234
+ Planning:
+   Buffers: shared hit=391
+ Planning Time: 1.725 ms
+ Execution Time: 0.459 ms
+(63 rows)
+
+
+
+--- RUN 3 ---
+SET
+                                                                                         QUERY PLAN                                                                                         
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=66.23..66.26 rows=10 width=93) (actual time=0.338..0.340 rows=10.00 loops=1)
+   Buffers: shared hit=298
+   ->  Sort  (cost=66.23..66.27 rows=15 width=93) (actual time=0.321..0.322 rows=10.00 loops=1)
+         Sort Key: (count(DISTINCT ps.skill_id)) DESC
+         Sort Method: top-N heapsort  Memory: 26kB
+         Buffers: shared hit=298
+         ->  GroupAggregate  (cost=64.48..65.94 rows=15 width=93) (actual time=0.258..0.305 rows=70.00 loops=1)
+               Group Key: u.user_id, up.display_name, up.institution, up.academic_year
+               Filter: (count(DISTINCT ps.skill_id) >= 1)
+               Buffers: shared hit=295
+               ->  Sort  (cost=64.48..64.59 rows=45 width=70) (actual time=0.241..0.244 rows=78.00 loops=1)
+                     Sort Key: u.user_id, up.display_name, up.institution, up.academic_year, ps.skill_id
+                     Sort Method: quicksort  Memory: 31kB
+                     Buffers: shared hit=295
+                     ->  Nested Loop  (cost=29.31..63.24 rows=45 width=70) (actual time=0.092..0.220 rows=78.00 loops=1)
+                           Join Filter: (u.user_id = up.user_id)
+                           Buffers: shared hit=292
+                           ->  Hash Join  (cost=29.04..47.62 rows=45 width=33) (actual time=0.089..0.149 rows=78.00 loops=1)
+                                 Hash Cond: (u.user_id = us.user_id)
+                                 Buffers: shared hit=58
+                                 ->  Seq Scan on users u  (cost=7.52..25.02 rows=169 width=8) (actual time=0.020..0.063 rows=337.00 loops=1)
+                                       Filter: ((NOT (ANY (user_id = (hashed SubPlan 1).col1))) AND ((account_status)::text = 'ACTIVE'::text))
+                                       Rows Removed by Filter: 163
+                                       Buffers: shared hit=13
+                                       SubPlan 1
+                                         ->  Seq Scan on project_members  (cost=0.00..7.51 rows=2 width=8) (actual time=0.003..0.012 rows=2.00 loops=1)
+                                               Filter: (project_id = 5)
+                                               Rows Removed by Filter: 359
+                                               Buffers: shared hit=3
+                                 ->  Hash  (cost=19.87..19.87 rows=132 width=25) (actual time=0.066..0.066 rows=112.00 loops=1)
+                                       Buckets: 1024  Batches: 1  Memory Usage: 15kB
+                                       Buffers: shared hit=45
+                                       ->  Nested Loop  (cost=8.38..19.87 rows=132 width=25) (actual time=0.020..0.059 rows=112.00 loops=1)
+                                             Join Filter: (us.skill_id = ps.skill_id)
+                                             Buffers: shared hit=45
+                                             ->  Hash Join  (cost=8.10..9.49 rows=2 width=25) (actual time=0.015..0.018 rows=2.00 loops=1)
+                                                   Hash Cond: (s.skill_id = ps.skill_id)
+                                                   Buffers: shared hit=7
+                                                   ->  Seq Scan on skills s  (cost=0.00..1.30 rows=30 width=17) (actual time=0.002..0.002 rows=30.00 loops=1)
+                                                         Buffers: shared hit=1
+                                                   ->  Hash  (cost=8.07..8.07 rows=2 width=8) (actual time=0.011..0.011 rows=2.00 loops=1)
+                                                         Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                                         Buffers: shared hit=6
+                                                         ->  Bitmap Heap Scan on project_skills ps  (cost=4.29..8.07 rows=2 width=8) (actual time=0.009..0.009 rows=2.00 loops=1)
+                                                               Recheck Cond: (project_id = 5)
+                                                               Heap Blocks: exact=1
+                                                               Buffers: shared hit=6
+                                                               ->  Bitmap Index Scan on project_skills_pkey  (cost=0.00..4.29 rows=2 width=0) (actual time=0.006..0.007 rows=2.00 loops=1)
+                                                                     Index Cond: (project_id = 5)
+                                                                     Index Searches: 1
+                                                                     Buffers: shared hit=5
+                                             ->  Index Scan using idx_user_skills_skill on user_skills us  (cost=0.28..4.37 rows=66 width=16) (actual time=0.003..0.017 rows=56.00 loops=2)
+                                                   Index Cond: (skill_id = s.skill_id)
+                                                   Index Searches: 2
+                                                   Buffers: shared hit=38
+                           ->  Index Scan using user_profiles_pkey on user_profiles up  (cost=0.27..0.33 rows=1 width=53) (actual time=0.001..0.001 rows=1.00 loops=78)
+                                 Index Cond: (user_id = us.user_id)
+                                 Index Searches: 78
+                                 Buffers: shared hit=234
+ Planning:
+   Buffers: shared hit=391
+ Planning Time: 1.820 ms
+ Execution Time: 0.424 ms
+(63 rows)
+
+

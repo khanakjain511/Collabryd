@@ -1,0 +1,72 @@
+Query ID: W04
+Type: WRITE
+Description: Create or update student profile (upsert)
+
+SQL:
+INSERT INTO user_profiles (user_id, display_name, bio, institution, course_program, academic_year, department, preferred_project_type, availability_status, profile_visibility)
+VALUES (1, 'Aarav Sharma', 'Passionate fullstack builder', 'IIT Delhi', 'B.Tech CS', '3rd Year', 'Computer Science', 'HACKATHON', 'AVAILABLE', 'PUBLIC')
+ON CONFLICT (user_id) DO UPDATE
+SET display_name = EXCLUDED.display_name, bio = EXCLUDED.bio, updated_at = CURRENT_TIMESTAMP;
+
+--- RUN 1 ---
+SET
+BEGIN
+                                               QUERY PLAN                                               
+--------------------------------------------------------------------------------------------------------
+ Insert on user_profiles  (cost=0.00..0.01 rows=0 width=0) (actual time=0.192..0.192 rows=0.00 loops=1)
+   Conflict Resolution: UPDATE
+   Conflict Arbiter Indexes: user_profiles_pkey
+   Tuples Inserted: 0
+   Conflicting Tuples: 1
+   Buffers: shared hit=31
+   ->  Result  (cost=0.00..0.01 rows=1 width=1976) (actual time=0.004..0.004 rows=1.00 loops=1)
+ Planning:
+   Buffers: shared hit=47
+ Planning Time: 0.110 ms
+ Execution Time: 0.247 ms
+(11 rows)
+
+ROLLBACK
+
+
+--- RUN 2 ---
+SET
+BEGIN
+                                               QUERY PLAN                                               
+--------------------------------------------------------------------------------------------------------
+ Insert on user_profiles  (cost=0.00..0.01 rows=0 width=0) (actual time=0.144..0.145 rows=0.00 loops=1)
+   Conflict Resolution: UPDATE
+   Conflict Arbiter Indexes: user_profiles_pkey
+   Tuples Inserted: 0
+   Conflicting Tuples: 1
+   Buffers: shared hit=32
+   ->  Result  (cost=0.00..0.01 rows=1 width=1976) (actual time=0.003..0.003 rows=1.00 loops=1)
+ Planning:
+   Buffers: shared hit=47
+ Planning Time: 0.071 ms
+ Execution Time: 0.195 ms
+(11 rows)
+
+ROLLBACK
+
+
+--- RUN 3 ---
+SET
+BEGIN
+                                               QUERY PLAN                                               
+--------------------------------------------------------------------------------------------------------
+ Insert on user_profiles  (cost=0.00..0.01 rows=0 width=0) (actual time=0.130..0.130 rows=0.00 loops=1)
+   Conflict Resolution: UPDATE
+   Conflict Arbiter Indexes: user_profiles_pkey
+   Tuples Inserted: 0
+   Conflicting Tuples: 1
+   Buffers: shared hit=32
+   ->  Result  (cost=0.00..0.01 rows=1 width=1976) (actual time=0.003..0.003 rows=1.00 loops=1)
+ Planning:
+   Buffers: shared hit=47
+ Planning Time: 0.070 ms
+ Execution Time: 0.175 ms
+(11 rows)
+
+ROLLBACK
+
