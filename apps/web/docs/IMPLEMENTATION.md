@@ -21,6 +21,11 @@ Example: accepting Tara's join request updates the request to Accepted and adds 
 | `src/types.ts` | Simple descriptions of a person, team, event and request |
 | `src/data/demo.ts` | Fictional examples, separate from how they look |
 | `src/hooks/useDemoData.ts` | Shared state and named demo actions |
+| `src/hooks/useListFilters.ts` | Remember filters in state and the browser URL |
+| `src/lib/validation.ts` | Plain validation and pagination functions |
+| `src/components/TeamManagement.tsx` | Member removal, leadership transfer and leaving |
+| `src/pages/AdminPages.tsx` | Campus users, teams, event editor and reports |
+| `tests/validation.test.ts` | Six built-in Node tests, no test library |
 | `src/components/ui.tsx` | Repeated small pieces such as icon, avatar, badge and dialog |
 | `src/components/Cards.tsx` | Reusable person/team/event cards |
 | `src/components/Layout.tsx` | Public header/footer and campus sidebar |
@@ -50,6 +55,16 @@ From `apps/web`:
 ```sh
 pnpm dev --host 127.0.0.1
 pnpm build
+pnpm test
+pnpm preview --host 127.0.0.1
 ```
 
 Use “Take a look around” for the quickest demo. The login fields are sample values. Try a people filter, create a team, send a join request, accept the sample invitation, then open Afterhours and accept Tara to fill its last place.
+
+## More workflows to present
+
+Try sorting people and going to page two, open a profile, then use Back: the URL keeps the filters/page. Edit Afterhours and transfer its leadership to another member; leader controls disappear because the leader ID changed. The original leader can then leave. The UI refuses to orphan an active team.
+
+In the admin screens, create a draft example hackathon, verify it is absent from the catalog, then publish it. Draft/published/archived is a simple status field used by the catalog filter. Approve or suspend an example student and verify discovery changes. These are local UI behaviors, not actual enrollment decisions.
+
+The exact completion boundary is in FRONTEND_STATUS.md. Live APIs, authentication, server authorization, storage and release checks remain pending.

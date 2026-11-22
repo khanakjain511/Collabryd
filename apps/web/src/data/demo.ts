@@ -19,6 +19,10 @@ export const demoProfile: Person = {
   bio: "I like turning interesting ideas into simple, useful interfaces. Looking for a team to build something meaningful with.",
   available: true,
   color: "sage",
+  proficiency: "Comfortable",
+  githubUrl: "",
+  linkedinUrl: "",
+  portfolioUrl: "",
 };
 
 export const demoPeople: Person[] = [
@@ -192,7 +196,28 @@ export const demoRequests: JoinRequest[] = [
 ];
 export const demoInvitations: Invitation[] = [
   { id: "invite-pixels", teamId: "pixel-pioneers", status: "Pending" },
+  {
+    id: "invite-expired",
+    teamId: "greenbyte",
+    personId: "you",
+    status: "Expired",
+    expiresAt: "2026-01-01T00:00:00Z",
+  },
 ];
+
+export const demoPendingStudent: Person = {
+  id: "neha",
+  name: "Neha Verma",
+  role: "Product designer",
+  branch: "Design",
+  year: "2nd year",
+  skills: ["Figma"],
+  interests: "Accessible products",
+  bio: "An example student waiting for a campus review.",
+  available: true,
+  color: "sand",
+  status: "Pending review",
+};
 export const demoNotices: Notice[] = [
   {
     id: "notice-invite",

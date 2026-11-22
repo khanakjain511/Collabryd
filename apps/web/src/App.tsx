@@ -13,12 +13,12 @@ import {
 } from "./pages/TeamsPages";
 import { EventDetailPage, EventsPage } from "./pages/EventPages";
 import {
-  AdminDemoPage,
   InfoPage,
   NotificationsPage,
   ProfileFormPage,
   SettingsPage,
 } from "./pages/AccountPages";
+import { AdminPage } from "./pages/AdminPages";
 import "./App.css";
 
 // Native hash links give this dependency-free demo browser back/forward support.
@@ -56,9 +56,9 @@ function App() {
     document
       .querySelector<HTMLElement>("main h1")
       ?.focus({ preventScroll: true });
-  }, [path, demo.signedIn, demo.verified]);
+  }, [path, demo.signedIn, demo.verified, demo.profile.status]);
 
-  const [area, id] = path.slice(1).split("/");
+  const [area, id, action] = path.slice(1).split("/");
   const authModes = [
     "login",
     "register",
@@ -91,11 +91,19 @@ function App() {
     page = (
       <PublicLayout demo={demo}>
         <div className="container public-events">
-          {id ? <EventDetailPage id={id} demo={demo} /> : <EventsPage />}
+          {id ? (
+            <EventDetailPage id={id} demo={demo} />
+          ) : (
+            <EventsPage demo={demo} />
+          )}
         </div>
       </PublicLayout>
     );
-  else if (!demo.signedIn || !demo.verified)
+  else if (
+    !demo.signedIn ||
+    !demo.verified ||
+    demo.profile.status === "Suspended"
+  )
     page = (
       <PublicLayout demo={demo}>
         <AccessPage demo={demo} />
@@ -109,13 +117,15 @@ function App() {
       content = <PersonPage key={id} id={id} demo={demo} />;
     else if (area === "teams" && id === "create")
       content = <CreateTeamPage demo={demo} />;
+    else if (area === "teams" && id && action === "edit")
+      content = <CreateTeamPage key={path} id={id} demo={demo} />;
     else if (area === "teams" && id)
       content = <TeamDetailPage key={id} id={id} demo={demo} />;
     else if (area === "teams") content = <TeamsPage demo={demo} />;
     else if (area === "my-teams") content = <MyTeamsPage demo={demo} />;
     else if (area === "hackathons" && id)
       content = <EventDetailPage id={id} demo={demo} />;
-    else if (area === "hackathons") content = <EventsPage />;
+    else if (area === "hackathons") content = <EventsPage demo={demo} />;
     else if (area === "notifications")
       content = <NotificationsPage demo={demo} />;
     else if (area === "onboarding" || (area === "settings" && id === "profile"))
@@ -128,7 +138,8 @@ function App() {
       );
     else if (area === "settings" && (id === "privacy" || id === "account"))
       content = <SettingsPage key={id} kind={id} demo={demo} />;
-    else if (area === "admin") content = <AdminDemoPage demo={demo} />;
+    else if (area === "admin")
+      content = <AdminPage key={path} view={id} eventId={action} demo={demo} />;
     else return <InfoPage kind="not-found" demo={demo} />;
     page = (
       <AppLayout demo={demo} path={path}>

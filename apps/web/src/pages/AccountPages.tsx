@@ -1,9 +1,16 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import type { DemoData } from "../hooks/useDemoData";
-import { demoEvents, demoPeople } from "../data/demo";
 import { PublicLayout } from "../components/Layout";
-import { Avatar, Badge, EmptyState, Icon, PageHeading } from "../components/ui";
+import {
+  Avatar,
+  Dialog,
+  EmptyState,
+  Icon,
+  PageHeading,
+} from "../components/ui";
+import { isHttpUrl, paginate } from "../lib/validation";
+import { Pagination } from "../components/Pagination";
 
 export function ProfileFormPage({
   demo,
@@ -12,9 +19,33 @@ export function ProfileFormPage({
   demo: DemoData;
   onboarding?: boolean;
 }) {
+  const [error, setError] = useState("");
   function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const githubUrl = String(form.get("githubUrl")).trim();
+    const linkedinUrl = String(form.get("linkedinUrl")).trim();
+    const portfolioUrl = String(form.get("portfolioUrl")).trim();
+    const availableFrom = String(form.get("availableFrom"));
+    const availableUntil = String(form.get("availableUntil"));
+    if (![githubUrl, linkedinUrl, portfolioUrl].every(isHttpUrl)) {
+      setError(
+        "Use a full http:// or https:// link, or leave optional links empty.",
+      );
+      return;
+    }
+    if (availableFrom && availableUntil && availableFrom > availableUntil) {
+      setError("The availability end date must be on or after the start date.");
+      return;
+    }
+    if (
+      !String(form.get("name")).trim() ||
+      !String(form.get("skills")).trim()
+    ) {
+      setError("Add your name and at least one skill.");
+      return;
+    }
+    setError("");
     demo.saveProfile({
       ...demo.profile,
       name: String(form.get("name")).trim(),
@@ -28,6 +59,13 @@ export function ProfileFormPage({
       interests: String(form.get("interests")),
       bio: String(form.get("bio")),
       available: form.get("available") === "on",
+      proficiency: form.get("proficiency") as
+        "Learning" | "Comfortable" | "Experienced",
+      availableFrom,
+      availableUntil,
+      githubUrl,
+      linkedinUrl,
+      portfolioUrl,
     });
     if (onboarding) window.location.hash = "/dashboard";
   }
@@ -112,6 +150,21 @@ export function ProfileFormPage({
             </span>
           </label>
           <label>
+            Experience with your listed skills
+            <select
+              name="proficiency"
+              defaultValue={demo.profile.proficiency || "Learning"}
+            >
+              <option>Learning</option>
+              <option>Comfortable</option>
+              <option>Experienced</option>
+            </select>
+            <span className="field-hint">
+              Self-reported, not a certification. Describe differences in your
+              bio.
+            </span>
+          </label>
+          <label>
             What gets you curious?
             <input
               name="interests"
@@ -136,6 +189,62 @@ export function ProfileFormPage({
             />
             I’m open to teaming up
           </label>
+          <div className="form-columns">
+            <label>
+              Available from (optional)
+              <input
+                name="availableFrom"
+                type="date"
+                defaultValue={demo.profile.availableFrom}
+              />
+            </label>
+            <label>
+              Available until (optional)
+              <input
+                name="availableUntil"
+                type="date"
+                defaultValue={demo.profile.availableUntil}
+              />
+            </label>
+          </div>
+          <fieldset className="optional-links">
+            <legend>Your work, if you’d like to share it</legend>
+            <p className="field-hint">
+              These links are optional. Use fictional details in the demo.
+            </p>
+            <label>
+              GitHub URL
+              <input
+                name="githubUrl"
+                type="url"
+                placeholder="https://github.com/your-profile"
+                defaultValue={demo.profile.githubUrl}
+              />
+            </label>
+            <label>
+              LinkedIn URL
+              <input
+                name="linkedinUrl"
+                type="url"
+                placeholder="https://www.linkedin.com/in/your-profile"
+                defaultValue={demo.profile.linkedinUrl}
+              />
+            </label>
+            <label>
+              Portfolio URL
+              <input
+                name="portfolioUrl"
+                type="url"
+                placeholder="https://your-work.example"
+                defaultValue={demo.profile.portfolioUrl}
+              />
+            </label>
+          </fieldset>
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
           <div className="form-actions">
             <a className="button button-secondary" href="#/dashboard">
               {onboarding ? "Use the sample profile" : "Back to overview"}
@@ -197,6 +306,7 @@ export function SettingsPage({
   demo: DemoData;
 }) {
   const [saved, setSaved] = useState(false);
+  const [confirmDeletion, setConfirmDeletion] = useState(false);
   return (
     <>
       <PageHeading
@@ -244,12 +354,29 @@ export function SettingsPage({
                   </small>
                 </span>
               </label>
+              <label className="checkbox-label setting-toggle">
+                <input
+                  type="checkbox"
+                  checked={demo.notificationsEnabled}
+                  onChange={(event) => {
+                    demo.setNotificationsEnabled(event.target.checked);
+                    setSaved(false);
+                  }}
+                />
+                <span>
+                  <strong>Receive local activity updates</strong>
+                  <small>
+                    Pause new demo notifications. Action confirmations still
+                    stay visible.
+                  </small>
+                </span>
+              </label>
               <h3>Blocked example profiles</h3>
               {demo.blockedIds.length ? (
                 demo.blockedIds.map((id) => (
                   <div className="blocked-row" key={id}>
                     <span>
-                      {demoPeople.find((person) => person.id === id)?.name}
+                      {demo.people.find((person) => person.id === id)?.name}
                     </span>
                     <button
                       type="button"
@@ -312,6 +439,29 @@ export function SettingsPage({
               >
                 Reset all demo changes
               </button>
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() =>
+                  demo.setProfile({ ...demo.profile, status: "Suspended" })
+                }
+              >
+                Preview suspended-account access
+              </button>
+              {demo.deletionRequested ? (
+                <p className="inline-info" role="status">
+                  Demo deletion request recorded. No account or real data was
+                  deleted.
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  className="text-button danger-text"
+                  onClick={() => setConfirmDeletion(true)}
+                >
+                  Preview account deletion request
+                </button>
+              )}
               <p className="field-hint">
                 Real account deletion, retention and password policies will need
                 a connected backend and campus policy.
@@ -334,13 +484,46 @@ export function SettingsPage({
           </div>
         </aside>
       </div>
+      {confirmDeletion && (
+        <Dialog
+          title="Preview an account deletion request?"
+          onClose={() => setConfirmDeletion(false)}
+        >
+          <p>
+            This records a local request only. No real account or data will be
+            deleted. A live product must explain its retention policy and
+            confirm the server outcome.
+          </p>
+          <div className="form-actions">
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => setConfirmDeletion(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="button button-danger"
+              onClick={() => {
+                demo.setDeletionRequested(true);
+                setConfirmDeletion(false);
+              }}
+            >
+              Record demo deletion request
+            </button>
+          </div>
+        </Dialog>
+      )}
     </>
   );
 }
 
 export function NotificationsPage({ demo }: { demo: DemoData }) {
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [page, setPage] = useState(1);
   const notices = demo.notices.filter((notice) => !unreadOnly || !notice.read);
+  const results = paginate(notices, page);
   return (
     <>
       <PageHeading
@@ -367,7 +550,10 @@ export function NotificationsPage({ demo }: { demo: DemoData }) {
           type="button"
           aria-pressed={!unreadOnly}
           className={!unreadOnly ? "active" : ""}
-          onClick={() => setUnreadOnly(false)}
+          onClick={() => {
+            setUnreadOnly(false);
+            setPage(1);
+          }}
         >
           All updates
         </button>
@@ -375,14 +561,17 @@ export function NotificationsPage({ demo }: { demo: DemoData }) {
           type="button"
           aria-pressed={unreadOnly}
           className={unreadOnly ? "active" : ""}
-          onClick={() => setUnreadOnly(true)}
+          onClick={() => {
+            setUnreadOnly(true);
+            setPage(1);
+          }}
         >
           Unread
         </button>
       </div>
       {notices.length ? (
         <div className="list-panel">
-          {notices.map((notice) => (
+          {results.items.map((notice) => (
             <article
               className={`notice-row ${notice.read ? "" : "notice-unread"}`}
               key={notice.id}
@@ -439,126 +628,16 @@ export function NotificationsPage({ demo }: { demo: DemoData }) {
           }
         />
       )}
-    </>
-  );
-}
-
-export function AdminDemoPage({ demo }: { demo: DemoData }) {
-  const [tab, setTab] = useState("Reports");
-  const [approved, setApproved] = useState<string[]>([]);
-  return (
-    <>
-      <PageHeading
-        eyebrow="CAMPUS OPERATIONS / PREVIEW ONLY"
-        title="A little care for the community."
-        description="A demonstration of review controls. This is not a real admin session and has no privileged server access."
+      <Pagination
+        page={results.page}
+        totalPages={results.totalPages}
+        onChange={setPage}
       />
-      <div className="info-callout">
-        <Icon name="lock" />
-        <p>
-          This queue is available to demo visitors so you can review the
-          interface. A live platform must enforce administrator roles and campus
-          isolation on the server.
+      {!demo.notificationsEnabled && (
+        <p className="inline-info">
+          New local activity updates are paused. You can enable them in{" "}
+          <a href="#/settings/privacy">privacy settings</a>.
         </p>
-      </div>
-      <div className="filter-tabs">
-        {["Reports", "Campus checks", "Event listings"].map((item) => (
-          <button
-            key={item}
-            type="button"
-            aria-pressed={tab === item}
-            className={tab === item ? "active" : ""}
-            onClick={() => setTab(item)}
-          >
-            {item}
-          </button>
-        ))}
-      </div>
-      {tab === "Reports" ? (
-        demo.reports.length ? (
-          <div className="list-panel">
-            {demo.reports.map((report) => (
-              <article className="invitation-row" key={report.id}>
-                <span className="summary-icon peach">
-                  <Icon name="lock" />
-                </span>
-                <div>
-                  <h3>{report.target}</h3>
-                  <p>{report.reason}</p>
-                </div>
-                <Badge>{report.status}</Badge>
-                {report.status === "Open" && (
-                  <button
-                    type="button"
-                    className="button button-secondary button-small"
-                    onClick={() =>
-                      demo.setReports(
-                        demo.reports.map((item) =>
-                          item.id === report.id
-                            ? { ...item, status: "Resolved" }
-                            : item,
-                        ),
-                      )
-                    }
-                  >
-                    Resolve demo report
-                  </button>
-                )}
-              </article>
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            title="A quiet review queue."
-            description="Report an example profile from discovery to preview the full local review flow."
-            action={
-              <a href="#/discover" className="button button-secondary">
-                Explore example profiles
-              </a>
-            }
-          />
-        )
-      ) : tab === "Campus checks" ? (
-        <div className="list-panel">
-          {demoPeople.slice(0, 2).map((person) => (
-            <article className="invitation-row" key={person.id}>
-              <Avatar name={person.name} color={person.color} />
-              <div>
-                <h3>{person.name}</h3>
-                <p>Example enrollment review · No real student information</p>
-              </div>
-              {approved.includes(person.id) ? (
-                <Badge tone="positive">Demo approved</Badge>
-              ) : (
-                <button
-                  type="button"
-                  className="button button-secondary button-small"
-                  onClick={() => setApproved([...approved, person.id])}
-                >
-                  Preview approval
-                </button>
-              )}
-            </article>
-          ))}
-        </div>
-      ) : (
-        <div className="list-panel">
-          {demoEvents.map((event) => (
-            <article className="invitation-row" key={event.id}>
-              <span className={`summary-icon ${event.color}`}>
-                <Icon name="calendar" />
-              </span>
-              <div>
-                <h3>{event.name}</h3>
-                <p>Fictional example · No organizer or official registration</p>
-              </div>
-              <Badge>Illustration only</Badge>
-              <a className="text-link" href={`#/hackathons/${event.id}`}>
-                Preview listing <Icon name="arrowUp" size={15} />
-              </a>
-            </article>
-          ))}
-        </div>
       )}
     </>
   );

@@ -9,6 +9,13 @@ export interface Person {
   bio: string;
   available: boolean;
   color: string;
+  proficiency?: "Learning" | "Comfortable" | "Experienced";
+  availableFrom?: string;
+  availableUntil?: string;
+  githubUrl?: string;
+  linkedinUrl?: string;
+  portfolioUrl?: string;
+  status?: "Active" | "Pending review" | "Suspended";
 }
 
 export interface Team {
@@ -35,6 +42,13 @@ export interface Hackathon {
   mode: string;
   color: string;
   symbol: string;
+  publication?: "Draft" | "Published" | "Archived";
+  organizer?: string;
+  eligibility?: string;
+  rules?: string;
+  officialUrl?: string;
+  sourceUrl?: string;
+  updatedAt?: string;
 }
 
 export interface JoinRequest {
@@ -42,13 +56,15 @@ export interface JoinRequest {
   teamId: string;
   personId: string;
   message: string;
-  status: "Pending" | "Accepted" | "Declined" | "Cancelled";
+  status: "Pending" | "Accepted" | "Declined" | "Cancelled" | "Expired";
 }
 
 export interface Invitation {
   id: string;
   teamId: string;
-  status: "Pending" | "Accepted" | "Declined";
+  personId?: string;
+  expiresAt?: string;
+  status: "Pending" | "Accepted" | "Declined" | "Expired" | "Revoked";
 }
 
 export interface Notice {
@@ -63,5 +79,5 @@ export interface Report {
   id: string;
   target: string;
   reason: string;
-  status: "Open" | "Resolved";
+  status: "Open" | "Investigating" | "Resolved" | "Dismissed";
 }

@@ -1,6 +1,8 @@
+> Refinement in progress, 19 November 2026: the user approved the targeted plan and permitted the dependency-only root lockfile update. Read the newest PROGRESS/DECISIONS entries before the older completed-demo account below. Theme foundations are being committed first; public navigation, landing and auth changes are a separate working slice. Preserve the untracked user product PDF and supplied `skills/` folder. Do not stage those files incidentally. Backend scope is unchanged.
+
 # Collabyrd frontend handoff
 
-Updated: 18 November 2026. **Implementation is approved and a frontend demo is built.** Read this, PROGRESS.md, ROADMAP.md, CHECKLIST.md and DECISIONS.md, then inspect actual source and git status. Earlier planning specifications are prospective; this file and PROGRESS describe current implementation.
+Updated: 18 November 2026. **Implementation is approved and a frontend demo is built.** Read this, FRONTEND_STATUS.md, PROGRESS.md, ROADMAP.md, CHECKLIST.md and DECISIONS.md, then inspect actual source and git status. Earlier planning specifications are prospective; this file and PROGRESS describe current implementation.
 
 ## User instructions
 
@@ -27,7 +29,7 @@ Only frontend source, frontend assets and docs changed. No dependencies/root loc
 
 Marketing, signup/login/demo verification/recovery/onboarding, dashboard, people filters/details, invitation preparation/report/block, teams create/filter/detail/My Teams/join/cancel/invitation acceptance/leader review/full/recruitment/archive, example events, notifications/read states, profile/privacy/account, local report review/campus-check preview and public information screens.
 
-All demo changes reset on refresh. No real credentials stored, backend requests, verification emails, campus authorization or event registrations. The demo queue is intentionally accessible to demo visitors and labeled as non-privileged; never describe it as RBAC. Some planned full admin/event-publishing/settings capabilities remain future backend integration work.
+All demo changes reset on refresh. No real credentials stored, backend requests, verification emails, campus authorization or event registrations. The demo queue is intentionally accessible to demo visitors and labeled as non-privileged; never describe it as RBAC. Separate user/team/event/report admin screens, event editing/publication, sorting/pagination, profile URLs/dates, team editing/removal/transfer/departure and account-state controls have since been added. Live integration remains pending.
 
 ## Design rationale
 
@@ -37,7 +39,7 @@ Vanta NET → original fixed SVG network. Lenis → native smooth anchors (no wh
 
 ## Validation and continuation
 
-See PROGRESS for executed browser scenarios/build results; QUALITY_PLAN separates demo checks from live authorization/concurrency tests. Build passes with JS ~84KB gzip and CSS ~11KB gzip. Desktop and 390px/mobile screens reviewed; small SVG overflow fixed. Native password toggle, registration/profile flow, team creation/requests/acceptance/full state, reports and notifications exercised. Reviewed browser log has no application errors. No full automated/a11y/cross-browser/field performance claim.
+See PROGRESS for executed browser scenarios/build results; QUALITY_PLAN separates demo checks from live authorization/concurrency tests. Build passes with JS 91.49KB gzip and CSS 11.59KB gzip. Six native Node tests pass. A fresh production preview rendered 14 main routes without console errors. The dev tab had transient hot-update hook warnings while state declarations were edited; do not confuse that log with the independent production check. Desktop and 390px/mobile screens reviewed; small SVG overflow fixed. Native password toggle, registration/profile flow, team creation/requests/acceptance/full state, reports and notifications exercised. Reviewed browser log has no application errors. No full automated/a11y/cross-browser/field performance claim.
 
 Use `pnpm dev --host 127.0.0.1` from apps/web for local preview and `pnpm build` for TypeScript/Vite checks. Local server permission may be needed in this environment. The temporary development server was stopped after QA; restart it with that command. Desktop/mobile screenshots are committed under docs/screenshots. No deployment/publication is authorized by this local-repository task.
 
@@ -46,3 +48,7 @@ Future work: confirm campus domains/enrollment/membership limits/visibility/supp
 ## Git delivery
 
 The user requested local commits and then explicitly requested remote publication. `Akshay` tracks `origin/Akshay` in `shreyanshagrawal/Collabryd`; the first 11 commits and matching remote SHA were verified. Final verification documentation is an additional commit. The original root blueprint PDF is still untracked and intentionally excluded. Do not open a PR, merge main or change repository permissions without a new request.
+
+## Completion clarification
+
+The user asked whether the whole work was done. The agent clarified that the first delivery was a partial frontend demo, then completed the missing frontend controls. FRONTEND_STATUS.md is authoritative for that boundary. Do not say the full live application is complete: actual backend/session/API/storage/campus policies, integrated security tests and deployment remain. Extra commits after the initial 12 continue on the same Akshay branch.

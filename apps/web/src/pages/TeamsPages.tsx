@@ -1,7 +1,10 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import type { DemoData } from "../hooks/useDemoData";
-import { demoEvents, demoPeople } from "../data/demo";
+import { Pagination } from "../components/Pagination";
+import { TeamManagement } from "../components/TeamManagement";
+import { useListFilters } from "../hooks/useListFilters";
+import { paginate } from "../lib/validation";
 import { TeamCard } from "../components/Cards";
 import {
   Avatar,
@@ -13,19 +16,35 @@ import {
 } from "../components/ui";
 
 export function TeamsPage({ demo }: { demo: DemoData }) {
-  const [search, setSearch] = useState("");
-  const [domain, setDomain] = useState("All domains");
-  const [openOnly, setOpenOnly] = useState(false);
+  const { filters, updateFilters, resetFilters } = useListFilters({
+    search: "",
+    domain: "",
+    role: "",
+    event: "",
+    open: "",
+    sort: "default",
+    page: "1",
+  });
   const domains = [...new Set(demo.teams.map((team) => team.domain))];
+  const roles = [...new Set(demo.teams.flatMap((team) => team.roles))];
   const teams = demo.teams.filter(
     (team) =>
       `${team.name} ${team.description} ${team.roles.join(" ")} ${team.skills.join(" ")}`
         .toLowerCase()
-        .includes(search.toLowerCase()) &&
-      (domain === "All domains" || team.domain === domain) &&
-      (!openOnly ||
+        .includes(filters.search.toLowerCase()) &&
+      (!filters.domain || team.domain === filters.domain) &&
+      (!filters.role || team.roles.includes(filters.role)) &&
+      (!filters.event || team.eventId === filters.event) &&
+      (!filters.open ||
         (team.status === "Recruiting" && team.members.length < team.capacity)),
   );
+  if (filters.sort === "name")
+    teams.sort((a, b) => a.name.localeCompare(b.name));
+  if (filters.sort === "places")
+    teams.sort(
+      (a, b) => b.capacity - b.members.length - (a.capacity - a.members.length),
+    );
+  const results = paginate(teams, Number(filters.page), 3);
   return (
     <>
       <PageHeading
@@ -45,52 +64,100 @@ export function TeamsPage({ demo }: { demo: DemoData }) {
           <input
             aria-label="Search teams, roles or skills"
             placeholder="A team, a role, an idea…"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            value={filters.search}
+            onChange={(event) => updateFilters({ search: event.target.value })}
           />
         </label>
         <label className="filter-select">
           <span className="sr-only">Filter by domain</span>
           <select
-            value={domain}
-            onChange={(event) => setDomain(event.target.value)}
+            value={filters.domain}
+            onChange={(event) => updateFilters({ domain: event.target.value })}
           >
-            <option>All domains</option>
-            {domains.map((item) => (
-              <option key={item}>{item}</option>
+            <option value="">All domains</option>
+            {domains.map((domain) => (
+              <option key={domain}>{domain}</option>
             ))}
           </select>
         </label>
         <label className="checkbox-label">
           <input
             type="checkbox"
-            checked={openOnly}
-            onChange={(event) => setOpenOnly(event.target.checked)}
+            checked={!!filters.open}
+            onChange={(event) =>
+              updateFilters({ open: event.target.checked ? "yes" : "" })
+            }
           />
           Open places only
         </label>
+        <details className="advanced-filters">
+          <summary>More team filters</summary>
+          <div className="filter-fields">
+            <label>
+              Open role
+              <select
+                value={filters.role}
+                onChange={(event) =>
+                  updateFilters({ role: event.target.value })
+                }
+              >
+                <option value="">All roles</option>
+                {roles.map((role) => (
+                  <option key={role}>{role}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Hackathon
+              <select
+                value={filters.event}
+                onChange={(event) =>
+                  updateFilters({ event: event.target.value })
+                }
+              >
+                <option value="">Any event</option>
+                {demo.events
+                  .filter(
+                    (event) =>
+                      !event.publication || event.publication === "Published",
+                  )
+                  .map((event) => (
+                    <option key={event.id} value={event.id}>
+                      {event.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          </div>
+        </details>
       </div>
       <div className="results-heading">
         <p aria-live="polite">
           <strong>{teams.length}</strong> example{" "}
           {teams.length === 1 ? "team" : "teams"}
         </p>
-        <button
-          type="button"
-          className="text-button"
-          onClick={() => {
-            setSearch("");
-            setDomain("All domains");
-            setOpenOnly(false);
-          }}
-        >
-          Reset filters
-        </button>
+        <div className="inline-actions">
+          <label>
+            <span className="sr-only">Sort teams</span>
+            <select
+              aria-label="Sort teams"
+              value={filters.sort}
+              onChange={(event) => updateFilters({ sort: event.target.value })}
+            >
+              <option value="default">Default order</option>
+              <option value="name">Name A–Z</option>
+              <option value="places">Most open places</option>
+            </select>
+          </label>
+          <button type="button" className="text-button" onClick={resetFilters}>
+            Reset filters
+          </button>
+        </div>
       </div>
       {teams.length ? (
         <div className="cards-grid">
-          {teams.map((team) => (
-            <TeamCard team={team} key={team.id} />
+          {results.items.map((team) => (
+            <TeamCard key={team.id} team={team} />
           ))}
         </div>
       ) : (
@@ -98,21 +165,44 @@ export function TeamsPage({ demo }: { demo: DemoData }) {
           title="A little room for a new idea."
           description="No teams match these filters. Try another search or create your own team."
           action={
-            <a href="#/teams/create" className="button button-secondary">
-              Start a team <Icon name="plus" size={18} />
-            </a>
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={resetFilters}
+            >
+              Clear filters
+            </button>
           }
         />
       )}
+      <Pagination
+        page={results.page}
+        totalPages={results.totalPages}
+        onChange={(page) => updateFilters({ page: String(page) })}
+      />
     </>
   );
 }
 
-export function CreateTeamPage({ demo }: { demo: DemoData }) {
+export function CreateTeamPage({ demo, id }: { demo: DemoData; id?: string }) {
+  const [error, setError] = useState("");
+  const team = demo.teams.find((item) => item.id === id);
+  if (id && (!team || team.leaderId !== "you"))
+    return (
+      <EmptyState
+        title="This team can’t be edited here."
+        description="Only the current example team leader can change these details."
+        action={
+          <a className="button button-secondary" href="#/my-teams">
+            Back to your teams
+          </a>
+        }
+      />
+    );
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    demo.createTeam({
+    const values = {
       name: String(data.get("name")).trim(),
       description: String(data.get("description")).trim(),
       domain: String(data.get("domain")),
@@ -126,7 +216,14 @@ export function CreateTeamPage({ demo }: { demo: DemoData }) {
         .map((item) => item.trim())
         .filter(Boolean),
       eventId: String(data.get("event")),
-    });
+    };
+    if (!values.name || !values.description || !values.roles.length) {
+      setError("Add a team name, description and at least one open role.");
+      return;
+    }
+    const result = id ? demo.updateTeam(id, values) : demo.createTeam(values);
+    if (result) setError(result);
+    else if (id) window.location.hash = `/teams/${id}`;
   }
   return (
     <>
@@ -135,7 +232,11 @@ export function CreateTeamPage({ demo }: { demo: DemoData }) {
       </a>
       <PageHeading
         eyebrow="MAKE ROOM FOR SOMETHING GOOD"
-        title="Every team starts with an idea."
+        title={
+          id
+            ? "Make your team’s next step clearer."
+            : "Every team starts with an idea."
+        }
         description="Tell people what you’re thinking about and who you’d love to build it with."
       />
       <div className="detail-grid">
@@ -144,6 +245,7 @@ export function CreateTeamPage({ demo }: { demo: DemoData }) {
             Give your team a name
             <input
               name="name"
+              defaultValue={team?.name}
               required
               maxLength={60}
               placeholder="Something worth calling yourselves"
@@ -153,6 +255,7 @@ export function CreateTeamPage({ demo }: { demo: DemoData }) {
             What are you building?
             <textarea
               name="description"
+              defaultValue={team?.description}
               required
               rows={4}
               maxLength={800}
@@ -162,7 +265,7 @@ export function CreateTeamPage({ demo }: { demo: DemoData }) {
           <div className="form-columns">
             <label>
               Project domain
-              <select name="domain">
+              <select name="domain" defaultValue={team?.domain}>
                 <option>Sustainability</option>
                 <option>Social impact</option>
                 <option>Developer tools</option>
@@ -175,9 +278,9 @@ export function CreateTeamPage({ demo }: { demo: DemoData }) {
               <input
                 name="capacity"
                 type="number"
-                min={2}
+                min={Math.max(2, team?.members.length || 1)}
                 max={6}
-                defaultValue={4}
+                defaultValue={team?.capacity || 4}
                 required
               />
               <span className="field-hint">
@@ -189,6 +292,7 @@ export function CreateTeamPage({ demo }: { demo: DemoData }) {
             Who are you looking for?
             <input
               name="roles"
+              defaultValue={team?.roles.join(", ")}
               required
               placeholder="Product designer, Backend developer"
             />
@@ -196,28 +300,43 @@ export function CreateTeamPage({ demo }: { demo: DemoData }) {
           </label>
           <label>
             Helpful skills
-            <input name="skills" placeholder="React, Python, Figma" />
+            <input
+              name="skills"
+              defaultValue={team?.skills.join(", ")}
+              placeholder="React, Python, Figma"
+            />
             <span className="field-hint">
               Separate skills with commas. It’s okay to leave this open.
             </span>
           </label>
           <label>
             Building towards a hackathon?
-            <select name="event">
+            <select name="event" defaultValue={team?.eventId || ""}>
               <option value="">No event yet — just an idea</option>
-              {demoEvents.map((event) => (
-                <option key={event.id} value={event.id}>
-                  {event.name} (example)
-                </option>
-              ))}
+              {demo.events
+                .filter(
+                  (event) =>
+                    !event.publication || event.publication === "Published",
+                )
+                .map((event) => (
+                  <option key={event.id} value={event.id}>
+                    {event.name} (example)
+                  </option>
+                ))}
             </select>
           </label>
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
           <div className="form-actions">
             <a href="#/teams" className="button button-secondary">
               Not just yet
             </a>
             <button type="submit" className="button button-primary">
-              Bring your team to life <Icon name="arrowUp" size={18} />
+              {id ? "Save team changes" : "Bring your team to life"}{" "}
+              <Icon name="arrowUp" size={18} />
             </button>
           </div>
         </form>
@@ -283,7 +402,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
       item.personId === "you" &&
       item.status === "Pending",
   );
-  const event = demoEvents.find((item) => item.id === team.eventId);
+  const event = demo.events.find((item) => item.id === team.eventId);
   const teamRequests = demo.requests.filter((item) => item.teamId === id);
   function apply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -337,6 +456,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
               )}
             </div>
           </section>
+          <TeamManagement team={team} demo={demo} />
           <section className="panel team-members">
             <div className="panel-heading">
               <h2>The people behind the idea</h2>
@@ -348,7 +468,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
               const person =
                 personId === "you"
                   ? demo.profile
-                  : demoPeople.find((item) => item.id === personId);
+                  : demo.people.find((item) => item.id === personId);
               return (
                 person && (
                   <div className="member-row" key={person.id}>
@@ -383,7 +503,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
                   const applicant =
                     request.personId === "you"
                       ? demo.profile
-                      : demoPeople.find(
+                      : demo.people.find(
                           (person) => person.id === request.personId,
                         );
                   return (
@@ -622,6 +742,9 @@ export function MyTeamsPage({ demo }: { demo: DemoData }) {
           : team.members.includes("you")),
   );
   const applications = demo.requests.filter((item) => item.personId === "you");
+  const receivedInvitations = demo.invitations.filter(
+    (item) => (item.personId || "you") === "you",
+  );
   return (
     <>
       <PageHeading
@@ -648,7 +771,7 @@ export function MyTeamsPage({ demo }: { demo: DemoData }) {
             {item === "Invitations" && (
               <span>
                 {
-                  demo.invitations.filter(
+                  receivedInvitations.filter(
                     (invite) => invite.status === "Pending",
                   ).length
                 }
@@ -658,9 +781,9 @@ export function MyTeamsPage({ demo }: { demo: DemoData }) {
         ))}
       </div>
       {tab === "Invitations" ? (
-        demo.invitations.length ? (
+        receivedInvitations.length ? (
           <div className="list-panel">
-            {demo.invitations.map((invitation) => {
+            {receivedInvitations.map((invitation) => {
               const team = demo.teams.find(
                 (item) => item.id === invitation.teamId,
               );
