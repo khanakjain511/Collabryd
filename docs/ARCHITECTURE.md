@@ -86,6 +86,7 @@ Collabryd/
 │   └── typescript-config/                    # @repo/typescript-config
 ├── docs/
 │   ├── ARCHITECTURE.md                       # This architecture & mapping reference
+│   ├── BACKEND_ARCHITECTURE.md               # Deep-dive backend system & module architecture
 │   ├── API.md                                # REST API endpoint contract
 │   └── dbms/                                 # Authoritative DBMS docs, ER diagram, SQL & EXPLAIN plans
 ├── docker-compose.yml                        # PostgreSQL 18 (5434) + Redis 8 (6379)

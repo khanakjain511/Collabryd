@@ -32,6 +32,7 @@ Start with [the codebase guide](PROJECT_STRUCTURE.md) to trace a request through
 │   └── typescript-config/   # Shared TypeScript configurations
 ├── docs/
 │   ├── ARCHITECTURE.md      # Full directory, route, schema & DBMS query mappings
+│   ├── BACKEND_ARCHITECTURE.md # Deep-dive backend system & module architecture
 │   ├── API.md               # Complete REST API endpoint reference
 │   └── dbms/                # Authoritative normalization, ER diagram, SQL & EXPLAIN plans
 ├── docker-compose.yml       # PostgreSQL 18 + Redis 8 services
@@ -115,6 +116,7 @@ pnpm test          # Run unit & PostgreSQL integration tests
 
 ## Documentation
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Complete codebase structure, module boundaries, schema-to-table, and DBMS query mappings
+- [docs/BACKEND_ARCHITECTURE.md](docs/BACKEND_ARCHITECTURE.md) — Deep-dive backend system, modular slices, security invariants & real-time delivery
 - [docs/API.md](docs/API.md) — Full REST API reference and error contract
 - [docs/dbms/](docs/dbms/) — Authoritative normalization proof, ER diagrams, SQL DDL, queries, and query timings/plans
 - [apps/web/docs/](apps/web/docs/) — Frontend design system, architecture, and UI documentation
