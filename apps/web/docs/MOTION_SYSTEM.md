@@ -1,37 +1,50 @@
+# Final motion implementation
+
+- **Intro.** The logo, wordmark and upward curtain appear once per browser session over a fixed overlay. Skip and Escape dismiss it. System and saved reduced-motion preferences bypass it.
+- **Hero.** ScrollExpand compares a centered frame with the full available page width. The frame grows from 42% on desktop and 72% on phones. A reserved sticky track and a transform keep document dimensions stable during the reveal. Reduced-motion users get the static full-width image.
+- **Story and footer.** ScrollReveal moves each heading word up eight pixels while taking its opacity from 70% to 100%. The footer wordmark moves into view with a short scroll-linked offset.
+- **Landing menu.** The StaggeredMenu sequence runs inside a native modal dialog. Background interaction is suppressed by the browser. Close and Escape restore focus to Menu. Keyboard and reduced-motion users can bypass the choreography.
+- **Landing scroll.** One Lenis instance is wired to a GSAP ticker and ScrollTrigger. Section links use its `scrollTo`; route exit and reduced motion destroy the instance. Static mode uses instant native scrolling.
+- **Account.** Login and signup share a 180ms View Transition on supporting browsers. Other browsers use a scoped CSS crossfade. Reduced motion bypasses both.
+- **Roster and rails.** Product rosters use native sorting controls and responsive CSS. The two horizontal rails use native scroll snap and page controls.
+- **Background.** A CSS wash supplies the ambient color. The shipped build has no Vanta or WebGL canvas.
+
+The user-supplied ScrollReveal, ScrollExpand and StaggeredMenu were adapted from [React Bits](https://github.com/DavidHDev/react-bits). The [upstream license](REACT_BITS_LICENSE.md) is included. The horizontal rail follows the [MDN scroll carousel pattern](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Overflow/Carousels).
+
 # Motion and scrolling
 
 Goal: quiet feedback and polished hierarchy with code the student can explain. Default to CSS transitions/keyframes and one original Reveal component. The selected references inform behavior; they do not require installing every library.
 
 ## Motion tokens
 
-| Token / use | Proposed value |
-| --- | --- |
-| Fast / focus, button | 150ms |
-| Regular / menu, form entrance | 220ms |
-| Reveal / section | 400ms |
-| Hero entrance | 450ms maximum, one time |
-| Ease | `cubic-bezier(0.22, 1, 0.36, 1)` |
-| Neutral transition | `ease-out` |
-| Reveal distance | 12px upward; 0px reduced motion |
-| Card stagger | 60ms per visible item, capped at 180ms |
-| Hover lift | 2px maximum, marketing cards on hover-capable devices only |
-| Observer | threshold 0.1, bottom root margin -24px; observe once |
+| Token / use                   | Proposed value                                             |
+| ----------------------------- | ---------------------------------------------------------- |
+| Fast / focus, button          | 150ms                                                      |
+| Regular / menu, form entrance | 220ms                                                      |
+| Reveal / section              | 400ms                                                      |
+| Hero entrance                 | 450ms maximum, one time                                    |
+| Ease                          | `cubic-bezier(0.22, 1, 0.36, 1)`                           |
+| Neutral transition            | `ease-out`                                                 |
+| Reveal distance               | 12px upward; 0px reduced motion                            |
+| Card stagger                  | 60ms per visible item, capped at 180ms                     |
+| Hover lift                    | 2px maximum, marketing cards on hover-capable devices only |
+| Observer                      | threshold 0.1, bottom root margin -24px; observe once      |
 
 No bounce, custom cursor, magnetic button, scroll-scrub text, 300vh pinned section, parallax footer, animated numerical claims or perpetual text effects. These would add complexity without improving team formation.
 
 ## Pattern plan
 
-| Pattern | Implementation and trigger | Reduced-motion / failure behavior |
-| --- | --- | --- |
-| Hero entrance | Short whole-heading opacity/transform on mount; supporting text/CTA already readable | Immediately final state; never delay action |
-| Reveal | One wrapper observes decorative/section groups; add visible class, unobserve, disconnect on cleanup | Immediate content, no observer needed |
-| Card entrance | Reuse Reveal with capped CSS delay | Static grid, normal tab order |
-| Hover feedback | Button background/border and link underline; decorative card lift | Color/focus remains, no lift |
-| Mobile menu | Disclosure expansion; optional 220ms opacity, hidden/inert content when closed | Immediate open/close; Escape/focus unaffected |
-| Form focus | Visible focus outline and border; no label disappearance | Same visible outline |
-| Submit state | Replace button text with "Signing in…" / "Saving…", preserve dimensions | Text feedback; no spin required |
-| Error / success | Inline Alert and first-invalid focus on submission | Immediate message; no shake, flash or success delay |
-| Footer | Normal flow with optional one-time section reveal | Fully readable static footer |
+| Pattern         | Implementation and trigger                                                                          | Reduced-motion / failure behavior                   |
+| --------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| Hero entrance   | Short whole-heading opacity/transform on mount; supporting text/CTA already readable                | Immediately final state; never delay action         |
+| Reveal          | One wrapper observes decorative/section groups; add visible class, unobserve, disconnect on cleanup | Immediate content, no observer needed               |
+| Card entrance   | Reuse Reveal with capped CSS delay                                                                  | Static grid, normal tab order                       |
+| Hover feedback  | Button background/border and link underline; decorative card lift                                   | Color/focus remains, no lift                        |
+| Mobile menu     | Disclosure expansion; optional 220ms opacity, hidden/inert content when closed                      | Immediate open/close; Escape/focus unaffected       |
+| Form focus      | Visible focus outline and border; no label disappearance                                            | Same visible outline                                |
+| Submit state    | Replace button text with "Signing in…" / "Saving…", preserve dimensions                             | Text feedback; no spin required                     |
+| Error / success | Inline Alert and first-invalid focus on submission                                                  | Immediate message; no shake, flash or success delay |
+| Footer          | Normal flow with optional one-time section reveal                                                   | Fully readable static footer                        |
 
 All essential content starts visible. If a reveal uses an initial hidden style, apply it only after successful enhancement and only to non-focusable decorative groups; do not hide long sections/links while waiting for a callback. Focused content must never remain transparent. Catch unsupported IntersectionObserver by rendering normally. Remove every observer/listener on unmount, including StrictMode mount/unmount cycles.
 

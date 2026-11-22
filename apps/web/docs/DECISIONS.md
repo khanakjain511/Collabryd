@@ -1,3 +1,11 @@
+## Superseding visual decision — 19 November 2026
+
+The user rejected the indigo product-layout draft and asked for the photographic/editorial quality of the live Monarque reference. A subsequent request to change the wine palette established the current midnight navy/ivory/copper direction. Earlier palette sections are historical. Current colors live in `src/index.css` and `src/styles/editorial.css`; use explicit light/dark roles throughout public, workspace and admin screens.
+
+Keep the existing product architecture and functional components. Refine the landing composition and native account/navigation shells; retain form handlers and all fixture actions. No new component/routing/motion framework was added. Use locally hosted open-source fonts with licenses and optimized local photographs with source records. Generated campus scenes are illustrations, not actual members. No fabricated matches, scores, testimonials or product claims.
+
+The user has explicitly prohibited further commits/pushes until a new instruction. Last pushed commit: `5236bc1`, before that prohibition.
+
 ## Refinement decisions — 19 November 2026
 
 The latest user approval supersedes earlier plan-only and no-library motion decisions. Apply selective presentation improvements within `apps/web`, with the expressly approved dependency-only `pnpm-lock.yaml` exception. Keep native hash routing, React state hooks, forms, validation and product boundaries.

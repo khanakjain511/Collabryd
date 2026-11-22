@@ -1,3 +1,11 @@
+## Current local visual refinement — 19 November 2026
+
+The existing product data and action model is preserved. `AppearanceProvider` supplies light/dark and motion preferences; `useAppearance` is the shared hook. `index.css` contains palette/type primitives, `App.css` retains shared product styles, and `styles/experience.css` / `styles/editorial.css` contain interaction and photographic presentation refinements.
+
+`LandingPage` still uses existing demo data and links. Its photos and copy introduce the product; `TeamWorld` is one optional, below-fold HTML/SVG illustration enhanced with a deferred Three scene. `lib/motion.ts` registers GSAP/ScrollTrigger. Effects clean up their listeners, animations and renderer resources. Auth form actions remain in `AuthPages`; the presentation wrapper uses a native dialog. `Layout` extends the existing header/workspace rather than replacing routing or state management.
+
+See PROGRESS for actual checks and AI_HANDOFF for the current no-commit/no-push instruction. This is a local frontend demonstration, not a live service.
+
 # How to explain this frontend
 
 The frontend uses React to display the page, TypeScript to describe the data, and plain CSS to style it. No UI framework, animation package, router package or global state library was added.
@@ -15,23 +23,23 @@ Example: accepting Tara's join request updates the request to Accepted and adds 
 
 ## Files to present
 
-| File | Explain it as |
-| --- | --- |
-| `src/App.tsx` | The page selector and native hash navigation |
-| `src/types.ts` | Simple descriptions of a person, team, event and request |
-| `src/data/demo.ts` | Fictional examples, separate from how they look |
-| `src/hooks/useDemoData.ts` | Shared state and named demo actions |
-| `src/hooks/useListFilters.ts` | Remember filters in state and the browser URL |
-| `src/lib/validation.ts` | Plain validation and pagination functions |
-| `src/components/TeamManagement.tsx` | Member removal, leadership transfer and leaving |
-| `src/pages/AdminPages.tsx` | Campus users, teams, event editor and reports |
-| `tests/validation.test.ts` | Six built-in Node tests, no test library |
-| `src/components/ui.tsx` | Repeated small pieces such as icon, avatar, badge and dialog |
-| `src/components/Cards.tsx` | Reusable person/team/event cards |
-| `src/components/Layout.tsx` | Public header/footer and campus sidebar |
-| `src/components/Reveal.tsx` | One observer that starts a short CSS entrance when visible |
-| `src/pages/*` | The actual content and controls on each screen |
-| `src/index.css`, `src/App.css` | Colors, spacing, typography and responsive layouts |
+| File                                | Explain it as                                                |
+| ----------------------------------- | ------------------------------------------------------------ |
+| `src/App.tsx`                       | The page selector and native hash navigation                 |
+| `src/types.ts`                      | Simple descriptions of a person, team, event and request     |
+| `src/data/demo.ts`                  | Fictional examples, separate from how they look              |
+| `src/hooks/useDemoData.ts`          | Shared state and named demo actions                          |
+| `src/hooks/useListFilters.ts`       | Remember filters in state and the browser URL                |
+| `src/lib/validation.ts`             | Plain validation and pagination functions                    |
+| `src/components/TeamManagement.tsx` | Member removal, leadership transfer and leaving              |
+| `src/pages/AdminPages.tsx`          | Campus users, teams, event editor and reports                |
+| `tests/validation.test.ts`          | Six built-in Node tests, no test library                     |
+| `src/components/ui.tsx`             | Repeated small pieces such as icon, avatar, badge and dialog |
+| `src/components/Cards.tsx`          | Reusable person/team/event cards                             |
+| `src/components/Layout.tsx`         | Public header/footer and campus sidebar                      |
+| `src/components/Reveal.tsx`         | One observer that starts a short CSS entrance when visible   |
+| `src/pages/*`                       | The actual content and controls on each screen               |
+| `src/index.css`, `src/App.css`      | Colors, spacing, typography and responsive layouts           |
 
 An interface is a description of expected data fields. Props are values passed from a parent component to a child. State is data React remembers while the app is open. A callback is a function passed to handle an action. `useEffect` is used for browser listeners/observers and cleans them up. The only class is React's native ErrorBoundary, which shows a restart screen if rendering fails.
 

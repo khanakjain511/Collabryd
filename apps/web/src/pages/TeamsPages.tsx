@@ -6,6 +6,8 @@ import { TeamManagement } from "../components/TeamManagement";
 import { useListFilters } from "../hooks/useListFilters";
 import { paginate } from "../lib/validation";
 import { TeamCard } from "../components/Cards";
+import { Roster, RosterSkills, TeamSeats } from "../components/Roster";
+import { openSeats, sortDirection, sortField } from "../lib/roster";
 import {
   Avatar,
   Badge,
@@ -13,6 +15,8 @@ import {
   EmptyState,
   Icon,
   PageHeading,
+  Seat,
+  Seats,
 } from "../components/ui";
 
 export function TeamsPage({ demo }: { demo: DemoData }) {
@@ -38,12 +42,11 @@ export function TeamsPage({ demo }: { demo: DemoData }) {
       (!filters.open ||
         (team.status === "Recruiting" && team.members.length < team.capacity)),
   );
-  if (filters.sort === "name")
-    teams.sort((a, b) => a.name.localeCompare(b.name));
-  if (filters.sort === "places")
-    teams.sort(
-      (a, b) => b.capacity - b.members.length - (a.capacity - a.members.length),
-    );
+  const direction = sortDirection(filters.sort);
+  if (sortField(filters.sort) === "name")
+    teams.sort((a, b) => direction * a.name.localeCompare(b.name));
+  if (sortField(filters.sort) === "places")
+    teams.sort((a, b) => direction * (openSeats(b) - openSeats(a)));
   const results = paginate(teams, Number(filters.page), 3);
   return (
     <>
@@ -52,25 +55,32 @@ export function TeamsPage({ demo }: { demo: DemoData }) {
         title="Small teams. Big possibilities."
         description="Find a role that fits, a problem you care about, or the start of something new."
         action={
-          <a href="#/teams/create" className="button button-primary">
+          <a
+            href="#/teams/create"
+            className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
+          >
             <Icon name="plus" size={18} />
             Start a team
           </a>
         }
       />
-      <div className="filters-bar">
-        <label className="search-field">
-          <Icon name="search" />
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6 bg-surface/50 p-3 sm:p-4 rounded-xl border border-border">
+        <label className="relative flex items-center flex-1 min-w-[240px]">
+          <span className="absolute left-3 text-muted pointer-events-none">
+            <Icon name="search" size={18} />
+          </span>
           <input
+            className="w-full pl-9 pr-3.5 py-2.5 bg-surface border border-input-border rounded-lg text-sm text-ink placeholder:text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors"
             aria-label="Search teams, roles or skills"
             placeholder="A team, a role, an idea…"
             value={filters.search}
             onChange={(event) => updateFilters({ search: event.target.value })}
           />
         </label>
-        <label className="filter-select">
+        <label className="block min-w-[140px]">
           <span className="sr-only">Filter by domain</span>
           <select
+            className="w-full py-2.5 px-3.5 bg-surface border border-input-border rounded-lg text-sm text-ink focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors"
             value={filters.domain}
             onChange={(event) => updateFilters({ domain: event.target.value })}
           >
@@ -80,9 +90,10 @@ export function TeamsPage({ demo }: { demo: DemoData }) {
             ))}
           </select>
         </label>
-        <label className="checkbox-label">
+        <label className="inline-flex items-center gap-2 text-sm text-ink cursor-pointer select-none">
           <input
             type="checkbox"
+            className="w-4 h-4 rounded border-input-border text-primary focus:ring-primary accent-primary cursor-pointer"
             checked={!!filters.open}
             onChange={(event) =>
               updateFilters({ open: event.target.checked ? "yes" : "" })
@@ -90,12 +101,13 @@ export function TeamsPage({ demo }: { demo: DemoData }) {
           />
           Open places only
         </label>
-        <details className="advanced-filters">
-          <summary>More team filters</summary>
-          <div className="filter-fields">
-            <label>
+        <details className="w-full mt-3 pt-3 border-t border-border group">
+          <summary className="text-xs font-semibold text-primary cursor-pointer hover:underline select-none">More team filters</summary>
+          <div className="flex flex-wrap items-center gap-3 mt-3">
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted">
               Open role
               <select
+                className="py-2 px-3 bg-surface border border-input-border rounded-lg text-sm text-ink focus:outline-none focus:border-primary"
                 value={filters.role}
                 onChange={(event) =>
                   updateFilters({ role: event.target.value })
@@ -107,9 +119,10 @@ export function TeamsPage({ demo }: { demo: DemoData }) {
                 ))}
               </select>
             </label>
-            <label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted">
               Hackathon
               <select
+                className="py-2 px-3 bg-surface border border-input-border rounded-lg text-sm text-ink focus:outline-none focus:border-primary"
                 value={filters.event}
                 onChange={(event) =>
                   updateFilters({ event: event.target.value })
@@ -131,42 +144,77 @@ export function TeamsPage({ demo }: { demo: DemoData }) {
           </div>
         </details>
       </div>
-      <div className="results-heading">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:px-5 border-b border-border bg-surface/50 rounded-t-xl">
         <p aria-live="polite">
           <strong>{teams.length}</strong> example{" "}
           {teams.length === 1 ? "team" : "teams"}
         </p>
-        <div className="inline-actions">
+        <div className="flex items-center gap-3">
           <label>
             <span className="sr-only">Sort teams</span>
             <select
+              className="py-1.5 px-2.5 bg-surface border border-input-border rounded-lg text-xs text-ink focus:outline-none focus:border-primary"
               aria-label="Sort teams"
               value={filters.sort}
               onChange={(event) => updateFilters({ sort: event.target.value })}
             >
               <option value="default">Default order</option>
               <option value="name">Name A–Z</option>
-              <option value="places">Most open places</option>
+              <option value="name-reverse">Name Z–A</option>
+              <option value="places">Most open seats</option>
+              <option value="places-reverse">Fewest open seats</option>
             </select>
           </label>
-          <button type="button" className="text-button" onClick={resetFilters}>
+          <button
+            type="button"
+            className="border-0 bg-transparent py-1.5 px-0 text-primary text-sm underline underline-offset-4 cursor-pointer hover:text-primary-hover transition-colors font-medium"
+            onClick={resetFilters}
+          >
             Reset filters
           </button>
         </div>
       </div>
       {teams.length ? (
-        <div className="cards-grid">
-          {results.items.map((team) => (
-            <TeamCard key={team.id} team={team} />
-          ))}
-        </div>
+        <Roster
+          label="Teams roster"
+          columns={[
+            { title: "Team", sort: "name" },
+            { title: "Skills and roles" },
+            { title: "Seats", sort: "places", descending: true },
+          ]}
+          sort={filters.sort}
+          onSort={(sort) => updateFilters({ sort })}
+          rows={results.items.map((team) => ({
+            id: team.id,
+            cells: [
+              <div className="flex items-center gap-3">
+                <span className="w-9 h-9 rounded-lg bg-soft text-primary grid place-items-center shrink-0">
+                  <Icon
+                    name={team.domain === "Sustainability" ? "leaf" : "people"}
+                    size={20}
+                  />
+                </span>
+                <div>
+                  <a className="inline-flex items-center gap-2 text-sm font-semibold hover:text-primary" href={`#/teams/${team.id}`}>
+                    {team.name} <Icon name="arrowUp" size={14} />
+                  </a>
+                  <span className="block text-xs text-muted mt-1">{team.domain}</span>
+                </div>
+              </div>,
+              <RosterSkills
+                skills={[...new Set([...team.roles, ...team.skills])]}
+              />,
+              <TeamSeats team={team} />,
+            ],
+          }))}
+        />
       ) : (
         <EmptyState
           title="A little room for a new idea."
           description="No teams match these filters. Try another search or create your own team."
           action={
             <button
-              className="button button-secondary"
+              className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
               type="button"
               onClick={resetFilters}
             >
@@ -193,7 +241,10 @@ export function CreateTeamPage({ demo, id }: { demo: DemoData; id?: string }) {
         title="This team can’t be edited here."
         description="Only the current example team leader can change these details."
         action={
-          <a className="button button-secondary" href="#/my-teams">
+          <a
+            className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
+            href="#/my-teams"
+          >
             Back to your teams
           </a>
         }
@@ -227,7 +278,10 @@ export function CreateTeamPage({ demo, id }: { demo: DemoData; id?: string }) {
   }
   return (
     <>
-      <a className="back-link" href="#/teams">
+      <a
+        className="inline-flex items-center gap-2 text-sm text-muted hover:text-ink mb-7 transition-colors"
+        href="#/teams"
+      >
         ← Back to teams
       </a>
       <PageHeading
@@ -239,8 +293,11 @@ export function CreateTeamPage({ demo, id }: { demo: DemoData; id?: string }) {
         }
         description="Tell people what you’re thinking about and who you’d love to build it with."
       />
-      <div className="detail-grid">
-        <form className="panel stack-form" onSubmit={submit}>
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8">
+        <form
+          className="bg-surface border border-border rounded-xl p-6 shadow-sm flex flex-col gap-4"
+          onSubmit={submit}
+        >
           <label>
             Give your team a name
             <input
@@ -262,7 +319,7 @@ export function CreateTeamPage({ demo, id }: { demo: DemoData; id?: string }) {
               placeholder="A little about the problem, the idea, and what you hope to make."
             />
           </label>
-          <div className="form-columns">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label>
               Project domain
               <select name="domain" defaultValue={team?.domain}>
@@ -283,7 +340,7 @@ export function CreateTeamPage({ demo, id }: { demo: DemoData; id?: string }) {
                 defaultValue={team?.capacity || 4}
                 required
               />
-              <span className="field-hint">
+              <span className="text-xs text-muted mt-1 block">
                 Demo limit: 2–6. Live limits depend on event policy.
               </span>
             </label>
@@ -296,7 +353,9 @@ export function CreateTeamPage({ demo, id }: { demo: DemoData; id?: string }) {
               required
               placeholder="Product designer, Backend developer"
             />
-            <span className="field-hint">Separate roles with commas.</span>
+            <span className="text-xs text-muted mt-1 block">
+              Separate roles with commas.
+            </span>
           </label>
           <label>
             Helpful skills
@@ -305,7 +364,7 @@ export function CreateTeamPage({ demo, id }: { demo: DemoData; id?: string }) {
               defaultValue={team?.skills.join(", ")}
               placeholder="React, Python, Figma"
             />
-            <span className="field-hint">
+            <span className="text-xs text-muted mt-1 block">
               Separate skills with commas. It’s okay to leave this open.
             </span>
           </label>
@@ -326,22 +385,28 @@ export function CreateTeamPage({ demo, id }: { demo: DemoData; id?: string }) {
             </select>
           </label>
           {error && (
-            <p className="form-error" role="alert">
+            <p className="text-xs text-danger font-medium mt-1" role="alert">
               {error}
             </p>
           )}
-          <div className="form-actions">
-            <a href="#/teams" className="button button-secondary">
+          <div className="flex flex-wrap items-center gap-3 mt-5">
+            <a
+              href="#/teams"
+              className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
+            >
               Not just yet
             </a>
-            <button type="submit" className="button button-primary">
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
+            >
               {id ? "Save team changes" : "Bring your team to life"}{" "}
               <Icon name="arrowUp" size={18} />
             </button>
           </div>
         </form>
-        <aside className="panel advice-panel">
-          <span className="advice-star" aria-hidden="true">
+        <aside className="bg-soft border border-border rounded-xl p-6 shadow-sm flex flex-col gap-3">
+          <span className="text-accent text-lg inline-block mr-1" aria-hidden="true">
             ✳
           </span>
           <h2>
@@ -353,21 +418,21 @@ export function CreateTeamPage({ demo, id }: { demo: DemoData; id?: string }) {
             Share the problem, the commitment, and the skills you need. A little
             clarity makes saying hello a lot easier.
           </p>
-          <ul className="check-list">
-            <li>
+          <ul className="list-none p-0 my-4 grid gap-2.5">
+            <li className="flex items-center gap-2 text-sm text-ink">
               <Icon name="check" />
               Keep your idea understandable
             </li>
-            <li>
+            <li className="flex items-center gap-2 text-sm text-ink">
               <Icon name="check" />
               Be honest about the time needed
             </li>
-            <li>
+            <li className="flex items-center gap-2 text-sm text-ink">
               <Icon name="check" />
               Make space for different strengths
             </li>
           </ul>
-          <p className="field-hint">
+          <p className="text-xs text-muted mt-1 block">
             This creates an example team for this session only.
           </p>
         </aside>
@@ -387,7 +452,10 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
         title="This team isn’t here."
         description="It may have been removed, or the demo was refreshed."
         action={
-          <a href="#/teams" className="button button-secondary">
+          <a
+            href="#/teams"
+            className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
+          >
             Explore teams
           </a>
         }
@@ -415,18 +483,23 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
   }
   return (
     <>
-      <a className="back-link" href="#/teams">
+      <a
+        className="inline-flex items-center gap-2 text-sm text-muted hover:text-ink mb-7 transition-colors"
+        href="#/teams"
+      >
         ← Back to teams
       </a>
-      <div className="team-detail-heading">
-        <span className="team-symbol sage">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <span className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-success-bg text-success grid place-items-center shrink-0">
           <Icon
             name={team.domain === "Sustainability" ? "leaf" : "code"}
             size={34}
           />
         </span>
-        <div>
-          <p className="eyebrow">{team.domain} / EXAMPLE TEAM</p>
+        <div className="sm:mr-auto">
+          <p className="text-xs font-semibold tracking-wider text-primary uppercase mb-2 block">
+            {team.domain} / EXAMPLE TEAM
+          </p>
           <h1 tabIndex={-1}>{team.name}</h1>
         </div>
         <Badge
@@ -435,20 +508,24 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
           {full && team.status === "Recruiting" ? "Full" : team.status}
         </Badge>
       </div>
-      <div className="detail-grid">
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8">
         <div>
-          <section className="panel">
-            <p className="eyebrow">THE IDEA</p>
+          <section className="bg-surface border border-border rounded-xl p-6 shadow-sm mb-6">
+            <p className="text-xs font-semibold tracking-wider text-primary uppercase mb-4 block">
+              THE IDEA
+            </p>
             <h2>A little about what we’re building.</h2>
-            <p className="profile-about">{team.description}</p>
+            <p className="text-sm text-muted leading-relaxed mb-6">
+              {team.description}
+            </p>
             <h3>The missing pieces</h3>
-            <div className="skill-list">
+            <div className="flex flex-wrap gap-1.5 my-3">
               {team.roles.map((role) => (
                 <Badge key={role}>{role}</Badge>
               ))}
             </div>
             <h3>Skills we’d love to have around</h3>
-            <div className="skill-list">
+            <div className="flex flex-wrap gap-1.5 my-3">
               {team.skills.length ? (
                 team.skills.map((skill) => <Badge key={skill}>{skill}</Badge>)
               ) : (
@@ -457,12 +534,10 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
             </div>
           </section>
           <TeamManagement team={team} demo={demo} />
-          <section className="panel team-members">
-            <div className="panel-heading">
+          <section className="bg-surface border border-border rounded-xl p-6 shadow-sm mb-6 flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-4 mb-4">
               <h2>The people behind the idea</h2>
-              <span>
-                {team.members.length}/{team.capacity} members
-              </span>
+              <TeamSeats team={team} size="md" />
             </div>
             {team.members.map((personId) => {
               const person =
@@ -471,24 +546,49 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
                   : demo.people.find((item) => item.id === personId);
               return (
                 person && (
-                  <div className="member-row" key={person.id}>
+                  <div
+                    className="flex items-center justify-between gap-3 py-3 border-b border-border last:border-b-0"
+                    key={person.id}
+                  >
                     <Avatar name={person.name} color={person.color} small />
-                    <div>
-                      <a href={`#/users/${person.id}`}>{person.name}</a>
-                      <span>{person.role}</span>
+                    <div className="mr-auto">
+                      <a className="text-sm font-semibold" href={`#/users/${person.id}`}>{person.name}</a>
+                      <span className="block text-xs text-muted">{person.role}</span>
                     </div>
                     {person.id === team.leaderId && <Badge>Team lead</Badge>}
                     {person.id === "you" && (
-                      <span className="field-hint">You</span>
+                      <span className="text-xs text-muted">You</span>
                     )}
                   </div>
                 )
               );
             })}
+            {Array.from({
+              length: Math.max(0, team.capacity - team.members.length),
+            }).map((_, i) => (
+              <div
+                className="flex items-center justify-between gap-3 py-3 border-b border-border last:border-b-0"
+                key={`open-slot-${i}`}
+              >
+                <div className="flex items-center gap-3">
+                  <Seat status="open" size="md" decorative />
+                  <div>
+                    <strong className="text-sm font-semibold text-ink">
+                      Open seat {team.members.length + i + 1}
+                    </strong>
+                    <p className="text-xs text-muted">
+                      {team.roles[team.members.length + i] ||
+                        "Open contributor role"}
+                    </p>
+                  </div>
+                </div>
+                <Badge tone="positive">Recruiting</Badge>
+              </div>
+            ))}
           </section>
           {leader && (
-            <section className="panel">
-              <div className="panel-heading">
+            <section className="bg-surface border border-border rounded-xl p-6 shadow-sm mb-6">
+              <div className="flex items-center justify-between gap-4 mb-4">
                 <h2>People who want to join</h2>
                 <Badge>
                   {
@@ -507,8 +607,11 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
                           (person) => person.id === request.personId,
                         );
                   return (
-                    <div className="request-card" key={request.id}>
-                      <div className="request-person">
+                    <div
+                      className="py-4 border-b border-border last:border-b-0"
+                      key={request.id}
+                    >
+                      <div className="flex items-start gap-3">
                         <Avatar
                           name={applicant?.name || "Example person"}
                           color={applicant?.color}
@@ -523,10 +626,10 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
                         <Badge>{request.status}</Badge>
                       </div>
                       {request.status === "Pending" && (
-                        <div className="inline-actions">
+                        <div className="flex flex-wrap items-center gap-2 mt-3">
                           <button
                             type="button"
-                            className="button button-primary button-small"
+                            className="inline-flex items-center justify-center gap-1.5 min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
                             onClick={() => demo.reviewRequest(request.id, true)}
                             disabled={full || team.status !== "Recruiting"}
                           >
@@ -534,7 +637,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
                           </button>
                           <button
                             type="button"
-                            className="button button-secondary button-small"
+                            className="inline-flex items-center justify-center gap-1.5 min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
                             onClick={() =>
                               demo.reviewRequest(request.id, false)
                             }
@@ -553,10 +656,15 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
           )}
         </div>
         <aside>
-          <section className="panel join-panel">
-            <div className="panel-heading">
-              <Icon name="people" />
-              <span>
+          <section className="bg-surface border border-border rounded-xl p-6 shadow-sm mb-6 flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-4 mb-4">
+              <Seats
+                capacity={team.capacity}
+                filled={team.members.length}
+                size="sm"
+                decorative
+              />
+              <span className="text-xs text-muted font-medium">
                 {team.capacity - team.members.length} open{" "}
                 {team.capacity - team.members.length === 1 ? "place" : "places"}
               </span>
@@ -574,7 +682,10 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
                   : "Tell the team a little about yourself and what you’d like to contribute."}
             </p>
             {member ? (
-              <a href="#/discover" className="button button-primary full-width">
+              <a
+                href="#/discover"
+                className="w-full inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
+              >
                 {leader ? "Find teammates" : "Explore people"}
                 <Icon name="arrowUp" size={16} />
               </a>
@@ -583,7 +694,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
                 <Badge tone="positive">Your request is pending</Badge>
                 <button
                   type="button"
-                  className="text-button"
+                  className="border-0 bg-transparent py-1.5 px-0 text-primary text-sm underline underline-offset-4 cursor-pointer hover:text-primary-hover transition-colors font-medium"
                   onClick={() => demo.cancelRequest(ownRequest.id)}
                 >
                   Cancel demo request
@@ -592,7 +703,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
             ) : (
               <button
                 type="button"
-                className="button button-primary full-width"
+                className="w-full inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
                 disabled={full || team.status !== "Recruiting"}
                 onClick={() => {
                   setError("");
@@ -609,24 +720,29 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
                 )}
               </button>
             )}
-            <span className="field-hint">
+            <span className="text-xs text-muted mt-1 block">
               Demo actions only. Nothing is sent to real people.
             </span>
           </section>
           {event && (
-            <section className="panel">
-              <p className="eyebrow">BUILDING TOWARDS</p>
+            <section className="bg-surface border border-border rounded-xl p-6 shadow-sm mb-6">
+              <p className="text-xs font-semibold tracking-wider text-primary uppercase mb-4 block">
+                BUILDING TOWARDS
+              </p>
               <h3>{event.name}</h3>
               <p>
                 {event.category} · {event.mode}
               </p>
-              <a className="text-link" href={`#/hackathons/${event.id}`}>
+              <a
+                className="inline-flex items-center gap-2 text-sm font-semibold text-ink border-b border-border pb-1 hover:border-primary hover:text-primary transition-colors"
+                href={`#/hackathons/${event.id}`}
+              >
                 Explore the example event <Icon name="arrow" size={16} />
               </a>
             </section>
           )}
           {leader && (
-            <section className="panel">
+            <section className="bg-surface border border-border rounded-xl p-6 shadow-sm mb-6">
               <h3>Your team, your next step.</h3>
               <p>
                 Keep recruitment open while you’re looking. Closing it preserves
@@ -634,7 +750,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
               </p>
               <button
                 type="button"
-                className="button button-secondary full-width"
+                className="w-full inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
                 onClick={() =>
                   demo.changeTeamStatus(
                     id,
@@ -649,7 +765,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
               </button>
               <button
                 type="button"
-                className="text-button danger-text"
+                className="border-0 bg-transparent py-1.5 px-0 text-danger text-sm underline underline-offset-4 cursor-pointer hover:opacity-80 transition-opacity font-medium"
                 onClick={() => setArchiving(true)}
                 disabled={team.status === "Archived"}
               >
@@ -664,7 +780,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
           title={`Say hello to ${team.name}`}
           onClose={() => setJoining(false)}
         >
-          <form className="stack-form" onSubmit={apply}>
+          <form className="flex flex-col gap-4 mt-2" onSubmit={apply}>
             <p>
               Share the role you’d like to take and what you can bring. Your
               request will stay in this demo only.
@@ -680,11 +796,14 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
               />
             </label>
             {error && (
-              <p role="alert" className="form-error">
+              <p role="alert" className="text-xs text-danger font-medium mt-1">
                 {error}
               </p>
             )}
-            <button type="submit" className="button button-primary">
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
+            >
               Send demo join request <Icon name="arrowUp" size={18} />
             </button>
           </form>
@@ -699,17 +818,17 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
             Archiving closes recruitment and moves the team to your archived
             examples. Existing members remain listed.
           </p>
-          <div className="form-actions">
+          <div className="flex flex-wrap items-center gap-3 mt-5">
             <button
               type="button"
-              className="button button-secondary"
+              className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
               onClick={() => setArchiving(false)}
             >
               Keep building
             </button>
             <button
               type="button"
-              className="button button-danger"
+              className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-danger text-white hover:bg-danger/90 transition-colors cursor-pointer"
               onClick={() => {
                 demo.changeTeamStatus(id, "Archived");
                 setArchiving(false);
@@ -752,24 +871,31 @@ export function MyTeamsPage({ demo }: { demo: DemoData }) {
         title="Your little corner of possibility."
         description="Teams, invitations, and the next steps that bring people together."
         action={
-          <a className="button button-primary" href="#/teams/create">
+          <a
+            className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
+            href="#/teams/create"
+          >
             <Icon name="plus" size={17} />
             Start a team
           </a>
         }
       />
-      <div className="filter-tabs" aria-label="Team list filter">
+      <div className="flex flex-wrap gap-2 mb-6" aria-label="Team list filter">
         {tabs.map((item) => (
           <button
             key={item}
             type="button"
             aria-pressed={item === tab}
-            className={tab === item ? "active" : ""}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+              tab === item
+                ? "bg-primary text-on-primary border-primary"
+                : "bg-surface text-ink border-border hover:border-primary"
+            }`}
             onClick={() => setTab(item)}
           >
             {item}
             {item === "Invitations" && (
-              <span>
+              <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] bg-white/20">
                 {
                   receivedInvitations.filter(
                     (invite) => invite.status === "Pending",
@@ -782,33 +908,38 @@ export function MyTeamsPage({ demo }: { demo: DemoData }) {
       </div>
       {tab === "Invitations" ? (
         receivedInvitations.length ? (
-          <div className="list-panel">
+          <div className="bg-surface border border-border rounded-xl overflow-hidden shadow-sm divide-y divide-border">
             {receivedInvitations.map((invitation) => {
               const team = demo.teams.find(
                 (item) => item.id === invitation.teamId,
               );
               return (
-                <article className="invitation-row" key={invitation.id}>
-                  <span className="summary-icon peach">
+                <article
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 hover:bg-soft/30 transition-colors"
+                  key={invitation.id}
+                >
+                  <span className="w-11 h-11 rounded-xl bg-[#f4e6d6] text-[#6a4726] dark:bg-[#3c3026] dark:text-[#f1cba4] grid place-items-center shrink-0">
                     <Icon name="mail" />
                   </span>
                   <div>
-                    <h3>
+                    <h3 className="font-semibold text-ink text-base">
                       {team?.name || "Example team"} thinks you’d be a good fit.
                     </h3>
-                    <p>An example invitation. Take a look before you decide.</p>
+                    <p className="text-sm text-muted">
+                      An example invitation. Take a look before you decide.
+                    </p>
                     <a
-                      className="text-link"
+                      className="inline-flex items-center gap-2 text-sm font-semibold text-ink border-b border-border pb-1 hover:border-primary hover:text-primary transition-colors"
                       href={`#/teams/${invitation.teamId}`}
                     >
                       View team <Icon name="arrowUp" size={15} />
                     </a>
                   </div>
                   {invitation.status === "Pending" ? (
-                    <div className="inline-actions">
+                    <div className="flex flex-wrap items-center gap-2 mt-3 sm:mt-0">
                       <button
                         type="button"
-                        className="button button-primary button-small"
+                        className="inline-flex items-center justify-center gap-1.5 min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
                         onClick={() =>
                           demo.respondToInvite(invitation.id, true)
                         }
@@ -817,7 +948,7 @@ export function MyTeamsPage({ demo }: { demo: DemoData }) {
                       </button>
                       <button
                         type="button"
-                        className="button button-secondary button-small"
+                        className="inline-flex items-center justify-center gap-1.5 min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
                         onClick={() =>
                           demo.respondToInvite(invitation.id, false)
                         }
@@ -840,21 +971,27 @@ export function MyTeamsPage({ demo }: { demo: DemoData }) {
         )
       ) : tab === "Applications" ? (
         applications.length ? (
-          <div className="list-panel">
+          <div className="bg-surface border border-border rounded-xl overflow-hidden shadow-sm divide-y divide-border">
             {applications.map((request) => (
-              <article className="invitation-row" key={request.id}>
-                <span className="summary-icon sage">
+              <article
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 hover:bg-soft/30 transition-colors"
+                key={request.id}
+              >
+                <span className="w-11 h-11 rounded-xl bg-success-bg text-success grid place-items-center shrink-0">
                   <Icon name="people" />
                 </span>
                 <div>
-                  <h3>
+                  <h3 className="font-semibold text-ink text-base">
                     {
                       demo.teams.find((team) => team.id === request.teamId)
                         ?.name
                     }
                   </h3>
-                  <p>{request.message}</p>
-                  <a className="text-link" href={`#/teams/${request.teamId}`}>
+                  <p className="text-sm text-muted">{request.message}</p>
+                  <a
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-ink border-b border-border pb-1 hover:border-primary hover:text-primary transition-colors"
+                    href={`#/teams/${request.teamId}`}
+                  >
                     View team <Icon name="arrowUp" size={14} />
                   </a>
                 </div>
@@ -862,7 +999,7 @@ export function MyTeamsPage({ demo }: { demo: DemoData }) {
                 {request.status === "Pending" && (
                   <button
                     type="button"
-                    className="text-button"
+                    className="border-0 bg-transparent py-1.5 px-0 text-primary text-sm underline underline-offset-4 cursor-pointer hover:text-primary-hover transition-colors font-medium"
                     onClick={() => demo.cancelRequest(request.id)}
                   >
                     Cancel request
@@ -876,14 +1013,17 @@ export function MyTeamsPage({ demo }: { demo: DemoData }) {
             title="Your next team is still out there."
             description="Send a join request to a team that needs what you bring."
             action={
-              <a href="#/teams" className="button button-primary">
+              <a
+                href="#/teams"
+                className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
+              >
                 Explore teams <Icon name="arrowUp" size={17} />
               </a>
             }
           />
         )
       ) : teams.length ? (
-        <div className="cards-grid">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 items-stretch">
           {teams.map((team) => (
             <TeamCard team={team} key={team.id} />
           ))}
@@ -897,7 +1037,10 @@ export function MyTeamsPage({ demo }: { demo: DemoData }) {
           }
           description="A good idea gets better with the right people."
           action={
-            <a className="button button-primary" href="#/teams">
+            <a
+              className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
+              href="#/teams"
+            >
               Find a team <Icon name="arrowUp" size={17} />
             </a>
           }

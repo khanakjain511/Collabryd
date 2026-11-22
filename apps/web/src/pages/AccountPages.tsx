@@ -84,9 +84,12 @@ export function ProfileFormPage({
         }
         description="Share your strengths, your interests, and what you’d love to build next. Use fictional details in this demo."
       />
-      <div className="detail-grid">
-        <form className="panel stack-form" onSubmit={save}>
-          <div className="profile-form-intro">
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8">
+        <form
+          className="bg-surface border border-border rounded-xl p-6 shadow-sm flex flex-col gap-4"
+          onSubmit={save}
+        >
+          <div className="flex items-center gap-4 mb-6">
             <Avatar name={demo.profile.name} color={demo.profile.color} />
             <div>
               <h2>A good place to begin.</h2>
@@ -103,7 +106,7 @@ export function ProfileFormPage({
               autoComplete="name"
             />
           </label>
-          <div className="form-columns">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label>
               Branch
               <select name="branch" defaultValue={demo.profile.branch}>
@@ -145,7 +148,7 @@ export function ProfileFormPage({
               required
               maxLength={200}
             />
-            <span className="field-hint">
+            <span className="text-xs text-muted mt-1 block">
               Separate skills with commas. Skills are self-reported.
             </span>
           </label>
@@ -159,7 +162,7 @@ export function ProfileFormPage({
               <option>Comfortable</option>
               <option>Experienced</option>
             </select>
-            <span className="field-hint">
+            <span className="text-xs text-muted mt-1 block">
               Self-reported, not a certification. Describe differences in your
               bio.
             </span>
@@ -181,15 +184,16 @@ export function ProfileFormPage({
               maxLength={600}
             />
           </label>
-          <label className="checkbox-label">
+          <label className="inline-flex items-center gap-2 text-sm text-ink cursor-pointer select-none">
             <input
               name="available"
               type="checkbox"
+              className="w-4 h-4 rounded border-input-border text-primary focus:ring-primary accent-primary cursor-pointer"
               defaultChecked={demo.profile.available}
             />
             I’m open to teaming up
           </label>
-          <div className="form-columns">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label>
               Available from (optional)
               <input
@@ -207,9 +211,9 @@ export function ProfileFormPage({
               />
             </label>
           </div>
-          <fieldset className="optional-links">
-            <legend>Your work, if you’d like to share it</legend>
-            <p className="field-hint">
+          <fieldset className="grid gap-3 mt-4 border-0 p-0">
+            <legend className="text-sm font-semibold text-ink">Your work, if you’d like to share it</legend>
+            <p className="text-xs text-muted mt-1 block">
               These links are optional. Use fictional details in the demo.
             </p>
             <label>
@@ -241,23 +245,29 @@ export function ProfileFormPage({
             </label>
           </fieldset>
           {error && (
-            <p className="form-error" role="alert">
+            <p className="text-xs text-danger font-medium mt-1" role="alert">
               {error}
             </p>
           )}
-          <div className="form-actions">
-            <a className="button button-secondary" href="#/dashboard">
+          <div className="flex flex-wrap items-center gap-3 mt-5">
+            <a
+              className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
+              href="#/dashboard"
+            >
               {onboarding ? "Use the sample profile" : "Back to overview"}
             </a>
-            <button className="button button-primary" type="submit">
+            <button
+              className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
+              type="submit"
+            >
               {onboarding ? "Let’s find your people" : "Save demo profile"}
               <Icon name="arrowUp" size={17} />
             </button>
           </div>
         </form>
         <aside>
-          <div className="panel advice-panel">
-            <span className="advice-star" aria-hidden="true">
+          <div className="bg-soft border border-border rounded-xl p-6 shadow-sm flex flex-col gap-3">
+            <span className="text-accent text-lg inline-block mr-1" aria-hidden="true">
               ✳
             </span>
             <h2>
@@ -284,7 +294,7 @@ export function ProfileFormPage({
 
 function SettingsLinks() {
   return (
-    <nav className="settings-links" aria-label="Settings pages">
+    <nav className="flex flex-wrap gap-4 mb-6" aria-label="Settings pages">
       <a href="#/settings/profile">
         Profile <Icon name="arrowUp" size={16} />
       </a>
@@ -322,11 +332,11 @@ export function SettingsPage({
             : "Everything here is a frontend demonstration, not a real student account."
         }
       />
-      <div className="detail-grid">
-        <div className="panel">
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8">
+        <div className="bg-surface border border-border rounded-xl p-6 shadow-sm mb-6">
           {kind === "privacy" ? (
             <form
-              className="stack-form"
+              className="flex flex-col gap-4"
               onSubmit={(event) => {
                 event.preventDefault();
                 setSaved(true);
@@ -338,9 +348,10 @@ export function SettingsPage({
                 campus members. This demo does not publish your sample profile
                 anywhere.
               </p>
-              <label className="checkbox-label setting-toggle">
+              <label className="flex items-center justify-between py-4 border-b border-border text-sm text-ink cursor-pointer select-none">
                 <input
                   type="checkbox"
+                  className="w-4 h-4 rounded border-input-border text-primary focus:ring-primary accent-primary cursor-pointer"
                   checked={demo.visible}
                   onChange={(event) => {
                     demo.setVisible(event.target.checked);
@@ -349,14 +360,15 @@ export function SettingsPage({
                 />
                 <span>
                   <strong>Show my example profile in discovery</strong>
-                  <small>
+                  <small className="block text-muted">
                     This previews a visibility preference. Nothing is uploaded.
                   </small>
                 </span>
               </label>
-              <label className="checkbox-label setting-toggle">
+              <label className="flex items-center justify-between py-4 border-b border-border text-sm text-ink cursor-pointer select-none">
                 <input
                   type="checkbox"
+                  className="w-4 h-4 rounded border-input-border text-primary focus:ring-primary accent-primary cursor-pointer"
                   checked={demo.notificationsEnabled}
                   onChange={(event) => {
                     demo.setNotificationsEnabled(event.target.checked);
@@ -365,7 +377,7 @@ export function SettingsPage({
                 />
                 <span>
                   <strong>Receive local activity updates</strong>
-                  <small>
+                  <small className="block text-muted">
                     Pause new demo notifications. Action confirmations still
                     stay visible.
                   </small>
@@ -374,13 +386,16 @@ export function SettingsPage({
               <h3>Blocked example profiles</h3>
               {demo.blockedIds.length ? (
                 demo.blockedIds.map((id) => (
-                  <div className="blocked-row" key={id}>
+                  <div
+                    className="flex items-center justify-between p-3 sm:px-4 border-b border-border text-sm last:border-b-0"
+                    key={id}
+                  >
                     <span>
                       {demo.people.find((person) => person.id === id)?.name}
                     </span>
                     <button
                       type="button"
-                      className="text-button"
+                      className="border-0 bg-transparent py-1.5 px-0 text-primary text-sm underline underline-offset-4 cursor-pointer hover:text-primary-hover transition-colors font-medium"
                       onClick={() =>
                         demo.setBlockedIds(
                           demo.blockedIds.filter((item) => item !== id),
@@ -394,44 +409,50 @@ export function SettingsPage({
               ) : (
                 <p>You haven’t blocked any example people.</p>
               )}
-              <button type="submit" className="button button-primary">
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
+              >
                 Save demo preferences <Icon name="check" size={17} />
               </button>
               {saved && (
-                <p className="inline-info" role="status">
+                <p className="flex items-center gap-2 text-xs text-muted my-2" role="status">
                   Preference saved for this demo session. It resets on refresh.
                 </p>
               )}
             </form>
           ) : (
-            <div className="stack-form">
+            <div className="flex flex-col gap-4">
               <h2>A clean slate, whenever you want.</h2>
               <p>
                 No real account, email verification, password, or server session
                 exists. Team and profile changes are held in memory until you
                 refresh this page.
               </p>
-              <div className="account-detail">
+              <div className="flex flex-wrap items-center justify-between gap-4 py-4 border-b border-border text-sm">
                 <span>Signed in as</span>
                 <strong>{demo.profile.name} · example student</strong>
               </div>
-              <div className="account-detail">
+              <div className="flex flex-wrap items-center justify-between gap-4 py-4 border-b border-border text-sm">
                 <span>Storage</span>
                 <strong>Browser memory only</strong>
               </div>
-              <a href="#/reset-password" className="button button-secondary">
+              <a
+                href="#/reset-password"
+                className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
+              >
                 Preview password recovery <Icon name="arrowUp" size={17} />
               </a>
               <button
                 type="button"
-                className="button button-secondary"
+                className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
                 onClick={demo.signOut}
               >
                 Leave the demo <Icon name="logout" size={17} />
               </button>
               <button
                 type="button"
-                className="text-button danger-text"
+                className="border-0 bg-transparent py-1.5 px-0 text-danger text-sm underline underline-offset-4 cursor-pointer hover:opacity-80 transition-opacity font-medium text-left"
                 onClick={() => {
                   window.location.hash = "/";
                   window.location.reload();
@@ -441,7 +462,7 @@ export function SettingsPage({
               </button>
               <button
                 type="button"
-                className="button button-secondary"
+                className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
                 onClick={() =>
                   demo.setProfile({ ...demo.profile, status: "Suspended" })
                 }
@@ -449,20 +470,20 @@ export function SettingsPage({
                 Preview suspended-account access
               </button>
               {demo.deletionRequested ? (
-                <p className="inline-info" role="status">
+                <p className="flex items-center gap-2 text-xs text-muted my-2" role="status">
                   Demo deletion request recorded. No account or real data was
                   deleted.
                 </p>
               ) : (
                 <button
                   type="button"
-                  className="text-button danger-text"
+                  className="border-0 bg-transparent py-1.5 px-0 text-danger text-sm underline underline-offset-4 cursor-pointer hover:opacity-80 transition-opacity font-medium text-left"
                   onClick={() => setConfirmDeletion(true)}
                 >
                   Preview account deletion request
                 </button>
               )}
-              <p className="field-hint">
+              <p className="text-xs text-muted mt-1 block">
                 Real account deletion, retention and password policies will need
                 a connected backend and campus policy.
               </p>
@@ -471,14 +492,17 @@ export function SettingsPage({
         </div>
         <aside>
           <SettingsLinks />
-          <div className="panel">
+          <div className="bg-surface border border-border rounded-xl p-6 shadow-sm mb-6">
             <Icon name="lock" size={26} />
             <h3>Trust starts with clear boundaries.</h3>
             <p>
               Demo controls show interface behavior. They do not prove
               server-side privacy, security, or campus permissions.
             </p>
-            <a className="text-link" href="#/privacy">
+            <a
+              className="inline-flex items-center gap-2 text-sm font-semibold text-ink border-b border-border pb-1 hover:border-primary hover:text-primary transition-colors"
+              href="#/privacy"
+            >
               Read demo information <Icon name="arrowUp" size={16} />
             </a>
           </div>
@@ -494,17 +518,17 @@ export function SettingsPage({
             deleted. A live product must explain its retention policy and
             confirm the server outcome.
           </p>
-          <div className="form-actions">
+          <div className="flex flex-wrap items-center gap-3 mt-5">
             <button
               type="button"
-              className="button button-secondary"
+              className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
               onClick={() => setConfirmDeletion(false)}
             >
               Cancel
             </button>
             <button
               type="button"
-              className="button button-danger"
+              className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-danger text-white hover:bg-danger/90 transition-colors cursor-pointer"
               onClick={() => {
                 demo.setDeletionRequested(true);
                 setConfirmDeletion(false);
@@ -533,7 +557,7 @@ export function NotificationsPage({ demo }: { demo: DemoData }) {
         action={
           <button
             type="button"
-            className="button button-secondary"
+            className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
             onClick={() =>
               demo.setNotices(
                 demo.notices.map((notice) => ({ ...notice, read: true })),
@@ -545,11 +569,15 @@ export function NotificationsPage({ demo }: { demo: DemoData }) {
           </button>
         }
       />
-      <div className="filter-tabs">
+      <div className="flex flex-wrap gap-2 mb-6">
         <button
           type="button"
           aria-pressed={!unreadOnly}
-          className={!unreadOnly ? "active" : ""}
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+            !unreadOnly
+              ? "bg-primary text-on-primary border-primary"
+              : "bg-surface text-ink border-border hover:border-primary"
+          }`}
           onClick={() => {
             setUnreadOnly(false);
             setPage(1);
@@ -560,7 +588,11 @@ export function NotificationsPage({ demo }: { demo: DemoData }) {
         <button
           type="button"
           aria-pressed={unreadOnly}
-          className={unreadOnly ? "active" : ""}
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+            unreadOnly
+              ? "bg-primary text-on-primary border-primary"
+              : "bg-surface text-ink border-border hover:border-primary"
+          }`}
           onClick={() => {
             setUnreadOnly(true);
             setPage(1);
@@ -570,13 +602,15 @@ export function NotificationsPage({ demo }: { demo: DemoData }) {
         </button>
       </div>
       {notices.length ? (
-        <div className="list-panel">
+        <div className="bg-surface border border-border rounded-xl overflow-hidden shadow-sm divide-y divide-border">
           {results.items.map((notice) => (
             <article
-              className={`notice-row ${notice.read ? "" : "notice-unread"}`}
+              className={`flex items-start gap-4 p-4 sm:p-5 border-b border-border last:border-b-0 transition-colors ${
+                notice.read ? "bg-surface" : "bg-soft/70"
+              }`}
               key={notice.id}
             >
-              <span className="summary-icon sage">
+              <span className="w-11 h-11 rounded-xl bg-success-bg text-success grid place-items-center shrink-0">
                 <Icon name="bell" />
               </span>
               <div>
@@ -590,17 +624,17 @@ export function NotificationsPage({ demo }: { demo: DemoData }) {
                     )
                   }
                 >
-                  <h3>{notice.title}</h3>
+                  <h3 className="font-semibold text-ink text-base">{notice.title}</h3>
                 </a>
-                <p>{notice.description}</p>
-                <span className="field-hint">
+                <p className="text-sm text-muted">{notice.description}</p>
+                <span className="text-xs text-muted mt-1 block">
                   Example campus · Demo session{" "}
                   {notice.read ? "· Read" : "· Unread"}
                 </span>
               </div>
               {!notice.read && (
                 <button
-                  className="icon-button"
+                  className="w-10 h-10 rounded-lg inline-flex items-center justify-center text-muted hover:text-ink hover:bg-soft transition-colors cursor-pointer ml-auto"
                   type="button"
                   aria-label={`Mark ${notice.title} as read`}
                   onClick={() =>
@@ -622,7 +656,10 @@ export function NotificationsPage({ demo }: { demo: DemoData }) {
           title="All caught up. That feels nice."
           description="The next invitation or team update will appear here in this demo."
           action={
-            <a href="#/discover" className="button button-primary">
+            <a
+              href="#/discover"
+              className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
+            >
               Meet some people <Icon name="arrowUp" size={17} />
             </a>
           }
@@ -634,9 +671,9 @@ export function NotificationsPage({ demo }: { demo: DemoData }) {
         onChange={setPage}
       />
       {!demo.notificationsEnabled && (
-        <p className="inline-info">
+        <p className="flex items-center gap-2 text-xs text-muted my-2">
           New local activity updates are paused. You can enable them in{" "}
-          <a href="#/settings/privacy">privacy settings</a>.
+          <a href="#/settings/privacy" className="text-primary underline">privacy settings</a>.
         </p>
       )}
     </>
@@ -674,11 +711,11 @@ export function InfoPage({ kind, demo }: { kind: string; demo: DemoData }) {
       sections: [
         [
           "What this demo stores.",
-          "Your example profile and team changes live in browser memory for this tab. They reset on refresh. No account details or passwords are sent to a Collabyrd backend or stored by this app. Use fictional details only.",
+          "Your example profile and team changes live in browser memory for this tab. They reset on refresh. Theme and reduced-motion preferences are saved locally in this browser. No account details or passwords are sent to a Collabyrd backend or stored by this app. Use fictional details only.",
         ],
         [
           "What you see.",
-          "All example people, teams and hackathons are fictional. The campus collaboration photograph is AI-generated illustrative imagery. Static assets are served with the frontend.",
+          "All example people, teams and hackathons are fictional. Campus scenes combine AI-generated illustrations and licensed stock photography; they do not depict verified Collabyrd members or imply endorsement. Images and fonts are served locally with the frontend.",
         ],
         [
           "Before a real launch.",
@@ -725,12 +762,15 @@ export function InfoPage({ kind, demo }: { kind: string; demo: DemoData }) {
   if (!page)
     return (
       <PublicLayout demo={demo}>
-        <div className="container info-page">
+        <div className="max-w-3xl mx-auto py-10 px-4 sm:px-6">
           <EmptyState
             title="A little off the beaten path."
             description="This page doesn’t exist, but your next beginning is just over here."
             action={
-              <a className="button button-primary" href="#/">
+              <a
+                className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
+                href="#/"
+              >
                 Back to Collabyrd <Icon name="arrowUp" size={17} />
               </a>
             }
@@ -740,25 +780,30 @@ export function InfoPage({ kind, demo }: { kind: string; demo: DemoData }) {
     );
   return (
     <PublicLayout demo={demo}>
-      <article className="container info-page">
-        <p className="eyebrow">COLLABYRD / {kind.toUpperCase()}</p>
+      <article className="max-w-3xl mx-auto py-10 px-4 sm:px-6">
+        <p className="text-xs font-semibold tracking-wider text-primary uppercase mb-3 block">
+          COLLABYRD / {kind.toUpperCase()}
+        </p>
         <h1 tabIndex={-1}>{page.title}</h1>
-        <p className="info-intro">{page.intro}</p>
+        <p className="text-base sm:text-lg text-ink leading-relaxed mb-8">{page.intro}</p>
         {page.sections.map(([title, body]) => (
           <section key={title}>
             <h2>{title}</h2>
             <p>{body}</p>
           </section>
         ))}
-        <div className="hero-actions">
+        <div className="flex flex-wrap items-center gap-4 mt-8">
           <button
             type="button"
-            className="button button-primary"
+            className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
             onClick={demo.openDemo}
           >
             Take a look around <Icon name="arrowUp" size={17} />
           </button>
-          <a href="#/" className="text-link">
+          <a
+            href="#/"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-ink border-b border-border pb-1 hover:border-primary hover:text-primary transition-colors"
+          >
             Back to the beginning <Icon name="arrow" size={17} />
           </a>
         </div>

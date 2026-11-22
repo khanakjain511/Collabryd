@@ -1,3 +1,7 @@
+## Current local visual revision — 19 November 2026
+
+A photographic navy/ivory refinement is implemented locally over the existing demo. It includes the requested first-visit reveal, account/menu transitions, light/dark colors and a progressively enhanced scroll illustration. It is uncommitted and awaits user visual review. The original verified feature inventory below remains the demo scope, not proof of backend readiness. The latest PROGRESS entry records checks for the revision.
+
 # What is complete, and what is not
 
 Updated: 18 November 2026. Source branch: `Akshay`.

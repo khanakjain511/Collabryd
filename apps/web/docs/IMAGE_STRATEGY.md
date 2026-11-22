@@ -1,3 +1,14 @@
+# Final campus photography
+
+Licensed photographs show campus life in India. The people pictured illustrate the setting. The demo directory continues to use initials for fictional profiles.
+
+| Asset family | Photographer and location | Placement |
+| --- | --- | --- |
+| `delhi-campus*.webp` | [Sanket Mishra, New Delhi](https://unsplash.com/photos/a-group-of-people-sitting-around-a-wooden-table-LCwo5opgr9M) under the [Unsplash License](https://unsplash.com/license) | Scroll-expanding hero, account pages, dashboard |
+| `santiniketan-campus*.webp` | [Arto Suraj, Santiniketan](https://www.pexels.com/photo/happy-college-students-at-santiniketan-39006529/) under the [Pexels License](https://www.pexels.com/license/) | Landing campus story |
+
+The production frontend serves WebP sizes locally with native `srcset`. The hero has explicit dimensions and high fetch priority. The campus story and account photo load lazily. Manrope and Instrument Serif are hosted locally alongside their SIL Open Font License notices. Earlier generated photographs remain available as alternatives.
+
 # Image strategy, prompts and asset manifest
 
 Planning originally generated no images. After implementation approval, A01 was generated, visually inspected, optimized and integrated. The planning inventory below is followed by the actual delivered manifest. The existing `src/assets/hero.png` is a starter asset, not approved Collabyrd imagery.
@@ -6,14 +17,14 @@ Planning originally generated no images. After implementation approval, A01 was 
 
 Inventory is based on supplied Monarque analysis, which provides some filenames but no original pixel dimensions. Unknown dimensions/aspect ratios must not be invented as measured facts. Collabyrd target sizes below are design proposals.
 
-| Reference placement | Purpose / subject | Reference sizing | Collabyrd treatment |
-| --- | --- | --- | --- |
-| SVG preloader crest | Brand ceremony, butterfly and initial | Not supplied | Remove; simple text wordmark initially |
-| Hero collage images 1-5 | Curated moments and emotional atmosphere | Floating collage, exact dimensions unknown | Replace with one student team scene plus DOM product examples; reduce downloads/clutter |
-| About founder portrait `monarque-alexandra-4.webp` | Human authority | Exact ratio/dimensions not supplied | Optional collaboration detail, not fictional founder testimony |
-| Portfolio thumbnails/gallery/lightbox | Proof of event work | Variable imagery; exact ratios unknown | Use actual product UI examples and real approved event art; no portfolio lightbox |
-| Heritage venue architecture | Exclusive location differentiator | Exact ratio/dimensions unknown | Remove venue; campus trust communicated with factual text |
-| Footer/background | Dramatic brand close | Photography not confirmed by analysis | Solid inverse teal surface, no additional bitmap |
+| Reference placement                                | Purpose / subject                        | Reference sizing                           | Collabyrd treatment                                                                     |
+| -------------------------------------------------- | ---------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------- |
+| SVG preloader crest                                | Brand ceremony, butterfly and initial    | Not supplied                               | Remove; simple text wordmark initially                                                  |
+| Hero collage images 1-5                            | Curated moments and emotional atmosphere | Floating collage, exact dimensions unknown | Replace with one student team scene plus DOM product examples; reduce downloads/clutter |
+| About founder portrait `monarque-alexandra-4.webp` | Human authority                          | Exact ratio/dimensions not supplied        | Optional collaboration detail, not fictional founder testimony                          |
+| Portfolio thumbnails/gallery/lightbox              | Proof of event work                      | Variable imagery; exact ratios unknown     | Use actual product UI examples and real approved event art; no portfolio lightbox       |
+| Heritage venue architecture                        | Exclusive location differentiator        | Exact ratio/dimensions unknown             | Remove venue; campus trust communicated with factual text                               |
+| Footer/background                                  | Dramatic brand close                     | Photography not confirmed by analysis      | Solid inverse teal surface, no additional bitmap                                        |
 
 ## Consistent Collabyrd art direction
 
@@ -23,14 +34,14 @@ Photos support the product story; real interface cards explain the functionality
 
 ## Proposed asset manifest
 
-| ID / location | Purpose, composition, lighting and emotion | Target size / ratio / crop | Proposed local path and format | Alt / approval / optimization |
-| --- | --- | --- | --- | --- |
-| A01 landing hero | 3 students around a laptop/notes; activity on right with uncluttered left; window light; focused and approachable | 1440×1080 4:3; 800×600 and 480×360 derivatives; keep faces/work area inside central 70% | `public/images/campus-team.webp` | "Students planning a project around a laptop." Only if informative; otherwise empty alt when adjacent copy covers purpose. Prompt pending approval; not generated; target ≤180KB large variant |
-| A02 story section, optional | Over-shoulder notebook and shared planning; no legible screen; warm daylight, hands anatomically sound | 1200×800 3:2; 720×480 derivative; central notebook crop on mobile | `public/images/project-session.webp` | "Students sketching a project plan together." Optional, not generated; target ≤140KB |
-| A03 auth visual, no extra download | Reuse A01 with calmer crop; optional desktop-only region | Existing source, crop preserves subjects; never duplicate file just for styling | Reuse A01 | Decorative empty alt; no new generation needed |
-| A04 hero network | Connection metaphor, no actual profile data | SVG viewBox, fixed nodes/lines, scales with panel | Original inline SVG in HeroNetwork component after approval | aria-hidden; vector code, not ImageGen task; no image generated |
-| A05 product preview | Demonstrate roles, request and team capacity | Live HTML components, naturally responsive | DOM, not screenshot or generated text | Visible "Example team/profile" labels; fixtures separated |
-| A06 event artwork, only when real | Recognizable official event identity | Organizer-approved aspect ratio, explicit width/height | Local licensed asset path decided per event | Event-specific alt; source/license and approval recorded before use |
+| ID / location                      | Purpose, composition, lighting and emotion                                                                        | Target size / ratio / crop                                                              | Proposed local path and format                              | Alt / approval / optimization                                                                                                                                                                  |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A01 landing hero                   | 3 students around a laptop/notes; activity on right with uncluttered left; window light; focused and approachable | 1440×1080 4:3; 800×600 and 480×360 derivatives; keep faces/work area inside central 70% | `public/images/campus-team.webp`                            | "Students planning a project around a laptop." Only if informative; otherwise empty alt when adjacent copy covers purpose. Prompt pending approval; not generated; target ≤180KB large variant |
+| A02 story section, optional        | Over-shoulder notebook and shared planning; no legible screen; warm daylight, hands anatomically sound            | 1200×800 3:2; 720×480 derivative; central notebook crop on mobile                       | `public/images/project-session.webp`                        | "Students sketching a project plan together." Optional, not generated; target ≤140KB                                                                                                           |
+| A03 auth visual, no extra download | Reuse A01 with calmer crop; optional desktop-only region                                                          | Existing source, crop preserves subjects; never duplicate file just for styling         | Reuse A01                                                   | Decorative empty alt; no new generation needed                                                                                                                                                 |
+| A04 hero network                   | Connection metaphor, no actual profile data                                                                       | SVG viewBox, fixed nodes/lines, scales with panel                                       | Original inline SVG in HeroNetwork component after approval | aria-hidden; vector code, not ImageGen task; no image generated                                                                                                                                |
+| A05 product preview                | Demonstrate roles, request and team capacity                                                                      | Live HTML components, naturally responsive                                              | DOM, not screenshot or generated text                       | Visible "Example team/profile" labels; fixtures separated                                                                                                                                      |
+| A06 event artwork, only when real  | Recognizable official event identity                                                                              | Organizer-approved aspect ratio, explicit width/height                                  | Local licensed asset path decided per event                 | Event-specific alt; source/license and approval recorded before use                                                                                                                            |
 
 Byte limits are targets, not measured results. Final manifest must add actual width, height, byte size, generator/source, license/consent, review date, responsive variants and optimization result. Omit optional A02 if it doesn't improve the layout.
 
@@ -52,12 +63,12 @@ Generate only approved placements. Inspect full image and intended crops for han
 
 ## Delivered asset manifest
 
-| Asset | Actual local path | Dimensions | Format / size | Review / integration |
-| --- | --- | --- | --- | --- |
-| Hero/auth scene | `public/images/campus-team.webp` | 1200×900 | WebP, 124006 bytes | Built-in image_gen; visual quality inspected; hero and auth use same scene |
-| Responsive hero | `public/images/campus-team-small.webp` | 640×480 | WebP, 51374 bytes | Resized/optimized from same generated source; hero srcset |
-| Desktop preview | `docs/screenshots/desktop.jpg` | Browser viewport capture | JPEG | Saved after desktop QA; screenshot, not product asset |
-| Mobile preview | `docs/screenshots/mobile.jpg` | 390px viewport capture | JPEG | Saved after narrow-layout QA; screenshot, not product asset |
+| Asset           | Actual local path                      | Dimensions               | Format / size      | Review / integration                                                       |
+| --------------- | -------------------------------------- | ------------------------ | ------------------ | -------------------------------------------------------------------------- |
+| Hero/auth scene | `public/images/campus-team.webp`       | 1200×900                 | WebP, 124006 bytes | Built-in image_gen; visual quality inspected; hero and auth use same scene |
+| Responsive hero | `public/images/campus-team-small.webp` | 640×480                  | WebP, 51374 bytes  | Resized/optimized from same generated source; hero srcset                  |
+| Desktop preview | `docs/screenshots/desktop.jpg`         | Browser viewport capture | JPEG               | Saved after desktop QA; screenshot, not product asset                      |
+| Mobile preview  | `docs/screenshots/mobile.jpg`          | 390px viewport capture   | JPEG               | Saved after narrow-layout QA; screenshot, not product asset                |
 
 Both source variants are local and committed. Body text is HTML, not baked into the photo. The photograph is illustrative AI-generated imagery, disclosed in the demo information page. A02 was not generated because the landing explains the workflow with real HTML rather than another download. A04 is original SVG; A05 uses actual DOM cards; fictional event artwork is CSS/HTML with no official logos.
 
