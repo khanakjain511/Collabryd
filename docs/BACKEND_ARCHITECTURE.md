@@ -1,380 +1,641 @@
-# Collabryd — Backend Architecture Specification
+# Collabryd — Backend Architecture & Complete API Specification
 
-This document provides a comprehensive technical breakdown of the **Collabryd backend architecture** (`apps/api` and `packages/database`). It covers system topology, request lifecycles, modular domain slices, security invariants, data modeling, concurrency control, and real-time delivery mechanics.
+This document provides a comprehensive, easy-to-understand reference for the entire **Collabryd backend architecture** (`apps/api` and `packages/database`). It maps out the system topology, middleware pipeline, database design, and **every single REST endpoint** with its underlying source files, functions, validation rules, transactional logic, and database interactions.
 
 ---
 
-## 1. System Topology & High-Level Architecture
+## Table of Contents
 
-Collabryd follows a **modular monolith** design pattern organized in a Turborepo monorepo with strict package boundaries.
+1. [High-Level Architecture & Tech Stack](#1-high-level-architecture--tech-stack)
+2. [Request Lifecycle & Middleware Pipeline](#2-request-lifecycle--middleware-pipeline)
+3. [Authentication, Sessions & Security Pipeline](#3-authentication-sessions--security-pipeline)
+4. [Database & Persistence Architecture](#4-database--persistence-architecture)
+5. [Real-Time Notifications & Socket Pipeline](#5-real-time-notifications--socket-pipeline)
+6. [Complete Endpoint Catalog by Module](#6-complete-endpoint-catalog-by-module)
+   - [6.1 System Health & Documentation](#61-system-health--documentation)
+   - [6.2 Authentication & Identity (`/api/v1/auth`)](#62-authentication--identity-apiv1auth)
+   - [6.3 Taxonomy Catalog (`/api/v1/catalog`)](#63-taxonomy-catalog-apiv1catalog)
+   - [6.4 Student Profiles & Discovery (`/api/v1/profiles` & `/api/v1/students`)](#64-student-profiles--discovery-apiv1profiles--apiv1students)
+   - [6.5 Projects & Recommendations (`/api/v1/projects` & `/api/v1/recommendations`)](#65-projects--recommendations-apiv1projects--apiv1recommendations)
+   - [6.6 Project Applications (`/api/v1/applications`)](#66-project-applications-apiv1applications)
+   - [6.7 Project Members & Team Rosters (`/api/v1/projects/:projectId/members`)](#67-project-members--team-rosters-apiv1projectsprojectidmembers)
+   - [6.8 Conversations & Messaging (`/api/v1/conversations`)](#68-conversations--messaging-apiv1conversations)
+   - [6.9 In-App Notifications (`/api/v1/notifications`)](#69-in-app-notifications-apiv1notifications)
+   - [6.10 Campus Administration & Moderation (`/api/v1/admin`)](#610-campus-administration--moderation-apiv1admin)
+7. [Testing & Operational Commands](#7-testing--operational-commands)
+
+---
+
+## 1. High-Level Architecture & Tech Stack
+
+Collabryd uses a **modular monolith** backend built on Node.js and Express 5, encapsulated within the Turborepo monorepo.
 
 ```mermaid
 flowchart TD
-    Client["Client Applications\n(Web SPA / Mobile Browser / Socket Client)"]
+    Client["Client Devices\n(React 19 Web App / Mobile / API Consumers)"]
 
-    subgraph Infrastructure ["Host & Container Infrastructure"]
-        subgraph APIServer ["apps/api (@repo/api)"]
-            Router["Express 5 Router & Global Middlewares"]
-            ModuleLayer["Vertical Domain Modules\n(auth, profiles, projects, etc.)"]
-            SocketServer["Socket.IO Server\n(Real-Time Notification Room Engine)"]
-            CacheService["Cache Service\n(Redis Read-Through + Fallback)"]
-        end
+    subgraph Backend ["apps/api (@repo/api)"]
+        Router["Express 5 Router & Global Middlewares\n(Helmet, CORS, Pino Logger, Rate Limiter)"]
+        Modules["Vertical Feature Modules\n(auth, profiles, projects, applications, etc.)"]
+        SocketHub["Socket.IO Server\n(Authenticated user rooms & live events)"]
+        Cache["Cache Service\n(Redis read-through + prefix invalidation)"]
+    end
 
-        subgraph DataTier ["packages/database (@collabryd/database)"]
-            Drizzle["Drizzle ORM Engine"]
-            Pool["node-postgres (pg.Pool)"]
-            ListenerClient["Dedicated pg.Client (LISTEN/NOTIFY)"]
-        end
+    subgraph DatabasePackage ["packages/database (@collabryd/database)"]
+        Drizzle["Drizzle ORM Engine"]
+        Pool["pg.Pool (Max 20 Connections)"]
+        Listener["pg.Client (Dedicated LISTEN listener)"]
+    end
 
-        Postgres[("PostgreSQL 18\nHost Port: 5434 | Schema: collabryd\n23 BCNF Tables")]
-        Redis[("Redis 8 Alpine\nHost Port: 6379\nRate Limits & Catalog Cache")]
+    subgraph Infrastructure ["Container Infrastructure (docker-compose.yml)"]
+        PG[("PostgreSQL 18\nHost Port: 5434 | Internal: 5432\nSchema: collabryd (23 BCNF Tables)")]
+        RedisDB[("Redis 8 Alpine\nHost Port: 6379\nRate Limits & Taxonomy Cache")]
     end
 
     Client -->|HTTPS REST| Router
-    Client -->|WSS / Socket.IO| SocketServer
-    Router --> ModuleLayer
-    ModuleLayer --> CacheService
-    CacheService --> Redis
-    ModuleLayer --> Drizzle
+    Client -->|WebSocket| SocketHub
+    Router --> Modules
+    Modules --> Cache
+    Cache -.->|Read/Write| RedisDB
+    Modules --> Drizzle
     Drizzle --> Pool
-    Pool --> Postgres
-    Postgres -->|pg_notify 'collabryd_notifications'| ListenerClient
-    ListenerClient -->|Committed notification ID| SocketServer
-    SocketServer -->|Emit 'notification:new'| Client
+    Pool --> PG
+    PG -->|Trigger 'announce_notification' AFTER COMMIT| Listener
+    Listener -->|Committed notification ID| SocketHub
+    SocketHub -->|Emit 'notification:new'| Client
 ```
 
-### Technology Matrix
-- **Runtime:** Node.js `>= 24.0.0` (ESM native)
-- **Language:** TypeScript 7
-- **HTTP Engine:** Express 5.2.1
-- **Real-Time Push:** Socket.IO 4.8.x + PostgreSQL `LISTEN`/`NOTIFY`
-- **Primary Database:** PostgreSQL 18 on mapped host port **`5434`**
-- **ORM & Data Layer:** Drizzle ORM 0.45.x + `pg` (node-postgres connection pool)
-- **Cache & Rate-Limiting:** Redis 8 Alpine (port **`6379`**) with in-memory degradation fallback
-- **Authentication & Security:** Argon2id password hashing, rotating JWT refresh tokens, Helmet, CORS, and Zod input validation
+### Key Technical Choices
+- **Runtime:** Node.js `>= 24.0.0` (Native ECMAScript Modules).
+- **Framework:** Express 5.2.1 ([`apps/api/src/app.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/app.ts)).
+- **Primary Database:** PostgreSQL 18 mapped to host port **`5434`** ([`docker-compose.yml`](file:///Users/shreyansh/Documents/Coding/ap/capstone/docker-compose.yml#L12-L13)).
+- **ORM:** Drizzle ORM 0.45.x ([`packages/database/src/client.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/packages/database/src/client.ts#L28-L30)).
+- **Caching & Rate Limiting:** Redis 8 Alpine (host port **`6379`**) with graceful fallback to local memory ([`apps/api/src/config/redis.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/config/redis.ts)).
+- **Real-Time Push:** Socket.IO 4.8.x listening to PostgreSQL `LISTEN/NOTIFY` channels ([`apps/api/src/modules/notifications/notifications.socket.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/notifications/notifications.socket.ts#L14)).
 
 ---
 
-## 2. Directory & Module Organization
+## 2. Request Lifecycle & Middleware Pipeline
 
-The backend is strictly divided into **shared infrastructure** and **vertical domain modules**:
-
-```text
-apps/api/src/
-├── server.ts                    # HTTP bootstrap, graceful shutdown, socket binding
-├── app.ts                       # Middleware composition, rate limiting, route mounting
-├── config/                      # Environment variables, Pino logger, Redis connection
-│   ├── env.ts                   # Strict Zod-validated environment config
-│   ├── logger.ts                # Pino logger with redaction rules
-│   ├── redis.ts                 # Redis singleton with connection fallback
-│   └── index.ts
-├── common/                      # Reusable, domain-agnostic backend primitives
-│   ├── cache/                   # Redis read-through cache & prefix invalidator
-│   ├── errors/                  # AppError hierarchy & PostgreSQL error code mapper
-│   ├── middleware/              # Auth, error handling, rate-limit, validation guards
-│   ├── types/                   # Express request & user type augmentations
-│   └── utils/                   # Argon2id crypto, JWT token signing, pagination, visibility
-├── routes/                      # Route composition and aggregation
-│   ├── health.routes.ts         # /api/health and /api/health/ready
-│   ├── v1.routes.ts             # Central /api/v1 router registry
-│   └── index.ts
-├── docs/                        # OpenAPI 3.1 specification & interactive UI
-└── modules/                     # Vertical domain slices (self-contained)
-    ├── admin/                   # Campus admin moderation, user suspension, audit logs
-    ├── applications/            # Project join applications, approvals, capacity checks
-    ├── auth/                    # Registration, verification emails, login, session rotation
-    ├── catalog/                 # System-wide skills, interests, and roles taxonomy
-    ├── conversations/           # 1-on-1 direct messages & team chat channels
-    ├── members/                 # Team rosters, permissions, role updates, member departures
-    ├── notifications/           # In-app notification inbox, dispatcher & Socket.IO listener
-    ├── profiles/                # Student discovery, resumes, achievements, social links
-    └── projects/                # Project lifecycle, team requirements, recommendation engine
-```
-
----
-
-## 3. Request Lifecycle & Middleware Pipeline
-
-Every HTTP request traverses an ordered pipeline designed for zero-trust boundary verification:
+Every HTTP request enters [`apps/api/src/app.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/app.ts#L22-L48) and moves through an ordered chain of middleware:
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Client
-    participant Express as Express Pipeline
-    participant Sec as Security & Logging
-    participant Route as Route Registry
+    participant App as Express app.ts
+    participant Sec as Security (Helmet/CORS)
+    participant Rate as Rate Limiter
+    participant Route as Feature Router
     participant Val as Zod Validator
-    participant Auth as Auth & Guards
-    participant Controller as Feature Controller
-    participant Service as Domain Service
-    participant DB as Drizzle / Postgres
+    participant Auth as Auth / Guard Middleware
+    participant Controller as Controller Handler
+    participant Service as Service Function
+    participant DB as Drizzle / PostgreSQL
 
-    Client->>Express: Incoming HTTP Request
-    Express->>Sec: Request ID (`X-Request-Id`)
-    Sec->>Sec: Helmet headers & CORS origin verification
-    Sec->>Sec: Pino HTTP Access Logger (redacts passwords/tokens)
-    Sec->>Sec: Rate Limiter (Redis sliding-window / in-memory fallback)
-    Express->>Route: Match /api/v1/<feature>/<path>
-    Route->>Auth: `requireAuth` / `optionalAuth` (JWT verify)
-    Route->>Auth: Domain Guard (`projectGuard` / `conversationGuard`)
-    Route->>Val: `validate(schema)` (Validates params, query, body)
-    Val->>Controller: Invokes handler with typed inputs
-    Controller->>Service: Calls domain business method
-    Service->>DB: Executes Drizzle queries / Transactions
-    DB-->>Service: Returns database records
+    Client->>App: HTTP Request
+    App->>App: `requestIdMiddleware` attaches X-Request-Id UUID
+    App->>Sec: `helmet()` security headers & `cors()` whitelist verification
+    App->>App: `pino-http` logger logs request (redacts passwords and tokens)
+    App->>Rate: `rate-limit.middleware.ts` checks IP quota via Redis
+    App->>Route: Route matching (`/api/v1/...`)
+    Route->>Auth: `requireAuth` / `optionalAuth` verifies Bearer JWT
+    Route->>Auth: Feature Guard (`requireProjectManager`, `requireConversationMember`)
+    Route->>Val: `validate({ body, query, params })` parses with Zod schemas
+    Val->>Controller: Invokes controller with typed inputs
+    Controller->>Service: Calls service business method
+    Service->>DB: Executes Drizzle query or atomic `db.transaction()`
+    DB-->>Service: Database result
     Service-->>Controller: Returns domain entity / DTO
-    Controller-->>Client: Standardized JSON envelope (`{ success: true, data: ... }`)
+    Controller-->>Client: `sendSuccess(res, data)` or `sendCreated(res, data)`
 ```
 
-### Middleware Responsibilities
-1. **Request Tracking (`request-id.middleware.ts`):** Assigns a unique UUID to every incoming request via `X-Request-Id` for distributed trace correlation.
-2. **Access Logging (`logger.ts`):** Pino logs method, URL, status code, and latency. Automatically redacts `authorization`, `password`, `refreshToken`, and sensitive tokens.
-3. **Rate Limiting (`rate-limit.middleware.ts`):** Enforces request quotas (e.g., auth registration and login are aggressively rate-limited). Backed by Redis when available; degrades to local memory without throwing.
-4. **Validation (`validate.middleware.ts`):** Validates path parameters, query parameters, and request body using Zod schemas. Strips unknown parameters and parses types before reaching controllers.
-5. **Centralized Error Handling (`error.middleware.ts`):** Intercepts uncaught exceptions and `AppError` instances. Maps PostgreSQL error codes (e.g., `23505` unique violation $\to$ `409 Conflict`, `23503` foreign key violation $\to$ `404/400`) to user-safe error responses without leaking stack traces in production.
+### Core Middlewares:
+1. **`requestIdMiddleware`** ([`apps/api/src/common/middleware/request-id.middleware.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/common/middleware/request-id.middleware.ts#L7)): Attaches or preserves an `X-Request-Id` UUID header for request tracing.
+2. **`authRateLimiter`** ([`apps/api/src/common/middleware/rate-limit.middleware.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/common/middleware/rate-limit.middleware.ts#L15-L25)): Limits auth attempts (max 10 requests per 15 minutes) using Redis or memory fallback.
+3. **`validate`** ([`apps/api/src/common/middleware/validate.middleware.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/common/middleware/validate.middleware.ts#L18-L49)): Validates `req.body`, `req.query`, and `req.params` against Zod schemas. On failure, throws a `ValidationError` (HTTP 422).
+4. **`requireAuth` & `optionalAuth`** ([`apps/api/src/common/middleware/auth.middleware.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/common/middleware/auth.middleware.ts#L33-L73)): Decodes and verifies the HMAC-SHA256 Bearer JWT. Checks that the user account is `ACTIVE`.
+5. **`requireAdmin`** ([`apps/api/src/common/middleware/auth.middleware.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/common/middleware/auth.middleware.ts#L75-L81)): Asserts `req.user.systemRole === "ADMIN"`. Throws `ForbiddenError` (HTTP 403) otherwise.
+6. **`errorHandler`** ([`apps/api/src/common/middleware/error.middleware.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/common/middleware/error.middleware.ts#L22-L79)): Central error handler that translates `AppError` subclasses and maps PostgreSQL error codes (`23505` $\to$ 409, `23503` $\to$ 404/400).
 
 ---
 
-## 4. Authentication, Security & Session Management
+## 3. Authentication, Sessions & Security Pipeline
+
+Collabryd enforces bank-grade security primitives:
 
 ```mermaid
 flowchart TD
-    subgraph Registration ["Registration & Verification"]
-        Reg["POST /api/v1/auth/register"] --> Hash["Hash password with Argon2id"]
-        Hash --> InsertUser["Insert user (ACTIVE/UNVERIFIED)"]
-        InsertUser --> GenToken["Generate CSPRNG Verification Token"]
-        GenToken --> StoreHash["Store SHA-256 Token Hash in DB"]
-        StoreHash --> SendMail["Send verification email / logger output"]
+    subgraph Registration ["1. Student Registration"]
+        A[Client Submit] --> B[assertAllowedEmailDomain]
+        B --> C[Argon2id Hash Password]
+        C --> D[Generate 32-byte CSPRNG Token]
+        D --> E[Save User PENDING_VERIFICATION & Token Hash in DB]
+        E --> F[Send Verification Email]
     end
 
-    subgraph LoginFlow ["Authentication & Tokens"]
-        Login["POST /api/v1/auth/login"] --> VerifyArgon["Verify Argon2id password"]
-        VerifyArgon --> CheckStatus["Check ACTIVE & campus match"]
-        CheckStatus --> IssueTokens["Issue Access JWT (15m) & Refresh JWT (7d)"]
-        IssueTokens --> StoreSession["Insert refresh_sessions record with family UUID"]
+    subgraph Login ["2. Login & Session Issuance"]
+        G[Client Submit Email & Password] --> H[Verify Argon2id Hash]
+        H --> I{Account Status ACTIVE?}
+        I -->|No| J[Throw 403 EMAIL_NOT_VERIFIED or ACCOUNT_SUSPENDED]
+        I -->|Yes| K[Sign Access Token - 15 min]
+        K --> L[Sign Refresh Token - 7 days]
+        L --> M[Insert record in refresh_sessions with Token Hash]
     end
 
-    subgraph RotationFlow ["Token Rotation & Replay Protection"]
-        Refresh["POST /api/v1/auth/refresh"] --> CheckReuse{"Token already used?"}
-        CheckReuse -->|Yes - Replay Attack!| RevokeAll["REVOKE ALL SESSIONS IN FAMILY\nForce re-login on all devices"]
-        CheckReuse -->|No - Valid| Rotate["Invalidate current token\nIssue new Access + Refresh JWT"]
+    subgraph Rotation ["3. Rotating Refresh & Reuse Detection"]
+        N[Client sends Refresh Token] --> O[Verify Refresh JWT & Find Session in DB]
+        O --> P{Session already revoked?}
+        P -->|YES: Replay Attack Detected| Q[Revoke ALL active user sessions across all devices]
+        P -->|NO: Legitimate| R[Mark current session revoked & issue new Access + Refresh tokens]
     end
 ```
 
-### Security Guarantees
-1. **Argon2id Hashing:** All user passwords are encrypted using memory-hard Argon2id parameters before storage.
-2. **Short-Lived Access Tokens:** Signed with HMAC-SHA256 (`JWT_ACCESS_SECRET`) with a default lifespan of 15 minutes.
-3. **Rotating Refresh Sessions:**
-   - Every refresh operation issues a brand new refresh token and marks the previous token as replaced.
-   - If a used token is submitted again (indicating token theft), the backend revokes the entire session family, locking out the attacker.
-4. **Campus Domain Protection:** Can restrict registration to approved campus email domains via the `ALLOWED_EMAIL_DOMAINS` environment variable (e.g., `@campus.edu`).
+- **Password Hashing:** Implemented with `argon2.hash()` ([`apps/api/src/common/utils/crypto.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/common/utils/crypto.ts#L10-L15)) using Argon2id.
+- **JWT Signatures:** Access tokens (15m) and refresh tokens (7d) signed with distinct secrets (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`) ([`apps/api/src/common/utils/jwt.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/common/utils/jwt.ts#L42-L73)).
+- **Session Reuse Detection:** In [`apps/api/src/modules/auth/auth.service.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.service.ts#L353-L364), if an already-revoked refresh token is presented, the system detects a token leak and instantly invalidates every active session for that user.
 
 ---
 
-## 5. Domain Modules Deep Dive
+## 4. Database & Persistence Architecture
 
-### 1. Auth Module (`src/modules/auth`)
-- **Key Operations:** Student registration, email verification, login, token refresh, password resets, and session revoking.
-- **Invariants:**
-  - Email addresses are normalized (`toLowerCase()`).
-  - Account status lifecycle: `PENDING_VERIFICATION` $\to$ `ACTIVE` $\to$ `SUSPENDED`.
-  - Refresh tokens are hashed using SHA-256 before database persistence.
+The persistence layer lives in [`packages/database`](file:///Users/shreyansh/Documents/Coding/ap/capstone/packages/database). It defines **23 BCNF-normalized tables** in the `collabryd` schema.
 
-### 2. Profiles Module (`src/modules/profiles`)
-- **Key Operations:** Student discovery, profile management, achievements, social links, and skills association.
-- **Privacy Enforcement (`common/utils/visibility.ts`):**
-  - `PUBLIC`: Accessible to any authenticated user.
-  - `CAMPUS_ONLY`: Visible only to students from the same verified institution.
-  - `PRIVATE`: Visible strictly to the profile owner and platform administrators.
-
-### 3. Projects Module (`src/modules/projects`)
-- **Key Operations:** Project creation, editing, status lifecycle, capacity enforcement, and search recommendations.
-- **Project Status Lifecycle:** `DRAFT` $\to$ `RECRUITING` $\to$ `ACTIVE` $\to$ `COMPLETED` / `ARCHIVED`.
-- **Atomic Creation:** When a project is created, the service atomically writes:
-  1. The project record (`collabryd.projects`).
-  2. The creator as `OWNER` in `collabryd.project_members`.
-  3. A corresponding `GROUP` conversation channel in `collabryd.conversations`.
-  4. The creator into `collabryd.conversation_members`.
-- **Recommendation Engine (Queries R15 & R16):** Matches students to projects and projects to students based on overlapping required skills, preferred roles, and availability status.
-
-### 4. Applications Module (`src/modules/applications`)
-- **Key Operations:** Applying to open roles, withdrawing, rejecting, and accepting candidates.
-- **Concurrency & Invariants:**
-  - Prevent duplicate pending applications via partial unique index `uq_active_application`.
-  - Transactional Capacity Lock: Accepting an applicant executes `SELECT ... FOR UPDATE` on the project record to lock the row, verify `currentMembers < maxTeamSize`, and atomically insert the student into `project_members` and the project group chat.
-
-### 5. Members Module (`src/modules/members`)
-- **Key Operations:** Role updates (`CO_LEADER`, `MEMBER`), ownership transfers, voluntary departures, and evictions.
-- **Invariants:**
-  - Every project must maintain exactly one `OWNER`.
-  - Removing a member simultaneously revokes their access to the project's internal group chat.
-
-### 6. Conversations & Messaging Module (`src/modules/conversations`)
-- **Key Operations:** Direct 1-to-1 chats and Project group channels.
-- **Advisory Lock Deduplication:** Uses PostgreSQL transaction-level advisory locks based on sorted user IDs (`hashtext(least(u1, u2))`) to prevent duplicate direct conversation creation under concurrent requests.
-- **Sequenced Messages:** Every message receives a monotonic, gap-free `sequence_number` per conversation generated via `SELECT MAX(sequence_number) ... FOR UPDATE`.
-- **Client Idempotency:** Accepts a `clientMessageId` to prevent duplicate message posting on network retries.
-
-### 7. Notifications Module (`src/modules/notifications`)
-- **Key Operations:** In-app inbox, read state management, and real-time delivery.
-- **Preferences:** Respects student `inapp_notifications` preferences prior to dispatch.
-- **Batch Operations:** Allows marking single notifications or all unread notifications read in a single query.
-
-### 8. Catalog Module (`src/modules/catalog`)
-- **Key Operations:** Global lookup of skills, interests, and project roles.
-- **Read-Through Caching:** Cached in Redis with a 1-hour TTL. Automatically invalidated when administrators modify taxonomy entries.
-
-### 9. Admin Module (`src/modules/admin`)
-- **Key Operations:** Student suspension, account reactivation, project moderation, and platform metrics.
-- **RBAC:** Secured with `requireAdmin` middleware (`system_role = 'ADMIN'`).
-- **Audit Logs:** Mandatory logging of administrative actions into `collabryd.admin_audit_logs`.
-
----
-
-## 6. Database Architecture (`packages/database`)
-
-The persistence tier consists of **23 BCNF-normalized tables** residing inside the `collabryd` PostgreSQL schema.
-
-```mermaid
-erDiagram
-    USERS ||--o{ REFRESH_SESSIONS : maintains
-    USERS ||--o| USER_PROFILES : has
-    USERS ||--o{ EMAIL_VERIFICATION_TOKENS : receives
-    USERS ||--o{ NOTIFICATIONS : receives
-    USERS ||--o| NOTIFICATION_PREFERENCES : configures
-    USERS ||--o{ USER_SKILLS : possesses
-    USERS ||--o{ USER_INTERESTS : interested_in
-    USERS ||--o{ USER_PREFERRED_ROLES : prefers
-    USERS ||--o{ ACHIEVEMENTS : earns
-    USERS ||--o{ SOCIAL_LINKS : links
-
-    PROJECTS ||--o{ PROJECT_SKILLS : requires
-    PROJECTS ||--o{ PROJECT_ROLES : seeks
-    PROJECTS ||--o{ PROJECT_MEMBERS : includes
-    PROJECTS ||--o{ APPLICATIONS : receives
-    USERS ||--o{ PROJECT_MEMBERS : joins
-    USERS ||--o{ APPLICATIONS : submits
-
-    CONVERSATIONS ||--o{ CONVERSATION_MEMBERS : includes
-    CONVERSATIONS ||--o{ MESSAGES : contains
-    USERS ||--o{ CONVERSATION_MEMBERS : participates
-    USERS ||--o{ MESSAGES : sends
-
-    SKILLS ||--o{ USER_SKILLS : cataloged
-    SKILLS ||--o{ PROJECT_SKILLS : cataloged
-    INTERESTS ||--o{ USER_INTERESTS : cataloged
-    ROLES ||--o{ PROJECT_ROLES : cataloged
-    ROLES ||--o{ USER_PREFERRED_ROLES : cataloged
-
-    USERS ||--o{ ADMIN_AUDIT_LOGS : targets
-```
-
-### Schema Summary Table
-
-| Domain | Table Name | Purpose |
+| Domain Schema File | Tables Defined | Purpose |
 |---|---|---|
-| **Auth** | `collabryd.users` | Core user identity, email, password hash, status, campus |
-| | `collabryd.email_verification_tokens` | Secure email verification tokens (SHA-256 hashed) |
-| | `collabryd.refresh_sessions` | Active refresh tokens with session family tracking |
-| **Profiles** | `collabryd.user_profiles` | Student bios, campus, major, year, visibility settings |
-| | `collabryd.achievements` | Hackathon wins, awards, and certifications |
-| | `collabryd.social_links` | Portfolio, GitHub, and LinkedIn links |
-| **Catalog** | `collabryd.skills` | System skills taxonomy |
-| | `collabryd.interests` | Student interest tags |
-| | `collabryd.roles` | Functional team roles (e.g. Frontend, ML Engineer) |
-| | `collabryd.user_skills` | Bridge table connecting users to skills |
-| | `collabryd.user_interests` | Bridge table connecting users to interests |
-| | `collabryd.user_preferred_roles`| Bridge table connecting users to preferred roles |
-| **Projects** | `collabryd.projects` | Project listings, descriptions, team size limits |
-| | `collabryd.project_skills` | Required skills per project |
-| | `collabryd.project_roles` | Open roles per project |
-| | `collabryd.project_members` | Team member roster with roles (`OWNER`, `MEMBER`) |
-| | `collabryd.applications` | Role applications with status (`PENDING`, `ACCEPTED`, etc.) |
-| **Messaging** | `collabryd.conversations` | Conversation metadata (1-on-1 `DIRECT` or `GROUP`) |
-| | `collabryd.conversation_members` | Participants in each conversation |
-| | `collabryd.messages` | Sequenced, immutable messages |
-| **Notifications** | `collabryd.notifications` | In-app alerts and notifications |
-| | `collabryd.notification_preferences` | User notification channel preferences |
-| **Admin** | `collabryd.admin_audit_logs` | Immutable audit trail of moderation & admin events |
-
-### Migration Strategy
-- Migrations live in `packages/database/drizzle/`.
-- Managed by `packages/database/src/migrate.ts` using PostgreSQL advisory locks (`pg_advisory_lock(84729104)`).
-- Guarantees zero race conditions during parallel container startups.
+| [`auth.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/packages/database/src/schema/auth.ts) | `users`, `email_verification_tokens`, `refresh_sessions` | User credentials, email verification tokens, and rotating refresh sessions. |
+| [`profiles.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/packages/database/src/schema/profiles.ts) | `user_profiles`, `achievements`, `social_links` | Academic background, bios, visibility settings, honors, and external links. |
+| [`catalog.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/packages/database/src/schema/catalog.ts) | `skills`, `interests`, `roles`, `user_skills`, `user_interests`, `user_preferred_roles` | Standardized taxonomies and bridge tables associating students with skills. |
+| [`projects.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/packages/database/src/schema/projects.ts) | `projects`, `project_skills`, `project_roles`, `project_members`, `applications` | Project listings, required skills, open roles, team membership, and applications. |
+| [`messaging.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/packages/database/src/schema/messaging.ts) | `conversations`, `conversation_members`, `messages` | Direct/Group conversation channels, membership rosters, and sequenced messages. |
+| [`notifications.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/packages/database/src/schema/notifications.ts) | `notifications`, `notification_preferences` | In-app alerts, read states, and delivery preferences. |
+| [`admin.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/packages/database/src/schema/admin.ts) | `admin_audit_logs` | Immutable audit trail of administrative moderation actions. |
 
 ---
 
-## 7. Real-Time Notification Pipeline
+## 5. Real-Time Notifications & Socket Pipeline
 
-Collabryd implements an **asynchronous committed-state event notification pipeline**:
+Collabryd implements an **asynchronous committed-state event notification pipeline** in [`apps/api/src/modules/notifications/notifications.socket.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/notifications/notifications.socket.ts#L14-L89):
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Alice as Student (Actor)
+    actor Alice
     participant API as Express API
-    participant PG as PostgreSQL (collabryd)
-    participant Listener as Dedicated pg.Client (LISTEN)
-    participant Socket as Socket.IO Hub
-    actor Bob as Recipient (Socket Client)
+    participant PG as PostgreSQL
+    participant Trigger as Trigger 'announce_notification'
+    participant Listener as pg.Client (LISTEN)
+    participant SocketServer as Socket.IO Hub
+    actor Bob as Recipient (WebSocket)
 
-    Alice->>API: Submits Action (e.g. Accept Application)
+    Alice->>API: Performs action (e.g., accepts Bob's application)
     API->>PG: BEGIN Transaction
-    API->>PG: Insert project_members & UPDATE application status
+    API->>PG: Insert team member & update application status
     API->>PG: INSERT INTO collabryd.notifications (recipient: Bob)
     API->>PG: COMMIT
-    Note over PG: announce_notification trigger fires AFTER COMMIT
-    PG->>Listener: NOTIFY 'collabryd_notifications', 'payload: notification_id'
-    Listener->>Socket: deliver(notification_id)
-    Socket->>PG: Query notification & verify recipient ACTIVE
-    PG-->>Socket: Return notification payload
-    Socket->>Bob: socket.emit('notification:new', notification)
+    Note over PG: Trigger executes ONLY AFTER COMMIT succeeds
+    PG->>Trigger: announce_notification()
+    Trigger->>Listener: pg_notify('collabryd_notifications', notification_id)
+    Listener->>SocketServer: deliver(notification_id)
+    SocketServer->>PG: Query notification & verify recipient status ACTIVE
+    PG-->>SocketServer: Notification record
+    SocketServer->>Bob: socket.emit('notification:new', notification)
 ```
 
-### Why this design?
-- **Zero Ghost Notifications:** Notifications are triggered by PostgreSQL `AFTER INSERT` *after* the transaction is committed. If a transaction rolls back due to a conflict, no notification is ever emitted.
-- **Loose Coupling:** The HTTP API handler does not directly depend on open WebSocket connections to complete its write transaction.
+- **Zero "Ghost" Notifications:** Because `pg_notify` fires `AFTER INSERT` upon transaction commit, failed or rolled-back operations never trigger socket emissions.
+- **Socket Authentication:** Authenticates during the Socket.IO handshake via `verifyAccessToken(socket.handshake.auth.token)` and places sockets in personal rooms: `user:<userId>`.
 
 ---
 
-## 8. Caching & Redis Integration
+## 6. Complete Endpoint Catalog by Module
 
-- **Strategy:** Read-through caching with proactive write invalidation.
-- **Use Cases:**
-  1. System catalogs (`/api/v1/catalog/*`).
-  2. Rate-limiting counters (`express-rate-limit` using `rate-limit-redis`).
-- **Resilience:** If Redis is down or unconfigured (`REDIS_URL` omitted), the backend automatically falls back to in-memory rate limiting and direct database reads without throwing errors.
+Each subsection below outlines the **exact route**, **middleware chain**, **source code citations**, **validation rules**, and **step-by-step backend business logic**.
 
 ---
 
-## 9. Testing & Quality Verification
+### 6.1 System Health & Documentation
 
-| Test Type | Runner / Tool | Focus | Location |
-|---|---|---|---|
-| **Unit Tests** | Vitest | Crypto, JWT, Zod schemas, AppError mapping, pagination | `apps/api/tests/unit/core.test.ts` |
-| **HTTP Transport** | Supertest | Status codes, error payloads, OpenAPI endpoints | `apps/api/tests/unit/core.test.ts` |
-| **Integration Suite** | Vitest + PostgreSQL 18 | Full E2E user lifecycle, transactions, capacity, messaging | `apps/api/tests/integration/collabryd.e2e.test.ts` |
-| **Type Checking** | TypeScript (`tsc --noEmit`) | Monorepo-wide static typing | `pnpm check-types` |
-| **Code Quality** | ESLint | Code style & linting across all packages | `pnpm lint` |
+#### `GET /api/health`
+- **Purpose:** Quick liveness probe.
+- **Auth:** None (Public).
+- **Source Files:** [`apps/api/src/routes/health.routes.ts:8-18`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/routes/health.routes.ts#L8-L18).
+- **Logic:** Returns uptime in seconds and system timestamp without touching the database.
+
+#### `GET /api/health/ready`
+- **Purpose:** Readiness probe checking database and Redis connectivity.
+- **Auth:** None (Public).
+- **Source Files:** [`apps/api/src/routes/health.routes.ts:20-33`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/routes/health.routes.ts#L20-L33).
+- **Logic:**
+  1. Executes `SELECT 1` via Drizzle to test PostgreSQL pool responsiveness.
+  2. Calls `getRedisHealth()` ([`apps/api/src/config/redis.ts:63`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/config/redis.ts#L63)) returning `"connected"`, `"disabled"`, or `"error"`.
+  3. Returns HTTP 200 with `{ status: "ready", database: "connected", redis: ... }`.
+
+#### `GET /api/v1/docs` & `GET /api/v1/docs/openapi.json`
+- **Purpose:** Interactive HTML API explorer and raw OpenAPI 3.1 contract.
+- **Auth:** None (Public).
+- **Source Files:** [`apps/api/src/routes/v1.routes.ts:62-67`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/routes/v1.routes.ts#L62-L67), [`apps/api/src/docs/openapi.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/docs/openapi.ts).
+- **Logic:** Generates and serves OpenAPI specification describing endpoints, schemas, tags, and parameters.
 
 ---
 
-## 10. Operational Runbook
+### 6.2 Authentication & Identity (`/api/v1/auth`)
+
+Mounted from [`apps/api/src/modules/auth/auth.routes.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.routes.ts#L18-L60).
+
+#### `POST /api/v1/auth/register`
+- **Summary:** Register a new student account.
+- **Middleware:** `authRateLimiter`, `validate({ body: registerSchema })`.
+- **Citations:**
+  - Route: [`auth.routes.ts:18-23`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.routes.ts#L18-L23)
+  - Controller: [`auth.controller.ts:10-13`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.controller.ts#L10-L13)
+  - Service: `registerStudent` in [`auth.service.ts:56-130`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.service.ts#L56-L130)
+- **Validation:** Email, password (min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char), `displayName`, `institution`, `courseProgram`, `academicYear`.
+- **Step-by-Step Logic:**
+  1. Normalizes email and verifies it against allowed campus domains (`assertAllowedEmailDomain`).
+  2. Queries `collabryd.users` to ensure email is not already taken; throws `ConflictError` (409) if duplicate.
+  3. Hashes password using Argon2id.
+  4. Generates a 32-byte secure random verification token and calculates its SHA-256 hash.
+  5. Executes atomic `db.transaction()`:
+     - Inserts record into `collabryd.users` with status `PENDING_VERIFICATION` and role `STUDENT`.
+     - Inserts profile into `collabryd.user_profiles`.
+     - Initializes default `collabryd.notification_preferences`.
+     - Stores hashed token in `collabryd.email_verification_tokens` with 24-hour expiration.
+  6. Dispatches verification email via `sendVerificationEmail` ([`verification-email.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/verification-email.ts#L9)).
+
+#### `POST /api/v1/auth/verify-email`
+- **Summary:** Activate student account using email verification token.
+- **Middleware:** `authRateLimiter`, `validate({ body: verifyEmailSchema })`.
+- **Citations:**
+  - Route: [`auth.routes.ts:24-29`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.routes.ts#L24-L29)
+  - Controller: [`auth.controller.ts:15-18`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.controller.ts#L15-L18)
+  - Service: `verifyEmail` in [`auth.service.ts:132-196`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.service.ts#L132-L196)
+- **Step-by-Step Logic:**
+  1. Hashes incoming raw token using SHA-256.
+  2. In a transaction with row lock (`FOR UPDATE`), queries `collabryd.email_verification_tokens`.
+  3. Validates token existence, that `isUsed === false`, and that `expiresAt > Date.now()`.
+  4. Updates token `isUsed = true`.
+  5. Updates user `accountStatus = 'ACTIVE'`. Returns activated user.
+
+#### `POST /api/v1/auth/resend-verification`
+- **Summary:** Invalidate prior unused tokens and issue a fresh email verification link.
+- **Middleware:** `authRateLimiter`, `validate({ body: resendVerificationSchema })`.
+- **Citations:** [`auth.routes.ts:30-35`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.routes.ts#L30-L35), [`auth.service.ts:198-227`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.service.ts#L198-L227).
+- **Logic:** Acquires transaction-level advisory lock `pg_advisory_xact_lock` to serialize resend requests. Marks existing unused tokens as used, creates new token, and triggers verification email.
+
+#### `POST /api/v1/auth/login`
+- **Summary:** Authenticate student and issue JWT token pair.
+- **Middleware:** `authRateLimiter`, `validate({ body: loginSchema })`.
+- **Citations:** [`auth.routes.ts:36-41`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.routes.ts#L36-L41), [`auth.service.ts:229-318`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.service.ts#L229-L318).
+- **Step-by-Step Logic:**
+  1. Finds user by lowercase email. Throws `UnauthorizedError` (401) if not found.
+  2. Compares password against stored Argon2id hash.
+  3. Verifies account status: throws 403 if `PENDING_VERIFICATION`, `SUSPENDED`, or `DEACTIVATED`.
+  4. Generates access JWT (15m expiry) and refresh JWT with random `jti` (7d expiry).
+  5. Inserts SHA-256 hash of refresh token into `collabryd.refresh_sessions`. Returns user profile & tokens.
+
+#### `POST /api/v1/auth/refresh`
+- **Summary:** Rotate refresh token and obtain a fresh access token.
+- **Middleware:** `authRateLimiter`, `validate({ body: refreshSchema })`.
+- **Citations:** [`auth.routes.ts:42-47`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.routes.ts#L42-L47), [`auth.service.ts:320-410`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.service.ts#L320-L410).
+- **Step-by-Step Logic:**
+  1. Decodes and verifies incoming refresh JWT.
+  2. Computes SHA-256 hash and locks session record (`FOR UPDATE`).
+  3. **Reuse Detection:** If `session.revokedAt !== null`, triggers security tripwire: invalidates **all** active refresh sessions for this user and commits revocation, throwing 401 `REFRESH_TOKEN_REUSE_DETECTED`.
+  4. If valid, marks current session `revokedAt = NOW()`, signs new token pair, and inserts a new session row.
+
+#### `POST /api/v1/auth/logout` & `POST /api/v1/auth/logout-all`
+- **Summary:** Revoke current session (`/logout`) or all user sessions (`/logout-all`).
+- **Citations:** [`auth.routes.ts:48-53`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.routes.ts#L48-L53), [`auth.service.ts:412-438`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.service.ts#L412-L438).
+- **Logic:** Sets `revokedAt = NOW()` on the matching session or across all active sessions belonging to `req.user.userId`.
+
+#### `GET /api/v1/auth/me`
+- **Summary:** Get current authenticated user credentials and profile.
+- **Middleware:** `requireAuth`.
+- **Citations:** [`auth.routes.ts:54`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.routes.ts#L54), [`auth.service.ts:440-471`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.service.ts#L440-L471).
+
+#### `PATCH /api/v1/auth/password`
+- **Summary:** Change account password and revoke existing sessions.
+- **Middleware:** `requireAuth`, `validate({ body: changePasswordSchema })`.
+- **Citations:** [`auth.routes.ts:55-60`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.routes.ts#L55-L60), [`auth.service.ts:473-513`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/auth/auth.service.ts#L473-L513).
+- **Logic:** Verifies current password with Argon2id, hashes new password, updates `passwordHash`, and revokes all active refresh sessions to force re-authentication.
+
+---
+
+### 6.3 Taxonomy Catalog (`/api/v1/catalog`)
+
+Mounted from [`apps/api/src/modules/catalog/catalog.routes.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/catalog/catalog.routes.ts#L17-L57).
+
+#### `GET /api/v1/catalog/skills`
+- **Summary:** List skills with student usage count (R07 query).
+- **Middleware:** `validate({ query: listSkillsQuerySchema })`.
+- **Citations:** [`catalog.routes.ts:19-23`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/catalog/catalog.routes.ts#L19-L23), [`catalog.service.ts:20-64`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/catalog/catalog.service.ts#L20-L64).
+- **Logic:** Cached in Redis (TTL 60s). Queries `collabryd.skills` left-joined with `collabryd.user_skills`, groups by skill, and orders by student adoption count descending.
+
+#### `POST /api/v1/catalog/skills`
+- **Summary:** Create a new skill taxonomy entry (Admin only).
+- **Middleware:** `requireAuth`, `requireAdmin`, `validate({ body: createSkillSchema })`.
+- **Citations:** [`catalog.routes.ts:24-30`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/catalog/catalog.routes.ts#L24-L30), [`catalog.service.ts:160-164`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/catalog/catalog.service.ts#L160-L164).
+- **Logic:** Inserts into `collabryd.skills` and invalidates Redis cache keys matching prefix `catalog:skills:`.
+
+#### `GET /api/v1/catalog/interests` & `POST /api/v1/catalog/interests`
+- **Summary:** Search interest domains with follower counts (R08) / Add new interest.
+- **Citations:** [`catalog.routes.ts:32-43`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/catalog/catalog.routes.ts#L32-L43), [`catalog.service.ts:66-114, 166-170`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/catalog/catalog.service.ts#L66-L114).
+
+#### `GET /api/v1/catalog/roles` & `POST /api/v1/catalog/roles`
+- **Summary:** List project roles with open openings count (R09) / Add new role.
+- **Citations:** [`catalog.routes.ts:45-56`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/catalog/catalog.routes.ts#L45-L56), [`catalog.service.ts:116-158, 172-182`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/catalog/catalog.service.ts#L116-L158).
+
+---
+
+### 6.4 Student Profiles & Discovery (`/api/v1/profiles` & `/api/v1/students`)
+
+Mounted from [`apps/api/src/modules/profiles/profiles.routes.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/profiles/profiles.routes.ts#L24-L108).
+
+#### `GET /api/v1/profiles/me`
+- **Summary:** Fetch the full profile of the logged-in student including skills, interests, roles, achievements, and social links (R02–R05).
+- **Middleware:** `requireAuth`.
+- **Citations:** [`profiles.routes.ts:28`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/profiles/profiles.routes.ts#L28), [`profiles.service.ts:96-128`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/profiles/profiles.service.ts#L96-L128).
+- **Logic:** Performs parallel queries gathering profile details, associated skills (with proficiency levels), interests, preferred roles, achievements, and social links.
+
+#### `PUT /api/v1/profiles/me`
+- **Summary:** Upsert student profile fields (bio, major, year, availability, visibility).
+- **Middleware:** `requireAuth`, `validate({ body: upsertProfileSchema })`.
+- **Citations:** [`profiles.routes.ts:29-33`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/profiles/profiles.routes.ts#L29-L33), [`profiles.service.ts:314-368`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/profiles/profiles.service.ts#L314-L368).
+- **Logic:** Uses PostgreSQL `INSERT INTO user_profiles ... ON CONFLICT (user_id) DO UPDATE` to atomically update profile information.
+
+#### `POST /api/v1/profiles/me/skills`, `PUT /api/v1/profiles/me/skills`, `DELETE /api/v1/profiles/me/skills/:skillId`
+- **Summary:** Add, bulk replace, or remove skills on student profile.
+- **Citations:** [`profiles.routes.ts:35-49`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/profiles/profiles.routes.ts#L35-L49), [`profiles.service.ts:370-473`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/profiles/profiles.service.ts#L370-L473).
+- **Logic:** Bulk replacement runs inside `db.transaction()`: deletes existing user skills and inserts new entries in a single step.
+
+#### `PUT /api/v1/profiles/me/interests` & `PUT /api/v1/profiles/me/preferred-roles`
+- **Summary:** Replace student interests and preferred project roles in bulk.
+- **Citations:** [`profiles.routes.ts:51-61`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/profiles/profiles.routes.ts#L51-L61), [`profiles.service.ts:475-523`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/profiles/profiles.service.ts#L475-L523).
+
+#### `POST /api/v1/profiles/me/achievements`, `PATCH .../:achievementId`, `DELETE .../:achievementId`
+- **Summary:** Manage student awards, certifications, and hackathon wins.
+- **Citations:** [`profiles.routes.ts:63-77`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/profiles/profiles.routes.ts#L63-L77), [`profiles.service.ts:525-591`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/profiles/profiles.service.ts#L525-L591).
+
+#### `POST /api/v1/profiles/me/social-links`, `PATCH .../:linkId`, `DELETE .../:linkId`
+- **Summary:** Add, update, or delete external links (GitHub, LinkedIn, Portfolio).
+- **Citations:** [`profiles.routes.ts:79-93`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/profiles/profiles.routes.ts#L79-L93), [`profiles.service.ts:593-633`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/profiles/profiles.service.ts#L593-L633).
+
+#### `GET /api/v1/students`
+- **Summary:** Discover peers across campus by skill, role, academic year, and availability.
+- **Middleware:** `optionalAuth`, `validate({ query: discoverStudentsQuerySchema })`.
+- **Citations:** [`profiles.routes.ts:98-102`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/profiles/profiles.routes.ts#L98-L102), [`profiles.service.ts:184-312`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/profiles/profiles.service.ts#L184-L312).
+- **Visibility Filtering:** Enforces `PUBLIC` for anonymous viewers, `CAMPUS_ONLY` for students matching institution, excludes `PRIVATE` profiles.
+
+#### `GET /api/v1/students/:userId`
+- **Summary:** View a specific student's public/campus profile (R06).
+- **Middleware:** `optionalAuth`, `validate({ params: userIdParamsSchema })`.
+- **Citations:** [`profiles.routes.ts:103-108`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/profiles/profiles.routes.ts#L103-L108), [`profiles.service.ts:130-182`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/profiles/profiles.service.ts#L130-L182).
+
+---
+
+### 6.5 Projects & Recommendations (`/api/v1/projects` & `/api/v1/recommendations`)
+
+Mounted from [`apps/api/src/modules/projects/projects.routes.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.routes.ts#L23-L172).
+
+#### `GET /api/v1/projects`
+- **Summary:** Search and list projects by category, required skill, role, or text query (R10 & R11).
+- **Middleware:** `optionalAuth`, `validate({ query: listProjectsQuerySchema })`.
+- **Citations:** [`projects.routes.ts:28-33`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.routes.ts#L28-L33), [`projects.service.ts:231-403`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.service.ts#L231-L403).
+
+#### `POST /api/v1/projects`
+- **Summary:** Create a project, assign owner, and initialize team chat.
+- **Middleware:** `requireAuth`, `validate({ body: createProjectSchema })`.
+- **Citations:** [`projects.routes.ts:38-43`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.routes.ts#L38-L43), [`projects.service.ts:108-229`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.service.ts#L108-L229).
+- **Atomic Creation Logic (`db.transaction`):**
+  1. Inserts project row into `collabryd.projects`.
+  2. Inserts creator as `OWNER` into `collabryd.project_members`.
+  3. Inserts required skills (`project_skills`) and open roles (`project_roles`).
+  4. Automatically creates a `GROUP` conversation in `collabryd.conversations` linked to `projectId`.
+  5. Adds owner to `collabryd.conversation_members`.
+
+#### `GET /api/v1/projects/:projectId`
+- **Summary:** Retrieve comprehensive project details, required skills, and open roles (R12 & R14).
+- **Citations:** [`projects.routes.ts:48-53`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.routes.ts#L48-L53), [`projects.service.ts:405-506`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.service.ts#L405-L506).
+
+#### `PATCH /api/v1/projects/:projectId` & `PATCH .../:projectId/status`
+- **Summary:** Update project metadata or transition status (`DRAFT` $\to$ `OPEN` $\to$ `IN_PROGRESS` $\to$ `COMPLETED` $\to$ `CANCELLED`).
+- **Middleware:** `requireAuth`, `requireProjectManager`.
+- **Citations:** [`projects.routes.ts:58-75`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.routes.ts#L58-L75), [`projects.service.ts:508-622`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.service.ts#L508-L622).
+- **Status Change Logic:** Updates status and automatically dispatches notifications to all team members informing them of the status update.
+
+#### `DELETE /api/v1/projects/:projectId`
+- **Summary:** Delete project (Sole Owner or Admin required).
+- **Middleware:** `requireAuth`, `requireProjectOwner`.
+- **Citations:** [`projects.routes.ts:80-86`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.routes.ts#L80-L86), [`projects.service.ts:624-646`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.service.ts#L624-L646).
+
+#### `PUT /api/v1/projects/:projectId/skills`, `DELETE .../skills/:skillId`
+- **Summary:** Bulk update or remove required skills for a project.
+- **Citations:** [`projects.routes.ts:91-111`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.routes.ts#L91-L111), [`projects.service.ts:648-716`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.service.ts#L648-L716).
+
+#### `PUT /api/v1/projects/:projectId/roles`, `DELETE .../roles/:roleId`
+- **Summary:** Bulk update or remove open recruitment roles.
+- **Citations:** [`projects.routes.ts:116-136`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.routes.ts#L116-L136), [`projects.service.ts:718-790`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.service.ts#L718-L790).
+
+#### `GET /api/v1/projects/:projectId/capacity`
+- **Summary:** Read current member count vs. `maxTeamSize` (R19).
+- **Citations:** [`projects.routes.ts:141-146`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.routes.ts#L141-L146), [`projects.service.ts:813-840`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.service.ts#L813-L840).
+
+#### `GET /api/v1/projects/:projectId/recommendations`
+- **Summary:** Recommend compatible student candidates for a project (R15).
+- **Middleware:** `requireAuth`, `requireProjectManager`.
+- **Citations:** [`projects.routes.ts:151-160`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.routes.ts#L151-L160), [`projects.service.ts:842-893`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.service.ts#L842-L893).
+- **Logic:** Compares candidate skills with the project's required skills; computes matching overlap scores and ranks candidates available for collaboration.
+
+#### `GET /api/v1/recommendations/projects`
+- **Summary:** Recommend projects for the logged-in student (R16).
+- **Middleware:** `requireAuth`.
+- **Citations:** [`projects.routes.ts:168-172`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.routes.ts#L168-L172), [`projects.service.ts:895-950`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/projects/projects.service.ts#L895-L950).
+- **Logic:** Matches student skills and preferred roles against open project vacancies; filters out already-joined projects.
+
+---
+
+### 6.6 Project Applications (`/api/v1/applications`)
+
+Mounted from [`apps/api/src/modules/applications/applications.routes.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/applications/applications.routes.ts#L15-L88).
+
+#### `POST /api/v1/projects/:projectId/applications`
+- **Summary:** Submit an application to join a project team (W07).
+- **Middleware:** `requireAuth`, `validate({ body: createApplicationSchema })`.
+- **Citations:** [`applications.routes.ts:20-25`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/applications/applications.routes.ts#L20-L25), [`applications.service.ts:27-161`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/applications/applications.service.ts#L27-L161).
+- **Step-by-Step Logic:**
+  1. Checks project status is `OPEN` and application deadline has not passed.
+  2. Verifies student is not already a team member.
+  3. Checks partial unique index `uq_active_application` (cannot apply twice if an application is already `PENDING`).
+  4. Inserts into `collabryd.applications`.
+  5. Emits notification to the project owner.
+
+#### `GET /api/v1/projects/:projectId/applications`
+- **Summary:** List applications for a specific project (Project Manager required).
+- **Citations:** [`applications.routes.ts:30-39`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/applications/applications.routes.ts#L30-L39), [`applications.service.ts:163-210`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/applications/applications.service.ts#L163-L210).
+
+#### `GET /api/v1/applications/me` & `GET /api/v1/applications/incoming`
+- **Summary:** List my submitted applications (R18) / List incoming applications across all managed projects (R17).
+- **Citations:** [`applications.routes.ts:48-61`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/applications/applications.routes.ts#L48-L61), [`applications.service.ts:212-321`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/applications/applications.service.ts#L212-L321).
+
+#### `POST /api/v1/applications/:applicationId/accept`
+- **Summary:** Accept an applicant into the team and group chat (W08).
+- **Middleware:** `requireAuth`.
+- **Citations:** [`applications.routes.ts:66-70`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/applications/applications.routes.ts#L66-L70), [`applications.service.ts:323-486`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/applications/applications.service.ts#L323-L486).
+- **Transactional Capacity Locking (`db.transaction`):**
+  1. Selects project row `FOR UPDATE` to lock concurrency.
+  2. Counts active `project_members`. If `count >= maxTeamSize`, throws `ConflictError` ("Project has reached capacity").
+  3. Updates application status to `ACCEPTED`.
+  4. Inserts applicant into `collabryd.project_members`.
+  5. Inserts applicant into `collabryd.conversation_members` for the project group chat.
+  6. Dispatches notification to accepted applicant.
+
+#### `POST /api/v1/applications/:applicationId/reject` & `POST .../withdraw`
+- **Summary:** Reject application / Withdraw submitted application.
+- **Citations:** [`applications.routes.ts:75-87`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/applications/applications.routes.ts#L75-L87), [`applications.service.ts:488-614`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/applications/applications.service.ts#L488-L614).
+
+---
+
+### 6.7 Project Members & Team Rosters (`/api/v1/projects/:projectId/members`)
+
+Mounted from [`apps/api/src/modules/members/members.routes.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/members/members.routes.ts#L15-L48).
+
+#### `GET /api/v1/projects/:projectId/members`
+- **Summary:** List team roster ordered by role hierarchy (`OWNER` $\to$ `ADMIN` $\to$ `MEMBER`) (R13).
+- **Citations:** [`members.routes.ts:20-25`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/members/members.routes.ts#L20-L25), [`members.service.ts:20-45`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/members/members.service.ts#L20-L45).
+
+#### `PATCH /api/v1/projects/:projectId/members/:userId`
+- **Summary:** Promote/demote a member or transfer project ownership.
+- **Middleware:** `requireAuth`, `requireProjectManager`, `validate({ body: updateMemberRoleSchema })`.
+- **Citations:** [`members.routes.ts:30-36`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/members/members.routes.ts#L30-L36), [`members.service.ts:47-125`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/members/members.service.ts#L47-L125).
+- **Ownership Transfer Logic:** If promoting someone to `OWNER`, the transaction atomically demotes the current owner to `ADMIN` and updates `projects.ownerId`.
+
+#### `DELETE /api/v1/projects/:projectId/members/:userId`
+- **Summary:** Remove member or leave project team.
+- **Middleware:** `requireAuth`.
+- **Citations:** [`members.routes.ts:41-46`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/members/members.routes.ts#L41-L46), [`members.service.ts:127-232`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/members/members.service.ts#L127-L232).
+- **Logic:** Prevents the sole owner from leaving without transferring ownership. Removes the member from `project_members` and simultaneously removes them from the project group conversation (`conversation_members`).
+
+---
+
+### 6.8 Conversations & Messaging (`/api/v1/conversations`)
+
+Mounted from [`apps/api/src/modules/conversations/conversations.routes.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/conversations/conversations.routes.ts#L20-L86).
+
+#### `GET /api/v1/conversations`
+- **Summary:** List all conversations (DMs & Project Chats) for the caller with last message and unread count (R20).
+- **Citations:** [`conversations.routes.ts:25`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/conversations/conversations.routes.ts#L25), [`conversations.service.ts:20-90`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/conversations/conversations.service.ts#L20-L90).
+
+#### `POST /api/v1/conversations/direct`
+- **Summary:** Create or retrieve an existing 1-on-1 direct message channel (R21).
+- **Citations:** [`conversations.routes.ts:30-34`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/conversations/conversations.routes.ts#L30-L34), [`conversations.service.ts:92-160`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/conversations/conversations.service.ts#L92-L160).
+- **Advisory Lock Deduplication:** Executes `SELECT pg_advisory_xact_lock(hashtext(least(u1, u2)), hashtext(greatest(u1, u2)))`. Guarantees concurrent requests between two users resolve to the same channel without duplicate conversation rows.
+
+#### `GET /api/v1/conversations/project/:projectId`
+- **Summary:** Retrieve the group conversation corresponding to a project team.
+- **Citations:** [`conversations.routes.ts:39-43`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/conversations/conversations.routes.ts#L39-L43), [`conversations.service.ts:162-236`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/conversations/conversations.service.ts#L162-L236).
+
+#### `GET /api/v1/conversations/:conversationId/messages`
+- **Summary:** Keyset/cursor-based message pagination (R22).
+- **Middleware:** `requireConversationMember`.
+- **Citations:** [`conversations.routes.ts:49-57`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/conversations/conversations.routes.ts#L49-L57), [`conversations.service.ts:238-309`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/conversations/conversations.service.ts#L238-L309).
+- **Logic:** Paginates messages based on `beforeSequenceNumber` or `afterSequenceNumber` using index on `(conversation_id, sequence_number)`.
+
+#### `POST /api/v1/conversations/:conversationId/messages`
+- **Summary:** Post an immutable, sequenced message (W09).
+- **Middleware:** `requireConversationMember`, `validate({ body: sendMessageSchema })`.
+- **Citations:** [`conversations.routes.ts:63-71`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/conversations/conversations.routes.ts#L63-L71), [`conversations.service.ts:311-444`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/conversations/conversations.service.ts#L311-L444).
+- **Sequencing & Idempotency:**
+  1. Checks `clientMessageId` to prevent duplicate message posting on network retries.
+  2. Locks conversation row `FOR UPDATE` to compute monotonic `sequence_number = max(sequence_number) + 1`.
+  3. Inserts message and updates conversation `last_message_at`.
+  4. Triggers in-app notifications to other conversation participants.
+
+#### `PATCH /api/v1/conversations/:conversationId/read`
+- **Summary:** Advance user's read cursor to mark messages as read.
+- **Citations:** [`conversations.routes.ts:77-85`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/conversations/conversations.routes.ts#L77-L85), [`conversations.service.ts:446-476`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/conversations/conversations.service.ts#L446-L476).
+
+---
+
+### 6.9 In-App Notifications (`/api/v1/notifications`)
+
+Mounted from [`apps/api/src/modules/notifications/notifications.routes.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/notifications/notifications.routes.ts#L13-L39).
+
+#### `GET /api/v1/notifications`
+- **Summary:** Paginate in-app notification inbox (R23).
+- **Citations:** [`notifications.routes.ts:15-19`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/notifications/notifications.routes.ts#L15-L19), [`notifications.service.ts:6-35`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/notifications/notifications.service.ts#L6-L35).
+
+#### `GET /api/v1/notifications/unread-count`
+- **Summary:** Fetch total unread notifications count for badge UI.
+- **Citations:** [`notifications.routes.ts:21`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/notifications/notifications.routes.ts#L21), [`notifications.service.ts:37-48`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/notifications/notifications.service.ts#L37-L48).
+
+#### `PATCH /api/v1/notifications/read-all` & `PATCH .../:notificationId/read`
+- **Summary:** Mark all or single notification as read (W10).
+- **Citations:** [`notifications.routes.ts:23, 33-37`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/notifications/notifications.routes.ts#L23), [`notifications.service.ts:50-85`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/notifications/notifications.service.ts#L50-L85).
+
+#### `GET /api/v1/notifications/preferences` & `PATCH .../preferences`
+- **Summary:** View or update notification channels (in-app, email).
+- **Citations:** [`notifications.routes.ts:25-31`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/notifications/notifications.routes.ts#L25-L31), [`notifications.service.ts:87-137`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/notifications/notifications.service.ts#L87-L137).
+
+---
+
+### 6.10 Campus Administration & Moderation (`/api/v1/admin`)
+
+Mounted from [`apps/api/src/modules/admin/admin.routes.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/admin/admin.routes.ts#L20-L54). All endpoints require `requireAuth` and `requireAdmin`.
+
+#### `GET /api/v1/admin/metrics`
+- **Summary:** Operational platform KPIs (R24).
+- **Citations:** [`admin.routes.ts:22`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/admin/admin.routes.ts#L22), [`admin.service.ts:21-48`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/admin/admin.service.ts#L21-L48).
+- **Logic:** Queries aggregate counts of registered students, active projects, submitted applications, and completed teams.
+
+#### `GET /api/v1/admin/audit-logs`
+- **Summary:** Paginated administrative audit log trail (R25).
+- **Citations:** [`admin.routes.ts:24-28`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/admin/admin.routes.ts#L24-L28), [`admin.service.ts:50-94`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/admin/admin.service.ts#L50-L94).
+
+#### `POST /api/v1/admin/users/:userId/suspend`
+- **Summary:** Suspend a malicious student account.
+- **Citations:** [`admin.routes.ts:30-34`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/admin/admin.routes.ts#L30-L34), [`admin.service.ts:96-151`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/admin/admin.service.ts#L96-L151).
+- **Step-by-Step Logic:**
+  1. Sets `users.accountStatus = 'SUSPENDED'`.
+  2. Revokes all active refresh sessions (`refresh_sessions.revokedAt = NOW()`).
+  3. Writes audit entry to `collabryd.admin_audit_logs`.
+
+#### `POST /api/v1/admin/users/:userId/activate`
+- **Summary:** Restore a suspended student account.
+- **Citations:** [`admin.routes.ts:36-40`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/admin/admin.routes.ts#L36-L40), [`admin.service.ts:153-193`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/admin/admin.service.ts#L153-L193).
+
+#### `POST /api/v1/admin/projects/:projectId/moderate`
+- **Summary:** Change project status for moderation purposes (e.g. archiving infringing projects).
+- **Citations:** [`admin.routes.ts:42-46`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/admin/admin.routes.ts#L42-L46), [`admin.service.ts:195-245`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/admin/admin.service.ts#L195-L245).
+
+#### `POST /api/v1/admin/projects/:projectId/members/:userId/role-override`
+- **Summary:** Forcefully assign or reassign a project member's role.
+- **Citations:** [`admin.routes.ts:48-52`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/admin/admin.routes.ts#L48-L52), [`admin.service.ts:247-296`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/modules/admin/admin.service.ts#L247-L296).
+
+---
+
+## 7. Testing & Operational Commands
+
+All commands are executed from the repository root:
 
 ```bash
-# 1. Start local PostgreSQL & Redis
+# 1. Launch local PostgreSQL (port 5434) and Redis (port 6379)
 docker compose up -d
 
-# 2. Run migrations
+# 2. Apply all database migrations
 pnpm db:migrate
 
-# 3. Seed demo accounts and catalog data
+# 3. Seed demo accounts & taxonomies
 pnpm db:seed
 
-# 4. Start backend in development mode
+# 4. Start backend development server (port 3000)
 pnpm backend:dev
 
-# 5. Execute test suites
-pnpm backend:test
+# 5. Type-check all packages
+pnpm check-types
+
+# 6. Run unit tests
+pnpm --filter @repo/api test
+
+# 7. Run full E2E integration test suite (requires Docker Postgres)
+pnpm test
 ```
