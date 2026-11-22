@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { eq } from "drizzle-orm";
-import { closePool, db } from "./client.js";
+import { eq, sql } from "drizzle-orm";
+import { closePool, db as database } from "./client.js";
 import {
   achievements,
   applications,
@@ -49,6 +49,13 @@ async function hashDemoPassword(plain: string): Promise<string> {
 }
 
 export async function seedDatabase(): Promise<void> {
+  await database.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(824512003)`);
+    await seedRows(tx);
+  });
+}
+
+async function seedRows(db: Pick<typeof database, "select" | "insert">) {
   const catalogSkills = [
     { name: "TypeScript", category: "Languages" },
     { name: "Python", category: "Languages" },
@@ -123,6 +130,8 @@ export async function seedDatabase(): Promise<void> {
   await db.insert(skills).values(catalogSkills).onConflictDoNothing();
   await db.insert(interests).values(catalogInterests).onConflictDoNothing();
   await db.insert(roles).values(catalogRoles).onConflictDoNothing();
+
+  if (process.env.NODE_ENV === "production") return;
 
   const allSkills = await db.select().from(skills);
   const allInterests = await db.select().from(interests);

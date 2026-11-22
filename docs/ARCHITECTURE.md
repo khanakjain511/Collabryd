@@ -34,10 +34,6 @@ Collabryd/
 │   │   │   │   │   ├── response.ts           # Standardized JSON response helpers
 │   │   │   │   │   └── visibility.ts         # Shared PUBLIC / CAMPUS_ONLY / PRIVATE predicates
 │   │   │   │   └── index.ts                  # Common barrel export
-│   │   │   ├── realtime/
-│   │   │   │   ├── realtime.bus.ts           # Decoupled Socket.IO room event emitter
-│   │   │   │   ├── socket.server.ts          # JWT-authenticated Socket.IO gateway
-│   │   │   │   └── index.ts                  # Realtime barrel export
 │   │   │   ├── routes/
 │   │   │   │   ├── index.ts                  # Mounts /health & /v1 under /api
 │   │   │   │   ├── health.routes.ts          # /api/health & /api/health/ready
@@ -52,7 +48,7 @@ Collabryd/
 │   │   │       ├── applications/             # applications.{schemas,service,controller,routes}.ts
 │   │   │       ├── members/                  # members.{schemas,service,controller,routes}.ts
 │   │   │       ├── conversations/            # conversations.{schemas,service,controller,routes}.ts
-│   │   │       ├── notifications/            # notifications.{schemas,service,controller,routes,dispatcher}.ts
+│   │   │       ├── notifications/            # REST inbox, dispatcher and Socket.IO listener
 │   │   │       └── admin/                    # admin.{schemas,service,controller,routes}.ts
 │   │   ├── tests/
 │   │   │   ├── unit/core.test.ts             # Unit & HTTP transport tests (Vitest + Supertest)
@@ -64,8 +60,10 @@ Collabryd/
 │   ├── database/                             # @collabryd/database — Drizzle ORM & migrations
 │   │   ├── drizzle/
 │   │   │   ├── 0000_collabryd_schema.sql     # Verbatim docs/dbms/03_schema.sql (23 tables)
-│   │   │   └── 0001_backend_extensions.sql   # Additive RBAC role, DM check & query-plan indexes
+│   │   │   ├── 0001_backend_extensions.sql   # Additive RBAC role, DM check & query-plan indexes
+│   │   │   └── 0002_live_notifications.sql   # Signal committed notification inserts
 │   │   ├── src/
+│   │   │   ├── database-url.ts               # Shared runtime and Drizzle Kit connection settings
 │   │   │   ├── client.ts                     # pg.Pool + Drizzle instance + closePool()
 │   │   │   ├── migrate.ts                    # Checksum-verified SQL migration runner
 │   │   │   ├── seed.ts                       # Idempotent campus seed data

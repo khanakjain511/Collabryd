@@ -6,12 +6,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "dev": "pnpm --filter @collabryd/database build && tsx watch src/server.ts",
+    "build": "pnpm --filter @collabryd/database build && tsc",
     "start": "node dist/server.js",
     "check-types": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "pnpm --filter @collabryd/database build && vitest run",
+    "test:watch": "pnpm --filter @collabryd/database build && vitest"
   },
   "dependencies": {
     "@collabryd/database": "workspace:*",
@@ -26,7 +26,8 @@
     "jsonwebtoken": "^9.0.2",
     "pino": "^9.6.0",
     "pino-http": "^10.4.0",
-    "zod": "^3.24.2"
+    "zod": "^3.24.2",
+    "socket.io": "^4.8.4"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
@@ -37,6 +38,7 @@
     "supertest": "^7.0.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vitest": "^3.0.9"
+    "vitest": "^3.0.9",
+    "socket.io-client": "^4.8.4"
   }
 }

@@ -15,7 +15,7 @@ export function notFoundHandler(
 ): void {
   next(
     new NotFoundError(
-      `Route ${req.method} ${req.originalUrl} not found`,
+      `Route ${req.method} ${req.path} not found`,
       "ROUTE_NOT_FOUND"
     )
   );
@@ -39,16 +39,18 @@ export function errorHandler(
     (err as { status?: number }).status === 400
   ) {
     normalized = new AppError(400, "INVALID_JSON", "Malformed JSON request body");
+  } else if (err && typeof err === "object" && "type" in err && err.type === "entity.too.large") {
+    normalized = new AppError(413, "PAYLOAD_TOO_LARGE", "Request body exceeds the size limit");
   } else {
     normalized = mapPostgresError(err);
   }
 
   if (normalized) {
     if (normalized.statusCode >= 500) {
-      logger.error({ err, path: req.originalUrl, method: req.method }, normalized.message);
+      logger.error({ requestId: req.id, path: req.path, method: req.method }, normalized.message);
     } else {
       logger.warn(
-        { code: normalized.code, path: req.originalUrl, method: req.method },
+        { code: normalized.code, path: req.path, method: req.method },
         normalized.message
       );
     }
@@ -65,7 +67,7 @@ export function errorHandler(
   }
 
   logger.error(
-    { err, path: req.originalUrl, method: req.method },
+    { requestId: req.id, path: req.path, method: req.method },
     "Unhandled server error"
   );
 

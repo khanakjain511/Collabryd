@@ -147,6 +147,10 @@ describe("HTTP transport basics", () => {
     expect(res.body.message).toBe("API is running");
   });
 
+  it("reports oversized JSON requests as 413", async () => {
+    await request(app).post("/api/v1/auth/login").send({ padding: "x".repeat(1024 * 1024) }).expect(413);
+  });
+
   it("serves OpenAPI 3.1 spec at GET /api/v1/docs/openapi.json", async () => {
     const res = await request(app).get("/api/v1/docs/openapi.json");
     expect(res.status).toBe(200);

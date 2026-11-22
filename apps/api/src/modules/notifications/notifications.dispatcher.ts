@@ -19,8 +19,8 @@ export interface NotificationPayload {
 
 /**
  * Inserts in-app notifications while respecting each recipient's
- * `notification_preferences.inapp_notifications` setting, and pushes
- * live `notification:new` events to connected WebSocket clients.
+ * `notification_preferences.inapp_notifications` setting. PostgreSQL signals the live
+ * delivery listener after commit.
  */
 export async function dispatchNotifications(
   items: NotificationPayload[],

@@ -12,7 +12,7 @@ function extractBearerToken(req: Request): string | null {
   return token;
 }
 
-async function resolveAuthenticatedUser(token: string) {
+export async function resolveAuthenticatedUser(token: string) {
   const payload = verifyAccessToken(token);
 
   const [record] = await db
@@ -85,8 +85,8 @@ export async function optionalAuth(
     if (user.accountStatus === "ACTIVE") {
       req.user = user;
     }
-  } catch {
-    // Ignore invalid/expired token on optional-auth routes
+  } catch (err) {
+    if (!(err instanceof UnauthorizedError)) throw err;
   }
   next();
 }

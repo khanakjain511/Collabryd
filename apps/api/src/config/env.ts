@@ -15,6 +15,7 @@ const envSchema = z.object({
     .enum(["development", "test", "production"])
     .default("development"),
   BACKEND_PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+  TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(0),
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
@@ -27,9 +28,13 @@ const envSchema = z.object({
     .string()
     .min(32)
     .default("dev_collabryd_refresh_secret_change_me_in_production_32chars"),
-  JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
-  JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
+  JWT_ACCESS_EXPIRES_IN: z.string().regex(/^[1-9]\d*[smhd]$/).default("15m"),
+  JWT_REFRESH_EXPIRES_IN: z.string().regex(/^[1-9]\d*[smhd]$/).default("7d"),
   ALLOWED_EMAIL_DOMAINS: z.string().default(""),
+  EMAIL_PROVIDER: z.enum(["local", "resend"]).optional(),
+  EMAIL_FROM: z.string().email().optional(),
+  RESEND_API_KEY: z.string().min(1).optional(),
+  VERIFICATION_PAGE_URL: z.string().url().optional(),
   REDIS_URL: z.string().optional(),
 });
 
@@ -52,8 +57,18 @@ if (
   );
 }
 
+const provider = parsed.data.EMAIL_PROVIDER ?? (parsed.data.NODE_ENV === "production" ? "resend" : "local");
+if (provider === "local" && parsed.data.NODE_ENV === "production") {
+  throw new Error("Production requires email delivery.");
+}
+if (provider === "resend" && (!parsed.data.RESEND_API_KEY || !parsed.data.EMAIL_FROM ||
+    !parsed.data.VERIFICATION_PAGE_URL?.startsWith("https://"))) {
+  throw new Error("Resend requires RESEND_API_KEY, EMAIL_FROM and an HTTPS VERIFICATION_PAGE_URL.");
+}
+
 export const env = {
   ...parsed.data,
+  EMAIL_PROVIDER: provider,
   PORT: parsed.data.BACKEND_PORT,
   LOG_LEVEL:
     parsed.data.LOG_LEVEL ??

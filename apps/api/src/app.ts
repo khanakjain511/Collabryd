@@ -14,7 +14,7 @@ import apiRouter from "./routes/index.js";
 export function createApp(): Express {
   const app: Express = express();
 
-  app.set("trust proxy", 1);
+  app.set("trust proxy", env.TRUST_PROXY_HOPS || false);
 
   // 1. Request ID attribution for distributed tracing
   app.use(requestIdMiddleware);
@@ -35,7 +35,7 @@ export function createApp(): Express {
 
   // 4. Request logging
   if (env.NODE_ENV !== "test") {
-    app.use(pinoHttp({ logger }));
+    app.use(pinoHttp({ logger, serializers: { req: (req) => ({ id: req.id, method: req.method, url: req.url?.split("?")[0] }) } }));
   }
 
   // 5. Rate limiting and API routes

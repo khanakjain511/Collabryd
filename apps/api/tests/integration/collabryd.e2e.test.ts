@@ -1,4 +1,10 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { createServer } from "node:http";
+import { once } from "node:events";
+import { io } from "socket.io-client";
+import type { AddressInfo } from "node:net";
+import { attachNotificationSockets } from "../../src/modules/notifications/notifications.socket.js";
+import { env } from "../../src/config/env.js";
 import request from "supertest";
 import { eq, sql } from "drizzle-orm";
 import {
@@ -31,6 +37,7 @@ describe("Collabryd End-to-End Integration Suite", () => {
   const emailAdmin = `admin.${runSuffix}@campus.edu`;
   const password = "Password123!";
 
+  let providerUserId = 0;
   let userAId = 0;
   let userBId = 0;
   let userCId = 0;
@@ -54,7 +61,7 @@ describe("Collabryd End-to-End Integration Suite", () => {
 
   beforeAll(async () => {
     dbAvailable = await checkDatabase();
-    if (!dbAvailable) return;
+    if (!dbAvailable) throw new Error("Integration tests require a reachable PostgreSQL database. Check DATABASE_URL.");
 
     await runMigrations();
 
@@ -95,7 +102,7 @@ describe("Collabryd End-to-End Integration Suite", () => {
           sql`DELETE FROM collabryd.conversations WHERE conversation_id = ${directConversationId}`
         );
       }
-      const ids = [userAId, userBId, userCId, adminId].filter((id) => id > 0);
+      const ids = [userAId, userBId, userCId, adminId, providerUserId].filter((id) => id > 0);
       for (const id of ids) {
         await db.execute(
           sql`DELETE FROM collabryd.admin_audit_logs WHERE admin_id = ${id}`
@@ -164,14 +171,44 @@ describe("Collabryd End-to-End Integration Suite", () => {
   }
 
   it("1. Health readiness checks PostgreSQL connectivity", async () => {
-    if (!dbAvailable) return;
     const res = await request(app).get("/api/health/ready");
     expect(res.status).toBe(200);
     expect(res.body.data.database).toBe("connected");
   });
 
+  it("sends verification and resend mail and preserves the last delivered token on failure", async () => {
+    const email = `provider.${runSuffix}@campus.edu`;
+    const original = { ...env };
+    Object.assign(env, { EMAIL_PROVIDER: "resend", VERIFICATION_PAGE_URL: "https://example.test/verify",
+      EMAIL_FROM: "verify@example.test", RESEND_API_KEY: "test" });
+    const provider = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 202 }));
+    const tokenFromMail = () => {
+      const mail = JSON.parse(String(provider.mock.lastCall?.[1]?.body));
+      expect(mail.to).toEqual([email]);
+      return new URLSearchParams(new URL(mail.text.split(" ").at(-1)).hash.slice(1)).get("token");
+    };
+    try {
+      const reg = await request(app).post("/api/v1/auth/register").send({
+        email, password, displayName: "Mail Test", institution: "Campus", courseProgram: "CS", academicYear: "3",
+      }).expect(201);
+      providerUserId = reg.body.data.user.userId;
+      expect(reg.body.data.verificationToken).toBeUndefined();
+      const first = tokenFromMail();
+      const resend = () => request(app).post("/api/v1/auth/resend-verification").send({ email });
+      const secondResponse = await resend().expect(200);
+      const second = tokenFromMail();
+      expect(second).not.toBe(first);
+      provider.mockRejectedValueOnce(new Error("provider unavailable"));
+      expect((await resend()).body).toEqual(secondResponse.body);
+      await request(app).post("/api/v1/auth/verify-email").send({ token: first }).expect(400);
+      await request(app).post("/api/v1/auth/verify-email").send({ token: second }).expect(200);
+    } finally {
+      Object.assign(env, original);
+      provider.mockRestore();
+    }
+  });
+
   it("2. Auth lifecycle: unverified login blocked, verify, refresh rotation & reuse detection", async () => {
-    if (!dbAvailable) return;
 
     const reg = await request(app).post("/api/v1/auth/register").send({
       email: emailA,
@@ -244,6 +281,11 @@ describe("Collabryd End-to-End Integration Suite", () => {
     tokenA = relogin.body.data.tokens.accessToken;
     refreshA = relogin.body.data.tokens.refreshToken;
     expect(refreshA).toBeTruthy();
+    const changePassword = (newPassword: string) => request(app).patch("/api/v1/auth/password")
+      .set("Authorization", `Bearer ${tokenA}`).send({ currentPassword: password, newPassword });
+    const changes = await Promise.all([changePassword("NewPassword1!"), changePassword("NewPassword2!")]);
+    expect(changes.map(r => r.status).sort()).toEqual([200, 401]);
+    await request(app).post("/api/v1/auth/refresh").send({ refreshToken: refreshA }).expect(401);
 
     // Register User B (same campus), User C (different campus), and Admin
     const b = await registerAndVerify({
@@ -280,7 +322,6 @@ describe("Collabryd End-to-End Integration Suite", () => {
   });
 
   it("3. Profiles, skills, visibility enforcement (CAMPUS_ONLY / PRIVATE), and catalog", async () => {
-    if (!dbAvailable) return;
 
     // Attach skills, interests, preferred roles, achievement, social link to User B
     const putSkills = await request(app)
@@ -354,7 +395,6 @@ describe("Collabryd End-to-End Integration Suite", () => {
   });
 
   it("4. Project creation, discovery, capacity, and skill recommendations (R15 & R16)", async () => {
-    if (!dbAvailable) return;
 
     const createRes = await request(app)
       .post("/api/v1/projects")
@@ -366,7 +406,7 @@ describe("Collabryd End-to-End Integration Suite", () => {
           "Full-stack campus collaboration project requiring TypeScript and Python developers.",
         category: "Artificial Intelligence",
         projectType: "HACKATHON",
-        status: "OPEN",
+        status: "DRAFT",
         visibility: "PUBLIC",
         minTeamSize: 1,
         maxTeamSize: 2,
@@ -384,12 +424,30 @@ describe("Collabryd End-to-End Integration Suite", () => {
     expect(createRes.body.data.currentMemberCount).toBe(1);
     expect(createRes.body.data.remainingCapacity).toBe(1);
 
+    const projectPath = `/api/v1/projects/${projectId}`;
+    const directory = await request(app).get("/api/v1/projects").query({ ownerId: userAId, status: "DRAFT" }).expect(200);
+    expect(directory.body.data).toEqual([]);
+    await request(app).patch(`${projectPath}/status`).set("Authorization", `Bearer ${tokenA}`).send({ status: "OPEN" }).expect(200);
+    await request(app).patch(projectPath).set("Authorization", `Bearer ${tokenA}`)
+      .send({ visibility: "PRIVATE" }).expect(200);
+    await request(app).get(`${projectPath}/capacity`).expect(403);
+    await request(app).patch(projectPath).set("Authorization", `Bearer ${tokenA}`)
+      .send({ visibility: "PUBLIC", title: "Updated campus project" }).expect(200);
+    expect((await request(app).get(projectPath).expect(200)).body.data.title).toBe("Updated campus project");
+
     // R15: Project owner gets User B recommended (matched 2 skills)
     const candRecs = await request(app)
       .get(`/api/v1/projects/${projectId}/recommendations`)
       .set("Authorization", `Bearer ${tokenA}`);
     expect(candRecs.status).toBe(200);
     expect(candRecs.body.data.some((c: { userId: number }) => c.userId === userBId)).toBe(true);
+
+    await request(app).put("/api/v1/profiles/me").set("Authorization", `Bearer ${tokenB}`)
+      .send({ displayName: "Applicant One", institution: "Other Campus", courseProgram: "CS",
+        academicYear: "3", profileVisibility: "CAMPUS_ONLY" }).expect(200);
+    const filtered = await request(app).get(`/api/v1/projects/${projectId}/recommendations`)
+      .set("Authorization", `Bearer ${tokenA}`).expect(200);
+    expect(filtered.body.data.some((candidate: { userId: number }) => candidate.userId === userBId)).toBe(false);
 
     // R16: User B gets project recommended
     const projRecs = await request(app)
@@ -402,7 +460,6 @@ describe("Collabryd End-to-End Integration Suite", () => {
   });
 
   it("5. Applications lifecycle: duplicate guard, withdraw + reapply, transactional accept & capacity enforcement", async () => {
-    if (!dbAvailable) return;
 
     // Owner cannot apply to own project
     await request(app)
@@ -478,7 +535,6 @@ describe("Collabryd End-to-End Integration Suite", () => {
   });
 
   it("6. Messaging: DM deduplication, sequenced idempotent messages, cursor pagination & unread counts", async () => {
-    if (!dbAvailable) return;
 
     // Create DIRECT conversation A <-> B twice -> returns same conversationId
     const dm1 = await request(app)
@@ -517,6 +573,10 @@ describe("Collabryd End-to-End Integration Suite", () => {
     expect(msg1Retry.status).toBe(200);
     expect(msg1Retry.body.meta.deduplicated).toBe(true);
     expect(msg1Retry.body.data.sequenceNumber).toBe(1);
+
+    await request(app).post(`/api/v1/conversations/${groupConversationId}/messages`)
+      .set("Authorization", `Bearer ${tokenB}`)
+      .send({ clientMessageId: `cli-${runSuffix}-1`, content: "Different message" }).expect(409);
 
     // Send message #2
     const msg2 = await request(app)
@@ -561,8 +621,53 @@ describe("Collabryd End-to-End Integration Suite", () => {
     expect(groupAfter.unreadMessagesCount).toBe(0);
   });
 
+  it("delivers committed notifications only to the authenticated recipient", async () => {
+    const server = createServer(app);
+    const close = await attachNotificationSockets(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const connect = (token: string) => io(url, { auth: { token }, transports: ["websocket"], reconnection: false });
+    const recipient = connect(tokenB);
+    const observer = connect(tokenC);
+    const invalid = connect("invalid");
+    const observed = vi.fn();
+    observer.on("notification:new", observed);
+    try {
+      await Promise.all([once(recipient, "connect"), once(observer, "connect"), once(invalid, "connect_error")]);
+      const delivered = once(recipient, "notification:new");
+      await request(app).post(`/api/v1/conversations/${groupConversationId}/messages`)
+        .set("Authorization", `Bearer ${tokenA}`)
+        .send({ clientMessageId: runSuffix, content: "Live delivery" }).expect(201);
+      const [notification] = await delivered;
+      expect(notification.recipientId).toBe(userBId);
+      expect(notification.type).toBe("NEW_MESSAGE");
+      const list = await request(app).get("/api/v1/notifications").set("Authorization", `Bearer ${tokenB}`).expect(200);
+      expect(list.body.data).toContainEqual(notification);
+      const send = (clientMessageId: string, content: string) =>
+        request(app).post(`/api/v1/conversations/${groupConversationId}/messages`)
+          .set("Authorization", `Bearer ${tokenA}`).send({ clientMessageId, content });
+      await send(runSuffix, "Live delivery").expect(200);
+      const preferences = (enabled: boolean) => request(app).patch("/api/v1/notifications/preferences")
+        .set("Authorization", `Bearer ${tokenB}`).send({ inappNotifications: enabled });
+      await preferences(false).expect(200);
+      await send(`${runSuffix}-muted`, "Muted message").expect(201);
+      await preferences(true).expect(200);
+      const after = await request(app).get("/api/v1/notifications").set("Authorization", `Bearer ${tokenB}`).expect(200);
+      expect(after.body.data).toEqual(list.body.data);
+      const path = `/api/v1/notifications/${notification.notificationId}/read`;
+      await request(app).patch(path).set("Authorization", `Bearer ${tokenC}`).expect(404);
+      expect((await request(app).patch(path).set("Authorization", `Bearer ${tokenB}`)).body.data.isRead).toBe(true);
+      expect(observed).not.toHaveBeenCalled();
+    } finally {
+      recipient.close();
+      observer.close();
+      invalid.close();
+      await close();
+    }
+  });
+
   it("7. Notifications, preferences, team member removal, and Admin RBAC + audit logs", async () => {
-    if (!dbAvailable) return;
 
     // User B has unread notifications (accepted + messages)
     const unreadRes = await request(app)
@@ -632,6 +737,8 @@ describe("Collabryd End-to-End Integration Suite", () => {
       .send({ status: "PAUSED", reason: "Policy review" })
       .expect(200);
 
+    await request(app).post(`/api/v1/admin/projects/${projectId}/members/${userAId}/role-override`)
+      .set("Authorization", `Bearer ${tokenAdmin}`).send({ role: "MEMBER", reason: "Role review" }).expect(400);
     const auditLogs = await request(app)
       .get("/api/v1/admin/audit-logs")
       .set("Authorization", `Bearer ${tokenAdmin}`);

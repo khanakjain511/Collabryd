@@ -1,9 +1,7 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import {
   adminAuditLogs,
-  applications,
   db,
-  messages,
   projectMembers,
   projects,
   refreshSessions,
@@ -279,6 +277,9 @@ export async function overrideProjectMemberRole(
       throw new NotFoundError("Project member not found", "MEMBER_NOT_FOUND");
     }
 
+    if (targetUserId === project.ownerId && input.role !== "OWNER") {
+      throw new BadRequestError("Transfer ownership before demoting the owner", "CANNOT_DEMOTE_SOLE_OWNER");
+    }
     if (input.role === "OWNER" && targetUserId !== project.ownerId) {
       await tx
         .update(projectMembers)
@@ -322,7 +323,3 @@ export async function overrideProjectMemberRole(
     return updated!;
   });
 }
-
-// Keep unused imports clean for Drizzle table visibility
-void applications;
-void messages;

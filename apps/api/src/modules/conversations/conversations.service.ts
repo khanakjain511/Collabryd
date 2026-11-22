@@ -11,6 +11,7 @@ import {
 } from "@collabryd/database";
 import {
   BadRequestError,
+  ConflictError,
   ForbiddenError,
   NotFoundError,
 } from "../../common/errors/app-error.js";
@@ -356,6 +357,9 @@ export async function sendMessage(
       .limit(1);
 
     if (existing) {
+      if (existing.senderId !== senderId || existing.content !== input.content) {
+        throw new ConflictError("Client message ID already used for a different message", "DUPLICATE_CLIENT_MESSAGE_ID");
+      }
       return { message: existing, deduplicated: true, senderName: null };
     }
 

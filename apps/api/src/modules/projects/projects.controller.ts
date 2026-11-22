@@ -93,7 +93,7 @@ export async function removeProjectRoleHandler(req: Request, res: Response) {
 
 export async function getProjectCapacityHandler(req: Request, res: Response) {
   const { projectId } = getValidatedParams<{ projectId: number }>(req);
-  const capacity = await projectsService.getProjectCapacity(projectId);
+  const capacity = await projectsService.getProjectCapacity(projectId, req.user);
   sendSuccess(res, capacity);
 }
 

@@ -162,3 +162,11 @@ Authorization: Bearer <accessToken>
   - `CHECK (type <> 'DIRECT' OR project_id IS NULL)` on `conversations`.
   - Missing query-plan indexes (`uq_users_email_lower`, `idx_projects_owner`, `idx_project_members_user`, plus child FK indexes).
 - **Future Multi-Campus Evolution:** `user_profiles.institution` is preserved for single-campus v1. Pan-India expansion should introduce a `campuses` table and `campus_id` foreign keys in a dedicated migration.
+
+## Email verification and live events
+
+Set `EMAIL_PROVIDER=resend`, a verified sender in `EMAIL_FROM`, `RESEND_API_KEY`, and the HTTPS address of the frontend verification page in `VERIFICATION_PAGE_URL`. The page reads `token` from the URL fragment and posts `{ "token": "…" }` to `/api/v1/auth/verify-email`. The token expires after 24 hours. Local development defaults to returning the token in the registration and resend responses.
+
+If delivery fails during registration, the API returns HTTP 503 with code `EMAIL_DELIVERY_UNAVAILABLE`. The account is pending and can request another email. Resend returns the same acknowledgement for all addresses. A failed resend preserves the previous token.
+
+Connect a Socket.IO 4 client to the API origin using `auth: { token: accessToken }`. The server sends `notification:new` with the same record shape as an item from `GET /api/v1/notifications`. The server selects recipients and honors the stored in-app preference. PostgreSQL signals committed inserts to every listening API process. On reconnect, refresh the REST inbox and merge by `notificationId` to recover events missed while offline. Reconnect with a fresh access token after expiry.

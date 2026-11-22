@@ -19,6 +19,8 @@ Collabryd is a campus-first student collaboration and project recruitment platfo
 
 ## Repository Structure
 
+Start with [the codebase guide](PROJECT_STRUCTURE.md) to trace a request through the API and database.
+
 ```text
 ├── apps/
 │   ├── api/                 # Express 5 REST API (routes, modules, middlewares, tests)
@@ -116,3 +118,9 @@ pnpm test          # Run unit & PostgreSQL integration tests
 - [docs/API.md](docs/API.md) — Full REST API reference and error contract
 - [docs/dbms/](docs/dbms/) — Authoritative normalization proof, ER diagrams, SQL DDL, queries, and query timings/plans
 - [apps/web/docs/](apps/web/docs/) — Frontend design system, architecture, and UI documentation
+
+### Backend deployment
+
+Use Node.js 24 or newer. Run `pnpm db:migrate`, then `pnpm backend:build` and `pnpm --filter @repo/api start`. Deploy the compiled API and database package, workspace dependencies and SQL migrations together. Production seeding installs the catalog only. Review any demo accounts already present before deployment. Set `NODE_ENV=production`, independent JWT secrets, the allowed frontend origins and verification mail settings from `.env.example`. The deployment must serve the verification page described in [the API reference](docs/API.md).
+
+The integration suite requires a reachable disposable PostgreSQL database selected through `DATABASE_URL`. It creates and cleans up its own fixtures. Redis is optional for the catalog cache. Rate limiting is per API process.
