@@ -1,3 +1,59 @@
+## 19 November 2026 — open-seat iteration
+
+The frontend changes are local on `Akshay`. HEAD is `5236bc1`.
+
+1. **Visual system.** Restored ivory and teal with a deep green dark theme. The light primary action uses `#964a27` with white text for 6.35:1 contrast. The dark pair reaches 10.22:1. Coral dashed pips reach at least 3.85:1 on the tested light surfaces and 5.62:1 on the tested dark surfaces.
+2. **Public and account experience.** Preserved the logo and wordmark curtain. Added centered-to-full-width campus photography, a word-by-word statement, a native full-screen navigation dialog, and a dedicated login and signup layout. The [photo manifest](IMAGE_STRATEGY.md) identifies the two licensed sources.
+3. **Workspace.** Refined the shared shell and route surfaces. Desktop has a sliding active indicator. Mobile has five bottom tabs. People, Teams, and Hackathons use sortable rosters and reflow to cards below 768px. Native horizontal rails appear for upcoming hackathons and recruiting teams.
+
+### Acceptance checks
+
+- Production build, full frontend ESLint, six functional tests and whitespace checks passed.
+- The preview rendered the centered photo at 531px and the fully expanded photo at the full 1,265px page width. The mobile frame and reduced-motion fallback were verified in the browser. The document did not overflow after signing in and returning to the mobile landing page.
+- In-browser checks covered native dialog focus and Escape, the account crossfade fallback, demo login, Greenbyte role selection, rail controls, keyboard sorting, active sort indicators and the responsive navigation. The in-app browser does not support native View Transitions. The CSS fallback was exercised there.
+- Core workspace screens were checked at 375px, 768px, 1024px and 1440px. Profile details, team creation and details, My Teams, event details, notifications, settings and the admin sections rendered at 375px without horizontal overflow or console errors.
+
+### Performance budget
+
+Target mobile Lighthouse performance ≥90 and layout shift ≤0.05, with no shift from the intro. Three runs per stage used Lighthouse 12.8.2 against an isolated Vite production preview with default mobile throttling.
+
+| Stage | Median performance | CLS | Median LCP |
+| --- | ---: | ---: | ---: |
+| Static layout plus CSS intro | 96 | 0 | 2.71s |
+| GSAP and ScrollTrigger footer | 94 | 0 | 3.01s |
+| Landing Lenis | 94 | 0 | 3.00s |
+| ScrollReveal | 94 | 0 | 3.01s |
+| ScrollExpand | 94 | 0 | 3.01s |
+| StaggeredMenu | 94 | 0 | 3.01s |
+| Final preview at port 4173 | 94 | 0 | 3.01s |
+
+The ambient wash is CSS. Vanta and WebGL were excluded from the shipped build. These are local lab measurements.
+
+## 19 November 2026 — photographic navy revision, local review
+
+**Current user instruction: no further staging, commits or pushes until explicitly instructed.** The last pushed commit remains `5236bc1`, which predates that instruction. The following revision is local and uncommitted.
+
+Implemented:
+
+- Replaced the rejected card-led indigo composition with three distinct photographic hero moments, an editorial statement section, a larger campus work-session image and photographic navigation/account panels. Added locally hosted Manrope and Instrument Serif with OFL license files.
+- Applied the subsequently requested midnight navy/ivory/copper palette to public, account, workspace and admin roles in light and dark modes. Preserved the existing hash router, fixture hooks, forms, cards, filters, validation and MVP actions.
+- Added the first-visit logo/name reveal with Skip/Escape, bounded timeout, focus management and reduced-motion bypass. Menu/account panels use native dialogs and short, purposeful transitions; keyboard dismissal is immediate.
+- Added finite photo entrances and small scroll-linked offsets. Below the photo narrative, one skill illustration uses ScrollTrigger camera travel and a lazy Three enhancement. It loads near the scene, skips coarse pointers/reduced motion, retains HTML/SVG controls and avoids idle GPU rendering.
+- Fixed same-page logo navigation to scroll to the top. Anchor positioning relies on CSS scroll-margin; removed a duplicate Lenis offset. Updated privacy copy to disclose locally stored appearance preferences and illustrative/licensed photography.
+
+Verification:
+
+- Final TypeScript/Vite production build passes. Main JavaScript: 469.63KB raw / 146.52KB gzip; CSS: 95.64KB raw / 18.73KB gzip. Three is a separate near-scene chunk: 530.73KB raw / 130.65KB gzip. Vite reports its >500KB chunk warning; it is not part of the initial main bundle. No field-performance or low-end-device claim.
+- Targeted ESLint passed for the changed React/motion files. Six existing Node functional tests pass. Git whitespace checks pass.
+- Production browser flows verified: login/signup switching, registration with fictional details, demo verification, onboarding, mobile workspace navigation, filtered people search and browser-Back search restoration.
+- Seventeen workspace/admin routes rendered at 390px with correct headings, zero horizontal overflow and no captured application errors. Public reflow checked at 375, 768, 1024 and 1440px.
+- Checked light/dark public and workspace styling. Computed visible-text contrast scans returned no failures on the inspected hero/discovery/dashboard states; these scans do not constitute a full accessibility audit or account for text over every photographic crop.
+- Native menu Escape returns focus to its trigger. Account drawer opens at its expected desktop bounds and works at 390px. Reduced-motion control removes the canvas while keeping skill selection usable. Initial hero has no scene canvas; entering the story creates it. Selecting Machine learning updates Zoya's example details.
+- Final anchor check: statement top 100px, equal to header height. Logo check: scrollTop 0 and hash `#/`. Latest fresh production check captured no application errors.
+- Screenshots saved: [desktop](screenshots/navy-desktop.jpg), [mobile](screenshots/navy-mobile.jpg), [desktop account panel](screenshots/navy-login-desktop.jpg). User-facing development preview remains on the revised landing page.
+
+Limits / next step: user visual review is pending. OS-level motion switching, physical touch devices, broader assistive-technology/cross-browser coverage and field performance were not independently verified. The complete live product still requires backend/session/API integration, campus/security policies and deployment. Do not commit or push this revision without a new user instruction.
+
 ## 19 November 2026 — refinement foundation checkpoint
 
 The user approved selective frontend refinement after reviewing the plan. Preserve the existing hash routes, fixture/state hooks, validation and MVP actions. New work is in progress; the earlier completed-demo verification below describes the prior release.

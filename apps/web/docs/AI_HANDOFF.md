@@ -1,3 +1,13 @@
+## Latest instruction and local revision — 19 November 2026
+
+**Do not stage, commit or push until the user explicitly instructs again.** They rejected the initial indigo/card-led visual direction, requested multiple photographs closer to Monarque's editorial craft, and then requested another color change. `5236bc1` was pushed before that restriction and remains the last published commit. All subsequent presentation, motion, image, font and documentation changes are local and uncommitted. Leave the user's root PDF and supplied `skills/` folder untouched.
+
+Current direction: midnight navy, warm ivory, a muted copper accent; Manrope body + locally hosted Instrument Serif display. Three photographic hero moments; a larger generated campus story photograph; photographic account/navigation panels. Preserve existing hash routing, demo state hooks, filters, validation, team/profile/event/admin actions and frontend-only boundaries. A dependency-only root lockfile update was explicitly permitted earlier; no other root/backend edits are allowed.
+
+`styles/experience.css` holds public interaction/layout styles; `styles/editorial.css` supplies the photographic composition and final palette refinements. `Appearance` and `useAppearance` manage local theme/motion preferences. `Preloader` supplies a once-per-tab logo/name reveal with Skip/Escape, a short timeout and reduced-motion bypass. `TeamWorld` is one below-fold original Three scene inspired by Vanta NET; dynamic import starts only near the scene, interactive HTML/SVG remains the fallback. ScrollTrigger controls its camera; no idle GPU rendering. Lenis is landing-only, with native touch and CSS scroll-margin clearance for anchors. Native modal dialogs preserve focus/scroll behavior for menu and auth. Read PROGRESS for checks and IMAGE_STRATEGY for sources/licenses/prompt.
+
+The frontend remains a fictional local demo; no backend, real auth, emails, event registration or secure campus authorization. Do not claim a deployed or production-ready service.
+
 > Refinement in progress, 19 November 2026: the user approved the targeted plan and permitted the dependency-only root lockfile update. Read the newest PROGRESS/DECISIONS entries before the older completed-demo account below. Theme foundations are being committed first; public navigation, landing and auth changes are a separate working slice. Preserve the untracked user product PDF and supplied `skills/` folder. Do not stage those files incidentally. Backend scope is unchanged.
 
 # Collabyrd frontend handoff

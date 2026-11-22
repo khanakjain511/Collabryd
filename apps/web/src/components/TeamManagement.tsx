@@ -39,23 +39,25 @@ export function TeamManagement({ team, demo }: { team: Team; demo: DemoData }) {
     }
   }
   return (
-    <section className="panel">
-      <div className="panel-heading">
-        <h2>{leader ? "Manage your team" : "Your membership"}</h2>
+    <section className="bg-surface border border-border rounded-xl p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold">
+          {leader ? "Manage your team" : "Your membership"}
+        </h2>
         <Badge>{leader ? "Team leader" : "Member"}</Badge>
       </div>
-      <div className="inline-actions">
+      <div className="flex flex-wrap gap-2 items-center my-4">
         {leader && (
           <>
             <a
-              className="button button-secondary button-small"
+              className="text-xs py-1.5 px-3 rounded-lg border border-border bg-surface text-ink inline-flex items-center gap-1.5 hover:bg-soft cursor-pointer transition-colors"
               href={`#/teams/${team.id}/edit`}
             >
               Edit team <Icon name="arrowUp" size={15} />
             </a>
             <button
               type="button"
-              className="button button-secondary button-small"
+              className="text-xs py-1.5 px-3 rounded-lg border border-border bg-surface text-ink inline-flex items-center gap-1.5 hover:bg-soft cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!others.length}
               onClick={() => open("remove")}
             >
@@ -63,7 +65,7 @@ export function TeamManagement({ team, demo }: { team: Team; demo: DemoData }) {
             </button>
             <button
               type="button"
-              className="button button-secondary button-small"
+              className="text-xs py-1.5 px-3 rounded-lg border border-border bg-surface text-ink inline-flex items-center gap-1.5 hover:bg-soft cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!others.length || team.status === "Archived"}
               onClick={() => open("transfer")}
             >
@@ -73,30 +75,33 @@ export function TeamManagement({ team, demo }: { team: Team; demo: DemoData }) {
         )}
         <button
           type="button"
-          className="text-button danger-text"
+          className="text-danger hover:underline text-xs cursor-pointer font-medium"
           onClick={() => open("leave")}
         >
           Leave example team
         </button>
       </div>
       {leader && (
-        <p className="field-hint">
+        <p className="text-xs text-muted mt-2">
           Transfer leadership to another current member, or archive the team,
           before leaving. All actions affect demo data only.
         </p>
       )}
       {leader && outgoing.length > 0 && (
-        <div className="outgoing-invites">
-          <h3>Invitations you’ve sent</h3>
+        <div className="outgoing-invites mt-6 pt-4 border-t border-border">
+          <h3 className="text-sm font-semibold mb-3">Invitations you’ve sent</h3>
           {outgoing.map((invitation) => (
-            <div className="member-row" key={invitation.id}>
-              <div>
-                <strong>
+            <div
+              className="flex items-center justify-between gap-3 py-3 border-b border-border last:border-0"
+              key={invitation.id}
+            >
+              <div className="flex flex-col gap-0.5">
+                <strong className="text-sm font-medium">
                   {demo.people.find(
                     (person) => person.id === invitation.personId,
                   )?.name || "Example person"}
                 </strong>
-                <span>
+                <span className="text-xs text-muted">
                   {invitation.expiresAt
                     ? `Expires ${new Date(invitation.expiresAt).toLocaleDateString("en-IN")}`
                     : "Example invitation"}
@@ -105,7 +110,7 @@ export function TeamManagement({ team, demo }: { team: Team; demo: DemoData }) {
               <Badge>{invitation.status}</Badge>
               {invitation.status === "Pending" && (
                 <button
-                  className="text-button"
+                  className="text-button text-xs text-primary hover:underline"
                   type="button"
                   onClick={() => demo.revokeInvitation(invitation.id)}
                 >
@@ -127,8 +132,8 @@ export function TeamManagement({ team, demo }: { team: Team; demo: DemoData }) {
           }
           onClose={() => setAction(null)}
         >
-          <form className="stack-form" onSubmit={submit}>
-            <p>
+          <form className="flex flex-col gap-4" onSubmit={submit}>
+            <p className="text-sm text-muted">
               {action === "transfer"
                 ? "The selected member becomes the leader. You remain a member, but can no longer use leader controls."
                 : action === "remove"
@@ -136,9 +141,9 @@ export function TeamManagement({ team, demo }: { team: Team; demo: DemoData }) {
                   : "Your membership will be removed. A leader must transfer responsibility or archive the team first."}
             </p>
             {action !== "leave" && (
-              <label>
+              <label className="text-xs font-semibold text-ink flex flex-col gap-1.5">
                 Current member
-                <select name="person" required>
+                <select name="person" required className="mt-1">
                   {others.map((id) => (
                     <option key={id} value={id}>
                       {demo.people.find((person) => person.id === id)?.name ||
@@ -149,19 +154,22 @@ export function TeamManagement({ team, demo }: { team: Team; demo: DemoData }) {
               </label>
             )}
             {error && (
-              <p className="form-error" role="alert">
+              <p className="text-xs text-danger font-medium mt-1" role="alert">
                 {error}
               </p>
             )}
-            <div className="form-actions">
+            <div className="flex gap-3 items-center mt-4">
               <button
                 type="button"
-                className="button button-secondary"
+                className="flex-1 py-2 px-4 rounded-lg border border-border bg-surface text-ink hover:bg-soft transition-colors cursor-pointer text-sm font-medium"
                 onClick={() => setAction(null)}
               >
                 Cancel
               </button>
-              <button type="submit" className="button button-primary">
+              <button
+                type="submit"
+                className="flex-1 py-2 px-4 rounded-lg bg-accent text-white hover:bg-accent/90 transition-colors cursor-pointer text-sm font-bold shadow-sm"
+              >
                 {action === "transfer"
                   ? "Confirm transfer"
                   : action === "remove"

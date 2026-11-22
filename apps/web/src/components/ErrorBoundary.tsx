@@ -15,15 +15,17 @@ export class ErrorBoundary extends Component<
   render() {
     if (this.state.failed) {
       return (
-        <main className="container access-page">
-          <h1>Let’s take a fresh start.</h1>
-          <p>
+        <main className="max-w-2xl mx-auto px-4 py-16 text-center flex flex-col items-center gap-4">
+          <h1 className="text-3xl font-bold tracking-tight text-ink">
+            Let’s take a fresh start.
+          </h1>
+          <p className="text-muted text-base max-w-md">
             The demo couldn’t display this screen. Refreshing will reset the
             example data.
           </p>
           <button
             type="button"
-            className="button button-primary"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-white hover:bg-accent/90 transition-colors cursor-pointer shadow-sm"
             onClick={() => {
               window.location.hash = "/";
               window.location.reload();

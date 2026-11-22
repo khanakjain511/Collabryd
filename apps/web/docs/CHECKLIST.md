@@ -1,3 +1,16 @@
+## Local refinement review — 19 November 2026
+
+- [x] Preserve routing, demo state, validation and existing MVP actions.
+- [x] Implement navy/ivory/copper light and dark roles.
+- [x] Restore multiple photographs and editorial typography; document sources and generated-image prompt.
+- [x] Add skippable intro, reduced-motion preference and native dialog transitions.
+- [x] Check registration, verification, onboarding, filtered discovery and Back restoration.
+- [x] Check 17 workspace/admin routes at 390px with zero horizontal overflow.
+- [x] Check public reflow at 375, 768, 1024 and 1440px.
+- [x] Keep all later work uncommitted after the user's stop-commit instruction.
+- [ ] User visual approval of the local revision.
+- [ ] Live API/auth/security integration and broader cross-browser/device testing (outside this visual slice).
+
 # Collabyrd frontend handoff
 
 Updated: 18 November 2026. **Implementation is approved and a frontend demo is built.** Read this, FRONTEND_STATUS.md, PROGRESS.md, ROADMAP.md, CHECKLIST.md and DECISIONS.md, then inspect actual source and git status. Earlier planning specifications are prospective; this file and PROGRESS describe current implementation.

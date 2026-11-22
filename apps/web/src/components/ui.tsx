@@ -54,9 +54,25 @@ export function Icon({
   );
 }
 
-export function Logo() {
+export function Logo({ onHome }: { onHome?: () => void }) {
   return (
-    <a href="#/" className="logo" aria-label="Collabyrd home">
+    <a
+      href="#/"
+      className="logo inline-flex items-center gap-1.5 text-primary text-2xl font-semibold tracking-tight shrink-0"
+      aria-label="Collabyrd home"
+      onClick={(event) => {
+        if (
+          !onHome ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey
+        )
+          return;
+        event.preventDefault();
+        onHome();
+      }}
+    >
       <svg viewBox="0 0 34 34" width="34" height="34" aria-hidden="true">
         <path
           d="M5 5c10 0 16 4 16 12C11 17 5 13 5 5Zm24 24c-10 0-16-4-16-12 10 0 16 4 16 12Z"
@@ -69,7 +85,7 @@ export function Logo() {
         />
       </svg>
       <span>
-        collabyrd<span className="logo-dot">.</span>
+        collabyrd<span className="logo-dot text-muted">.</span>
       </span>
     </a>
   );
@@ -91,7 +107,9 @@ export function Avatar({
     .join("");
   return (
     <span
-      className={`avatar ${color} ${small ? "avatar-small" : ""}`}
+      className={`avatar inline-flex items-center justify-center rounded-full shrink-0 border border-border bg-sage text-primary font-semibold ${color} ${
+        small ? "avatar-small w-8 h-8 text-xs" : "w-11 h-11 text-base"
+      }`}
       aria-label={name}
     >
       {initials}
@@ -106,25 +124,47 @@ export function Badge({
   children: ReactNode;
   tone?: string;
 }) {
-  return <span className={`badge ${tone}`}>{children}</span>;
+  return (
+    <span
+      className={`badge inline-flex items-center w-fit px-2 py-1 text-xs rounded-md font-medium border border-border ${tone === "positive" ? "bg-success-bg text-success" : tone === "warning" ? "bg-soft text-accent" : "bg-soft text-ink"}`}
+    >
+      {children}
+    </span>
+  );
 }
+
+export {
+  Seat,
+  Seats,
+  SeatSkeleton,
+  SeatsSkeleton,
+  type SeatProps,
+  type SeatsProps,
+  type SeatStatus,
+  type SeatSize,
+} from "./Seat";
+import { Seat, Seats } from "./Seat";
 
 export function EmptyState({
   title,
   description,
   action,
+  seatCount = 1,
 }: {
   title: string;
   description: string;
   action?: ReactNode;
+  seatCount?: number;
 }) {
   return (
-    <div className="empty-state">
-      <span className="empty-icon">
-        <Icon name="search" size={28} />
-      </span>
-      <h3>{title}</h3>
-      <p>{description}</p>
+    <div className="bg-surface border border-dashed border-border rounded-xl p-8 sm:p-12 text-center flex flex-col items-center justify-center">
+      {seatCount === 1 ? (
+        <Seat status="open" size="lg" decorative />
+      ) : (
+        <Seats capacity={seatCount} filled={0} size="lg" decorative />
+      )}
+      <h3 className="text-lg font-medium mt-3 mb-1.5">{title}</h3>
+      <p className="text-muted text-sm max-w-md mb-4">{description}</p>
       {action}
     </div>
   );
@@ -142,11 +182,22 @@ export function PageHeading({
   action?: ReactNode;
 }) {
   return (
-    <div className="page-heading">
+    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-5 mb-6">
       <div>
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1 tabIndex={-1}>{title}</h1>
-        {description && <p>{description}</p>}
+        {eyebrow && (
+          <p className="eyebrow font-mono text-[11px] uppercase tracking-wider font-semibold text-primary mb-3">
+            {eyebrow}
+          </p>
+        )}
+        <h1
+          tabIndex={-1}
+          className="font-display text-3xl sm:text-4xl font-semibold tracking-tight leading-tight"
+        >
+          {title}
+        </h1>
+        {description && (
+          <p className="text-muted text-sm mt-1.5">{description}</p>
+        )}
       </div>
       {action}
     </div>
@@ -176,15 +227,17 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
-      className="dialog"
+      className="dialog bg-surface text-ink border border-border rounded-2xl p-6 max-w-lg w-[calc(100%-2rem)] shadow-2xl backdrop:bg-black/50"
       aria-labelledby="dialog-title"
       onCancel={onClose}
     >
-      <div className="dialog-heading">
-        <h2 id="dialog-title">{title}</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 id="dialog-title" className="text-lg font-semibold">
+          {title}
+        </h2>
         <button
           type="button"
-          className="icon-button"
+          className="icon-button w-10 h-10 rounded-lg inline-flex items-center justify-center hover:bg-soft text-ink"
           onClick={onClose}
           aria-label="Close dialog"
         >
@@ -199,7 +252,7 @@ export function Dialog({
 export function HeroNetwork() {
   return (
     <svg
-      className="hero-network"
+      className="hero-network w-full h-full text-primary opacity-15 pointer-events-none"
       viewBox="0 0 600 600"
       fill="none"
       aria-hidden="true"
