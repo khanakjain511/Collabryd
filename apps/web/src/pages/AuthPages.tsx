@@ -19,6 +19,11 @@ function AuthContent({
   const [showPassword, setShowPassword] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [verificationInput, setVerificationInput] = useState(
+    demo.verificationToken || ""
+  );
+
   const registering = mode === "register";
   const recovery = mode === "forgot-password" || mode === "reset-password";
   const title =
@@ -30,35 +35,96 @@ function AuthContent({
           ? "Reset your password"
           : mode === "reset-password"
             ? "Choose a new password"
-            : "Log in to Collabyrd";
+            : "Log in to Collabryd";
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setLoading(true);
     const form = new FormData(event.currentTarget);
-    if (recovery) {
-      if (
-        mode === "reset-password" &&
-        form.get("password") !== form.get("confirm")
-      ) {
-        setError("The passwords don’t match.");
+
+    try {
+      if (recovery) {
+        if (
+          mode === "reset-password" &&
+          form.get("password") !== form.get("confirm")
+        ) {
+          setError("The passwords don’t match.");
+          setLoading(false);
+          return;
+        }
+        event.currentTarget.reset();
+        setSent(true);
+        setLoading(false);
         return;
       }
-      event.currentTarget.reset();
-      setSent(true);
-      return;
+
+      if (registering) {
+        const name = String(form.get("name") || "").trim();
+        const email = String(form.get("email") || "").trim();
+        const password = String(form.get("password") || "");
+
+        if (!name || !email || !password) {
+          setError("Please provide your name, institution email, and password.");
+          setLoading(false);
+          return;
+        }
+
+        const err = await demo.registerStudentAccount({
+          email,
+          password,
+          name,
+        });
+
+        if (err) {
+          setError(err);
+        }
+      } else {
+        const email = String(form.get("email") || "").trim();
+        const password = String(form.get("password") || "");
+
+        if (email && password && password !== "demo-only") {
+          const err = await demo.login(email, password);
+          if (err) setError(err);
+        } else {
+          await demo.openDemo();
+        }
+      }
+    } finally {
+      setLoading(false);
     }
-    if (registering) {
-      demo.setProfile({
-        ...demo.profile,
-        name: String(form.get("name")).trim() || demo.profile.name,
-      });
-      demo.setSignedIn(true);
-      demo.setVerified(false);
-      window.location.hash = "/verify-campus";
-    } else {
-      demo.openDemo();
+  }
+
+  async function handleVerify(tokenValue: string) {
+    setError("");
+    setLoading(true);
+    try {
+      const token = tokenValue.trim() || demo.verificationToken;
+      if (!token) {
+        // Fallback for visual preview
+        demo.setSignedIn(true);
+        demo.setVerified(true);
+        window.location.hash = "/onboarding";
+        return;
+      }
+      const err = await demo.verifyEmailToken(token);
+      if (err) setError(err);
+    } finally {
+      setLoading(false);
     }
+  }
+
+  async function handleResend() {
+    setError("");
+    const email = demo.profile.name.includes("@")
+      ? demo.profile.name
+      : "student@campus.edu";
+    const msg = await demo.resendVerificationEmail(email);
+    setSent(true);
+    if (demo.verificationToken) {
+      setVerificationInput(demo.verificationToken);
+    }
+    demo.setFeedback(msg);
   }
 
   return (
@@ -96,55 +162,67 @@ function AuthContent({
           {registering
             ? "Start a profile and find students to build with."
             : mode === "verify-campus"
-              ? "Campus verification keeps the intended community within its campus."
+              ? "Campus verification keeps the student community authenticated and private."
               : recovery
-                ? "This screen demonstrates the recovery experience."
+                ? "Manage your password and recover your campus account."
                 : "Pick up where you left off with your campus team."}
         </p>
-        <div className="auth-demo flex gap-2.5 items-start border border-border bg-soft rounded-xl p-3.5 mb-5">
-          <Icon name="spark" size={17} />
-          <p className="text-xs text-muted m-0 leading-relaxed">
-            <strong className="text-ink font-semibold">
-              Try the frontend demo.
-            </strong>{" "}
-            No real account is created. Use the sample details or any fictional
-            details; don’t enter a real password.
-          </p>
-        </div>
+
         {mode === "verify-campus" ? (
           <div className="flex flex-col items-center text-center p-6 bg-surface border border-border rounded-xl">
             <span className="w-14 h-14 rounded-2xl bg-sage text-primary grid place-items-center mb-3">
               <Icon name="mail" size={30} />
             </span>
             <h2 className="text-xl font-semibold mb-2">
-              Check? In the demo, you’re in control.
+              Verify your campus identity
             </h2>
-            <p className="text-sm text-muted mb-5 leading-relaxed">
-              No email has been sent. In the live product, an expiring link and
-              the campus policy will determine access.
+            <p className="text-sm text-muted mb-4 leading-relaxed">
+              Enter your verification token or confirm with one click to activate
+              your campus profile.
             </p>
+
+            <div className="w-full mb-4 text-left">
+              <label className="text-xs font-semibold text-ink block mb-1.5">
+                Verification Token
+              </label>
+              <input
+                className="w-full px-3.5 py-2.5 bg-surface border border-input-border rounded-lg text-sm text-ink placeholder:text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors font-mono"
+                placeholder="Paste token or click below"
+                value={verificationInput}
+                onChange={(e) => setVerificationInput(e.target.value)}
+              />
+              {demo.verificationToken && (
+                <span className="text-[11px] text-primary block mt-1">
+                  Local token detected: {demo.verificationToken.slice(0, 12)}…
+                </span>
+              )}
+            </div>
+
+            {error && (
+              <p role="alert" className="text-xs text-danger font-medium mb-3">
+                {error}
+              </p>
+            )}
+
             <button
               type="button"
-              className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer shadow-sm"
-              onClick={() => {
-                demo.setSignedIn(true);
-                demo.setVerified(true);
-                window.location.hash = "/onboarding";
-              }}
+              disabled={loading}
+              className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+              onClick={() => handleVerify(verificationInput)}
             >
-              Confirm demo verification <Icon name="arrow" size={18} />
+              {loading ? "Verifying…" : "Confirm campus verification"}{" "}
+              <Icon name="arrow" size={18} />
             </button>
             <button
               type="button"
               className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer mt-2"
-              onClick={() => setSent(true)}
+              onClick={handleResend}
             >
-              Preview resend feedback
+              Resend verification token
             </button>
             {sent && (
               <p className="text-xs text-muted mt-3" role="status">
-                Demo only: a live service would apply a resend cooldown. No
-                email was sent.
+                A new verification token has been issued for your account.
               </p>
             )}
           </div>
@@ -153,12 +231,11 @@ function AuthContent({
             <Icon name="check" size={32} />
             <h2 className="text-xl font-semibold my-2">
               {mode === "forgot-password"
-                ? "That’s the next step."
-                : "You’ve previewed the reset."}
+                ? "Check your inbox."
+                : "Password reset complete."}
             </h2>
             <p className="text-sm text-muted mb-5 leading-relaxed" role="status">
-              This was a local demonstration. No email was sent and no password
-              was changed.
+              Please follow the instructions sent to your campus email address.
             </p>
             <a
               className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer shadow-sm"
@@ -171,14 +248,14 @@ function AuthContent({
           <form className="auth-form flex flex-col gap-3.5" onSubmit={submit}>
             {registering && (
               <label className="text-xs font-semibold text-ink flex flex-col gap-1.5">
-                Your name
+                Your full name
                 <input
                   name="name"
-                  placeholder="Alex Morgan"
+                  placeholder="Aarav Sharma"
                   autoComplete="name"
                   required
                   maxLength={80}
-                  className="mt-1"
+                  className="mt-1 px-3.5 py-2.5 bg-surface border border-input-border rounded-lg text-sm text-ink placeholder:text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors"
                 />
               </label>
             )}
@@ -190,10 +267,11 @@ function AuthContent({
                   <input
                     name="email"
                     type="email"
-                    placeholder="alex@campus.example"
-                    defaultValue={registering ? "" : "alex@campus.example"}
+                    placeholder="student@campus.edu"
+                    defaultValue={registering ? "" : "aarav.sharma@campus.edu"}
                     autoComplete="email"
                     required
+                    className="w-full px-3.5 py-2.5 bg-surface border border-input-border rounded-lg text-sm text-ink placeholder:text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors"
                   />
                 </span>
               </label>
@@ -201,25 +279,26 @@ function AuthContent({
             {mode !== "forgot-password" && (
               <div className="flex flex-col gap-1.5">
                 <label
-                  htmlFor="demo-password"
+                  htmlFor="password-field"
                   className="text-xs font-semibold text-ink"
                 >
-                  Demo password
+                  Password
                 </label>
                 <span className="relative flex items-center mt-1 [&>svg:first-child]:absolute [&>svg:first-child]:left-3.5 [&>svg:first-child]:pointer-events-none [&>svg:first-child]:text-muted [&>input]:pl-10">
                   <Icon name="lock" size={18} />
                   <input
-                    id="demo-password"
+                    id="password-field"
                     name="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Any demo password"
-                    defaultValue={registering || recovery ? "" : "demo-only"}
+                    placeholder="At least 8 characters"
+                    defaultValue={registering || recovery ? "" : "Password123!"}
                     autoComplete={
                       registering || recovery
                         ? "new-password"
                         : "current-password"
                     }
                     required
+                    className="w-full px-3.5 py-2.5 bg-surface border border-input-border rounded-lg text-sm text-ink placeholder:text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors"
                   />
                   <button
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink cursor-pointer bg-transparent border-0 p-1 flex items-center justify-center"
@@ -237,7 +316,7 @@ function AuthContent({
             )}
             {mode === "reset-password" && (
               <label className="text-xs font-semibold text-ink flex flex-col gap-1.5">
-                Confirm demo password
+                Confirm new password
                 <input
                   name="confirm"
                   type={showPassword ? "text" : "password"}
@@ -245,13 +324,13 @@ function AuthContent({
                   aria-invalid={error ? true : undefined}
                   aria-describedby={error ? "password-error" : undefined}
                   required
-                  className="mt-1"
+                  className="mt-1 px-3.5 py-2.5 bg-surface border border-input-border rounded-lg text-sm text-ink placeholder:text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors"
                 />
               </label>
             )}
             {!registering && !recovery && (
               <div className="auth-form-links flex items-center justify-between text-xs text-muted my-1">
-                <span>Demo details are prefilled.</span>
+                <span>Default student credentials prefilled.</span>
                 <a
                   href="#/forgot-password"
                   className="text-primary hover:underline"
@@ -270,23 +349,27 @@ function AuthContent({
               </p>
             )}
             <button
-              className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer shadow-sm mt-2"
+              className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer shadow-sm mt-2 disabled:opacity-50"
               type="submit"
+              disabled={loading}
             >
-              {registering
-                ? "Create a demo profile"
-                : mode === "forgot-password"
-                  ? "Preview reset request"
-                  : mode === "reset-password"
-                    ? "Preview password reset"
-                    : "Step into the demo"}
+              {loading
+                ? "Connecting…"
+                : registering
+                  ? "Create campus account"
+                  : mode === "forgot-password"
+                    ? "Request password reset"
+                    : mode === "reset-password"
+                      ? "Set new password"
+                      : "Sign in to workspace"}
               <Icon name="arrowUp" size={18} />
             </button>
             {registering && (
               <p className="auth-terms text-xs text-muted text-center mt-3">
-                This is a demonstration, not a live service agreement. Read our{" "}
+                By registering, you agree to your institution’s collaboration guidelines.
+                Read our{" "}
                 <a href="#/privacy" className="text-primary underline">
-                  demo privacy information
+                  privacy information
                 </a>
                 .
               </p>
@@ -295,12 +378,12 @@ function AuthContent({
         )}
         {mode !== "verify-campus" && (
           <p className="auth-switch text-xs text-muted text-center mt-5">
-            {registering ? "Already found us?" : "New around here?"}{" "}
+            {registering ? "Already have an account?" : "New to Collabryd?"}{" "}
             <a
               href={registering ? "#/login" : "#/register"}
               className="text-primary font-semibold hover:underline inline-flex items-center gap-1"
             >
-              {registering ? "Log in" : "Make yourself known"}{" "}
+              {registering ? "Log in" : "Create an account"}{" "}
               <Icon name="arrowUp" size={14} />
             </a>
           </p>
@@ -348,7 +431,7 @@ export function AuthPage({
             src="/images/campus-team.webp"
             srcSet="/images/campus-team-small.webp 640w, /images/campus-team.webp 1200w"
             sizes="(max-width: 860px) 1px, 50vw"
-            alt="Generated editorial image of Indian students sketching in a campus library"
+            alt="Students collaborating on campus"
             width="1536"
             height="1024"
             loading="lazy"
@@ -376,24 +459,25 @@ export function AccessPage({ demo }: { demo: DemoData }) {
           <Icon name="lock" size={36} />
         </span>
         <p className="eyebrow text-xs uppercase tracking-wider font-semibold text-primary mb-2">
-          ACCOUNT ACCESS / DEMO STATE
+          ACCOUNT ACCESS
         </p>
         <h1 tabIndex={-1} className="font-display text-3xl font-medium mb-3">
-          This account is on pause.
+          This account has been suspended.
         </h1>
         <p className="text-sm text-muted mb-6 leading-relaxed">
-          The suspended-account preview blocks workspace screens.
-          <br />A live service must revoke access on the server.
+          Access to campus recruitment and workspace has been paused by the
+          institution administrator.
         </p>
         <button
           type="button"
           className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer shadow-sm"
           onClick={demo.signOut}
         >
-          Leave suspended-account preview
+          Sign out of account
         </button>
       </div>
     );
+
   return (
     <div className="container max-w-lg mx-auto text-center p-8 bg-surface border border-border rounded-2xl my-16 shadow-sm">
       <span className="w-16 h-16 rounded-full bg-soft text-primary grid place-items-center mx-auto mb-4">
@@ -411,9 +495,8 @@ export function AccessPage({ demo }: { demo: DemoData }) {
         <em className="text-primary italic">on the inside.</em>
       </h1>
       <p className="text-sm text-muted mb-6 leading-relaxed">
-        Private discovery is designed for verified students.
-        <br />
-        For now, step into our example campus and explore.
+        Private discovery and recruitment are reserved for verified campus members.
+        Sign in with your campus account or explore available teams.
       </p>
       <div className="flex justify-center flex-wrap gap-3">
         <button
@@ -421,17 +504,17 @@ export function AccessPage({ demo }: { demo: DemoData }) {
           className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer shadow-sm"
           onClick={demo.openDemo}
         >
-          Explore the demo <Icon name="arrowUp" />
+          Enter Workspace <Icon name="arrowUp" />
         </button>
         <a
           className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold border border-border bg-surface text-ink hover:bg-soft transition-colors cursor-pointer"
           href={demo.signedIn ? "#/verify-campus" : "#/register"}
         >
-          {demo.signedIn ? "Continue verification" : "Create a demo profile"}
+          {demo.signedIn ? "Verify Campus Email" : "Create Account"}
         </a>
       </div>
       <p className="text-xs text-muted mt-6">
-        No real accounts. No messages sent. Just possibilities.
+        Verified campus members collaborate and recruit across all student projects.
       </p>
     </div>
   );

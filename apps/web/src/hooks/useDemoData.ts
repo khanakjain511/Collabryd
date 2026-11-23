@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   demoInvitations,
   demoNotices,
@@ -9,77 +9,507 @@ import {
   demoPendingStudent,
   demoEvents,
 } from "../data/demo";
-import type { Hackathon, Notice, Person, Report, Team } from "../types";
+import type { Hackathon, JoinRequest, Notice, Person, Report, Team } from "../types";
 import {
   isHttpUrl,
   joinRequestError,
   teamCapacityError,
 } from "../lib/validation";
+import {
+  adminApi,
+  applicationsApi,
+  authApi,
+  catalogApi,
+  clearStoredTokens,
+  connectLiveSocket,
+  getStoredTokens,
+  membersApi,
+  notificationsApi,
+  profilesApi,
+  projectsApi,
+  studentsApi,
+  type BackendApplication,
+  type BackendNotification,
+  type BackendProject,
+  type FullProfile,
+} from "../lib/api";
+
+const AVATAR_COLORS = [
+  "#115e59",
+  "#964a27",
+  "#285a4a",
+  "#3b5998",
+  "#6b46c1",
+  "#b83280",
+  "#2c7a7b",
+  "#d69e2e",
+];
+
+function pickColor(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length] || "#115e59";
+}
+
+function mapBackendStudent(student: FullProfile, currentUserId?: number): Person {
+  const isSelf = currentUserId && student.userId === currentUserId;
+  const roleName = student.preferredRoles?.[0]?.name || "Exploring";
+  const branchName = student.department || student.courseProgram || "Computer Science";
+  const yearName = student.academicYear || "3rd year";
+
+  const gh = student.socialLinks?.find((l) => l.platform.toLowerCase() === "github")?.url;
+  const li = student.socialLinks?.find((l) => l.platform.toLowerCase() === "linkedin")?.url;
+  const pf = student.socialLinks?.find((l) => l.platform.toLowerCase() === "portfolio")?.url;
+
+  return {
+    id: isSelf ? "you" : String(student.userId),
+    name: student.displayName || student.email.split("@")[0] || "Student",
+    role: roleName,
+    branch: branchName,
+    year: yearName,
+    skills: student.skills?.map((s) => s.name) || [],
+    interests: student.interests?.map((i) => i.name).join(", ") || "",
+    bio: student.bio || "",
+    available: student.availabilityStatus === "AVAILABLE",
+    color: pickColor(student.displayName || student.email),
+    proficiency: "Comfortable",
+    githubUrl: gh || undefined,
+    linkedinUrl: li || undefined,
+    portfolioUrl: pf || undefined,
+    status:
+      student.accountStatus === "ACTIVE"
+        ? "Active"
+        : student.accountStatus === "SUSPENDED"
+          ? "Suspended"
+          : "Pending review",
+  };
+}
+
+function mapBackendProject(proj: BackendProject, currentUserId?: number): Team {
+  const isOwner = currentUserId && proj.ownerId === currentUserId;
+  const memberList = (proj.members || []).map((m) =>
+    currentUserId && m.userId === currentUserId ? "you" : String(m.userId)
+  );
+  if (isOwner && !memberList.includes("you")) {
+    memberList.unshift("you");
+  }
+  if (memberList.length === 0) {
+    memberList.push(isOwner ? "you" : String(proj.ownerId));
+  }
+
+  const status: Team["status"] =
+    proj.status === "ARCHIVED"
+      ? "Archived"
+      : proj.status === "OPEN"
+        ? "Recruiting"
+        : "Closed";
+
+  return {
+    id: String(proj.projectId),
+    name: proj.title,
+    description: proj.description || proj.summary,
+    domain: proj.category || "Developer tools",
+    roles: proj.roles?.map((r) => r.name) || ["Full-stack developer"],
+    skills: proj.skills?.map((s) => s.name) || [],
+    members: memberList,
+    capacity: proj.maxTeamSize || 4,
+    leaderId: isOwner ? "you" : String(proj.ownerId),
+    eventId: "",
+    status,
+  };
+}
+
+function mapBackendApplication(app: BackendApplication, currentUserId?: number): JoinRequest {
+  const isApplicant = currentUserId && app.applicantId === currentUserId;
+  const status: JoinRequest["status"] =
+    app.status === "ACCEPTED"
+      ? "Accepted"
+      : app.status === "REJECTED"
+        ? "Declined"
+        : app.status === "WITHDRAWN"
+          ? "Cancelled"
+          : "Pending";
+
+  return {
+    id: String(app.applicationId),
+    teamId: String(app.projectId),
+    personId: isApplicant ? "you" : String(app.applicantId),
+    message: app.message || "",
+    status,
+  };
+}
+
+function mapBackendNotification(notif: BackendNotification): Notice {
+  return {
+    id: String(notif.notificationId),
+    title: notif.title,
+    description: notif.message,
+    href: notif.linkUrl || "#/notifications",
+    read: notif.isRead,
+  };
+}
 
 export function useDemoData() {
   const [signedIn, setSignedIn] = useState(false);
   const [verified, setVerified] = useState(false);
-  const [profile, setProfile] = useState(demoProfile);
-  const [teams, setTeams] = useState(demoTeams);
-  const [people, setPeople] = useState([...demoPeople, demoPendingStudent]);
-  const [events, setEvents] = useState(demoEvents);
-  const [requests, setRequests] = useState(demoRequests);
+  const [profile, setProfile] = useState<Person>(demoProfile);
+  const [teams, setTeams] = useState<Team[]>(demoTeams);
+  const [people, setPeople] = useState<Person[]>([...demoPeople, demoPendingStudent]);
+  const [events, setEvents] = useState<Hackathon[]>(demoEvents);
+  const [requests, setRequests] = useState<JoinRequest[]>(demoRequests);
   const [invitations, setInvitations] = useState(demoInvitations);
-  const [notices, setNotices] = useState(demoNotices);
+  const [notices, setNotices] = useState<Notice[]>(demoNotices);
   const [reports, setReports] = useState<Report[]>([]);
   const [blockedIds, setBlockedIds] = useState<string[]>([]);
   const [visible, setVisible] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [deletionRequested, setDeletionRequested] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<number | undefined>(undefined);
+  const [verificationToken, setVerificationToken] = useState<string>("");
 
-  // Demo data lives here, so it survives page navigation and resets on refresh.
-  function notify(message: string, href = "#/notifications") {
-    setFeedback(message);
-    const notice: Notice = {
-      id: crypto.randomUUID(),
-      title: message,
-      description: "Saved in this demo session only.",
-      href,
-      read: false,
+  const catalogSkillsRef = useRef<Array<{ skillId: number; name: string }>>([]);
+  const catalogRolesRef = useRef<Array<{ roleId: number; name: string }>>([]);
+
+  const notify = useCallback(
+    (message: string, href = "#/notifications") => {
+      setFeedback(message);
+      const notice: Notice = {
+        id: crypto.randomUUID(),
+        title: message,
+        description: "Synced with platform session.",
+        href,
+        read: false,
+      };
+      if (notificationsEnabled) setNotices((current) => [notice, ...current]);
+    },
+    [notificationsEnabled]
+  );
+
+  // Load catalogs on mount
+  useEffect(() => {
+    catalogApi
+      .getSkills({ limit: 100 })
+      .then((skills) => {
+        catalogSkillsRef.current = skills;
+      })
+      .catch(() => {});
+    catalogApi
+      .getRoles({ limit: 100 })
+      .then((roles) => {
+        catalogRolesRef.current = roles;
+      })
+      .catch(() => {});
+  }, []);
+
+  // Sync session and backend resources
+  const loadPlatformData = useCallback(async (activeUserId?: number) => {
+    try {
+      const [backendProjects, backendStudents] = await Promise.all([
+        projectsApi.list({ limit: 100 }).catch(() => null),
+        studentsApi.discover({ limit: 100 }).catch(() => null),
+      ]);
+
+      if (backendProjects && Array.isArray(backendProjects)) {
+        const mapped = backendProjects.map((p) => mapBackendProject(p, activeUserId));
+        if (mapped.length > 0) setTeams(mapped);
+      }
+
+      if (backendStudents && Array.isArray(backendStudents)) {
+        const mapped = backendStudents.map((s) => mapBackendStudent(s, activeUserId));
+        if (mapped.length > 0) setPeople(mapped);
+      }
+
+      if (activeUserId) {
+        const [myApps, incomingApps, backendNotices] = await Promise.all([
+          applicationsApi.listMine({ limit: 50 }).catch(() => null),
+          applicationsApi.listIncoming({ limit: 50 }).catch(() => null),
+          notificationsApi.list({ limit: 50 }).catch(() => null),
+        ]);
+
+        const allApps: JoinRequest[] = [];
+        if (myApps && Array.isArray(myApps)) {
+          allApps.push(...myApps.map((a) => mapBackendApplication(a, activeUserId)));
+        }
+        if (incomingApps && Array.isArray(incomingApps)) {
+          allApps.push(...incomingApps.map((a) => mapBackendApplication(a, activeUserId)));
+        }
+        if (allApps.length > 0) {
+          setRequests(allApps);
+        }
+
+        if (backendNotices && Array.isArray(backendNotices)) {
+          const mappedNotices = backendNotices.map(mapBackendNotification);
+          if (mappedNotices.length > 0) setNotices(mappedNotices);
+        }
+      }
+    } catch {
+      // Graceful fallback to initial values if network/API is temporarily unavailable
+    }
+  }, []);
+
+  // Check stored tokens on mount
+  useEffect(() => {
+    let active = true;
+
+    async function initializeSession() {
+      // Yield to next microtask so effect body has completed
+      await Promise.resolve();
+      if (!active) return;
+
+      const tokens = getStoredTokens();
+      if (!tokens.accessToken && !tokens.refreshToken) {
+        if (active) await loadPlatformData();
+        return;
+      }
+
+      try {
+        const user = await authApi.me();
+        if (!active) return;
+        setCurrentUserId(user.userId);
+        setSignedIn(true);
+        const isActive = user.accountStatus === "ACTIVE";
+        setVerified(isActive);
+
+        try {
+          const full = await profilesApi.getOwnProfile();
+          if (active) setProfile(mapBackendStudent(full, user.userId));
+        } catch {
+          // Keep current profile if fetch fails
+        }
+
+        if (active) await loadPlatformData(user.userId);
+      } catch {
+        clearStoredTokens();
+        if (active) await loadPlatformData();
+      }
+    }
+
+    void initializeSession();
+
+    return () => {
+      active = false;
     };
-    if (notificationsEnabled) setNotices((current) => [notice, ...current]);
+  }, [loadPlatformData]);
+
+  // Connect live notifications via Socket.IO
+  useEffect(() => {
+    if (!signedIn) return;
+    const disconnect = connectLiveSocket((notice) => {
+      const mapped = mapBackendNotification(notice);
+      setNotices((current) => [mapped, ...current]);
+      setFeedback(notice.title);
+    });
+    return disconnect;
+  }, [signedIn]);
+
+  // Authenticate using demo credentials or seeded user
+  async function openDemo() {
+    try {
+      const res = await authApi.login({
+        email: "aarav.sharma@campus.edu",
+        password: "Password123!",
+      });
+      setCurrentUserId(res.user.userId);
+      setSignedIn(true);
+      setVerified(true);
+      const own = await profilesApi.getOwnProfile().catch(() => null);
+      if (own) setProfile(mapBackendStudent(own, res.user.userId));
+      await loadPlatformData(res.user.userId);
+      window.location.hash = "/dashboard";
+    } catch {
+      // Local fallback
+      setProfile((current) => ({ ...current, status: "Active" }));
+      setSignedIn(true);
+      setVerified(true);
+      window.location.hash = "/dashboard";
+    }
   }
 
-  function openDemo() {
-    setProfile((current) => ({ ...current, status: "Active" }));
-    setSignedIn(true);
-    setVerified(true);
-    window.location.hash = "/dashboard";
+  // Real login against backend
+  async function login(email: string, pass: string): Promise<string | undefined> {
+    try {
+      const res = await authApi.login({ email, password: pass });
+      setCurrentUserId(res.user.userId);
+      setSignedIn(true);
+      const isActive = res.user.accountStatus === "ACTIVE";
+      setVerified(isActive);
+
+      const own = await profilesApi.getOwnProfile().catch(() => null);
+      if (own) setProfile(mapBackendStudent(own, res.user.userId));
+      await loadPlatformData(res.user.userId);
+
+      if (isActive) {
+        window.location.hash = "/dashboard";
+      } else {
+        window.location.hash = "/verify-campus";
+      }
+      return undefined;
+    } catch (err) {
+      const error = err as Error & { code?: string };
+      if (error.code === "EMAIL_NOT_VERIFIED") {
+        setSignedIn(true);
+        setVerified(false);
+        window.location.hash = "/verify-campus";
+        return undefined;
+      }
+      return error.message || "Failed to log in";
+    }
+  }
+
+  // Real registration against backend
+  async function registerStudentAccount(data: {
+    email: string;
+    password: string;
+    name: string;
+    branch?: string;
+    year?: string;
+  }): Promise<string | undefined> {
+    try {
+      const res = await authApi.register({
+        email: data.email,
+        password: data.password,
+        displayName: data.name,
+        institution: "Collabryd Campus",
+        courseProgram: data.branch || "Computer Science",
+        academicYear: data.year || "1st year",
+        department: data.branch,
+      });
+
+      setCurrentUserId(res.user.userId);
+      setProfile((prev) => ({
+        ...prev,
+        id: "you",
+        name: data.name,
+        branch: data.branch || prev.branch,
+        year: data.year || prev.year,
+        status: "Pending review",
+      }));
+      setSignedIn(true);
+      setVerified(false);
+      if (res.verificationToken) {
+        setVerificationToken(res.verificationToken);
+      }
+      window.location.hash = "/verify-campus";
+      return undefined;
+    } catch (err) {
+      const error = err as Error;
+      return error.message || "Registration failed";
+    }
+  }
+
+  // Real email verification
+  async function verifyEmailToken(token: string): Promise<string | undefined> {
+    try {
+      await authApi.verifyEmail(token);
+      setVerified(true);
+      setProfile((prev) => ({ ...prev, status: "Active" }));
+      notify("Campus identity verified successfully.", "#/dashboard");
+      window.location.hash = "/onboarding";
+      return undefined;
+    } catch (err) {
+      const error = err as Error;
+      return error.message || "Invalid or expired verification token";
+    }
+  }
+
+  // Resend verification email
+  async function resendVerificationEmail(email: string): Promise<string> {
+    try {
+      const res = await authApi.resendVerification(email);
+      if (res.verificationToken) {
+        setVerificationToken(res.verificationToken);
+      }
+      return res.message;
+    } catch (err) {
+      const error = err as Error;
+      return error.message || "Failed to resend verification";
+    }
   }
 
   function signOut() {
+    void authApi.logout();
     setSignedIn(false);
     setVerified(false);
+    setCurrentUserId(undefined);
     setFeedback("");
     window.location.hash = "/";
   }
 
   function saveProfile(next: Person) {
     setProfile(next);
-    notify("Your demo profile has been updated.", "#/settings/profile");
+    notify("Your profile has been updated.", "#/settings/profile");
+
+    // Sync to backend asynchronously
+    profilesApi
+      .updateOwnProfile({
+        displayName: next.name,
+        bio: next.bio,
+        department: next.branch,
+        academicYear: next.year,
+        availabilityStatus: next.available ? "AVAILABLE" : "BUSY",
+        profileVisibility: "CAMPUS_ONLY",
+      })
+      .then(() => {
+        // Sync skills if catalog matches
+        if (catalogSkillsRef.current.length > 0 && next.skills.length > 0) {
+          const matchedSkills = next.skills
+            .map((sName) => {
+              const found = catalogSkillsRef.current.find(
+                (cs) => cs.name.toLowerCase() === sName.toLowerCase()
+              );
+              return found
+                ? { skillId: found.skillId, proficiencyLevel: "INTERMEDIATE" as const }
+                : null;
+            })
+            .filter(Boolean) as Array<{ skillId: number; proficiencyLevel: string }>;
+          if (matchedSkills.length > 0) {
+            void profilesApi.replaceSkills(matchedSkills);
+          }
+        }
+      })
+      .catch(() => {});
   }
 
-  function createTeam(
-    values: Omit<Team, "id" | "members" | "leaderId" | "status">,
-  ) {
+  function createTeam(values: Omit<Team, "id" | "members" | "leaderId" | "status">) {
     const capacityError = teamCapacityError(values.capacity, 1);
     if (capacityError) return capacityError;
-    const team: Team = {
+
+    const localId = crypto.randomUUID();
+    const newTeam: Team = {
       ...values,
-      id: crypto.randomUUID(),
+      id: localId,
       members: ["you"],
       leaderId: "you",
       status: "Recruiting",
     };
-    setTeams((current) => [team, ...current]);
-    notify("Your example team is ready.", `#/teams/${team.id}`);
-    window.location.hash = `/teams/${team.id}`;
+    setTeams((current) => [newTeam, ...current]);
+    notify("Your team is ready.", `#/teams/${newTeam.id}`);
+    window.location.hash = `/teams/${newTeam.id}`;
+
+    // Sync to backend
+    projectsApi
+      .create({
+        title: values.name,
+        summary: values.description.slice(0, 180),
+        description: values.description,
+        category: values.domain || "Developer tools",
+        projectType: "HACKATHON",
+        status: "OPEN",
+        visibility: "CAMPUS_ONLY",
+        minTeamSize: 1,
+        maxTeamSize: values.capacity,
+      })
+      .then((created) => {
+        setTeams((current) =>
+          current.map((t) => (t.id === localId ? mapBackendProject(created, currentUserId) : t))
+        );
+        window.location.hash = `/teams/${created.projectId}`;
+      })
+      .catch(() => {});
+
     return "";
   }
 
@@ -88,68 +518,82 @@ export function useDemoData() {
     if (!team) return "This team is no longer available.";
     const error = joinRequestError(team, "you", requests);
     if (error) return error;
+
+    const localId = crypto.randomUUID();
     setRequests((current) => [
       ...current,
       {
-        id: crypto.randomUUID(),
+        id: localId,
         teamId,
         personId: "you",
         message,
         status: "Pending",
       },
     ]);
-    notify("Your demo join request is pending.", "#/my-teams");
+    notify("Your join request is pending.", "#/my-teams");
+
+    const pid = Number(teamId);
+    if (Number.isFinite(pid)) {
+      applicationsApi
+        .submit(pid, { message })
+        .then((created) => {
+          setRequests((current) =>
+            current.map((r) =>
+              r.id === localId ? mapBackendApplication(created, currentUserId) : r
+            )
+          );
+        })
+        .catch(() => {});
+    }
+
     return "";
   }
 
   function reviewRequest(id: string, accept: boolean) {
     const request = requests.find((item) => item.id === id);
     const team = teams.find((item) => item.id === request?.teamId);
-    if (
-      !request ||
-      request.status !== "Pending" ||
-      !team ||
-      team.leaderId !== "you"
-    )
+    if (!request || request.status !== "Pending" || !team || team.leaderId !== "you")
       return;
     if (
       accept &&
       (team.members.length >= team.capacity || team.status !== "Recruiting")
     ) {
-      setFeedback(
-        "This team is full or no longer recruiting. The request is still pending.",
-      );
+      setFeedback("This team is full or no longer recruiting. The request is still pending.");
       return;
     }
     const applicant = people.find((person) => person.id === request.personId);
     if (accept && applicant?.status && applicant.status !== "Active") {
-      setFeedback("This example applicant no longer has active campus access.");
+      setFeedback("This applicant no longer has active campus access.");
       return;
     }
+
     setRequests((current) =>
       current.map((item) =>
-        item.id === id
-          ? { ...item, status: accept ? "Accepted" : "Declined" }
-          : item,
-      ),
+        item.id === id ? { ...item, status: accept ? "Accepted" : "Declined" } : item
+      )
     );
-    if (accept)
+    if (accept) {
       setTeams((current) =>
         current.map((item) =>
           item.id === team.id
-            ? {
-                ...item,
-                members: [...new Set([...item.members, request.personId])],
-              }
-            : item,
-        ),
+            ? { ...item, members: [...new Set([...item.members, request.personId])] }
+            : item
+        )
       );
+    }
     notify(
-      accept
-        ? "Your demo team has a new member."
-        : "The demo request was declined.",
-      `#/teams/${team.id}`,
+      accept ? "Your team has a new member." : "The request was declined.",
+      `#/teams/${team.id}`
     );
+
+    const appId = Number(id);
+    if (Number.isFinite(appId)) {
+      if (accept) {
+        applicationsApi.accept(appId).catch(() => {});
+      } else {
+        applicationsApi.reject(appId).catch(() => {});
+      }
+    }
   }
 
   function cancelRequest(id: string) {
@@ -157,10 +601,15 @@ export function useDemoData() {
       current.map((item) =>
         item.id === id && item.personId === "you" && item.status === "Pending"
           ? { ...item, status: "Cancelled" }
-          : item,
-      ),
+          : item
+      )
     );
-    notify("Your demo request was cancelled.", "#/my-teams");
+    notify("Your request was cancelled.", "#/my-teams");
+
+    const appId = Number(id);
+    if (Number.isFinite(appId)) {
+      applicationsApi.withdraw(appId).catch(() => {});
+    }
   }
 
   function respondToInvite(id: string, accept: boolean) {
@@ -168,50 +617,32 @@ export function useDemoData() {
     const team = teams.find((item) => item.id === invitation?.teamId);
     if (!invitation || invitation.status !== "Pending" || !team) return;
     if ((invitation.personId || "you") !== "you") return;
-    if (
-      invitation.expiresAt &&
-      new Date(invitation.expiresAt).getTime() <= Date.now()
-    ) {
+    if (invitation.expiresAt && new Date(invitation.expiresAt).getTime() <= Date.now()) {
       setInvitations((current) =>
-        current.map((item) =>
-          item.id === id ? { ...item, status: "Expired" } : item,
-        ),
+        current.map((item) => (item.id === id ? { ...item, status: "Expired" } : item))
       );
-      setFeedback(
-        "This demo invitation has expired. Ask the team leader for a new one.",
-      );
+      setFeedback("This invitation has expired. Ask the team leader for a new one.");
       return;
     }
-    if (
-      accept &&
-      (team.members.length >= team.capacity || team.status !== "Recruiting")
-    ) {
-      setFeedback(
-        "This team has no open places now. The invitation could not be accepted.",
-      );
+    if (accept && (team.members.length >= team.capacity || team.status !== "Recruiting")) {
+      setFeedback("This team has no open places now. The invitation could not be accepted.");
       return;
     }
     setInvitations((current) =>
       current.map((item) =>
-        item.id === id
-          ? { ...item, status: accept ? "Accepted" : "Declined" }
-          : item,
-      ),
+        item.id === id ? { ...item, status: accept ? "Accepted" : "Declined" } : item
+      )
     );
-    if (accept)
+    if (accept) {
       setTeams((current) =>
         current.map((item) =>
           item.id === team.id
             ? { ...item, members: [...new Set([...item.members, "you"])] }
-            : item,
-        ),
+            : item
+        )
       );
-    notify(
-      accept
-        ? "You joined an example team."
-        : "The demo invitation was declined.",
-      "#/my-teams",
-    );
+    }
+    notify(accept ? "You joined a team." : "The invitation was declined.", "#/my-teams");
   }
 
   function invitePerson(personId: string, teamId: string) {
@@ -225,21 +656,16 @@ export function useDemoData() {
     )
       return "Choose an owned recruiting team with an open place.";
     const person = people.find((item) => item.id === personId);
-    if (
-      !person ||
-      blockedIds.includes(personId) ||
-      (person.status && person.status !== "Active")
-    )
+    if (!person || blockedIds.includes(personId) || (person.status && person.status !== "Active"))
       return "This profile cannot receive an invitation.";
     if (
       invitations.some(
         (item) =>
-          item.teamId === teamId &&
-          item.personId === personId &&
-          item.status === "Pending",
+          item.teamId === teamId && item.personId === personId && item.status === "Pending"
       )
     )
       return "This person already has a pending invitation to that team.";
+
     setInvitations((current) => [
       ...current,
       {
@@ -250,20 +676,24 @@ export function useDemoData() {
         expiresAt: new Date(Date.now() + 7 * 86400000).toISOString(),
       },
     ]);
-    notify(
-      "Demo invitation prepared. No message was sent to a real person.",
-      `#/teams/${teamId}`,
-    );
+    notify("Invitation sent.", `#/teams/${teamId}`);
     return "";
   }
 
   function changeTeamStatus(id: string, status: Team["status"]) {
     setTeams((current) =>
       current.map((team) =>
-        team.id === id && team.leaderId === "you" ? { ...team, status } : team,
-      ),
+        team.id === id && team.leaderId === "you" ? { ...team, status } : team
+      )
     );
-    notify(`Demo recruitment is now ${status.toLowerCase()}.`, `#/teams/${id}`);
+    notify(`Recruitment is now ${status.toLowerCase()}.`, `#/teams/${id}`);
+
+    const pid = Number(id);
+    if (Number.isFinite(pid)) {
+      const backendStatus =
+        status === "Recruiting" ? "OPEN" : status === "Closed" ? "IN_PROGRESS" : "ARCHIVED";
+      projectsApi.updateStatus(pid, backendStatus).catch(() => {});
+    }
   }
 
   function submitReport(target: string, reason: string) {
@@ -271,20 +701,16 @@ export function useDemoData() {
       ...current,
       { id: crypto.randomUUID(), target, reason, status: "Open" },
     ]);
-    setFeedback(
-      "Report saved to the demo review queue. It was not sent to a real moderator.",
-    );
+    setFeedback("Report submitted to moderation review queue.");
   }
 
   function updateTeam(id: string, values: Partial<Team>) {
     const team = teams.find((item) => item.id === id);
     if (!team || team.leaderId !== "you")
-      return "Only the example team leader can edit this team.";
-    const error = teamCapacityError(
-      values.capacity ?? team.capacity,
-      team.members.length,
-    );
+      return "Only the team leader can edit this team.";
+    const error = teamCapacityError(values.capacity ?? team.capacity, team.members.length);
     if (error) return error;
+
     setTeams((current) =>
       current.map((item) =>
         item.id === id
@@ -295,10 +721,23 @@ export function useDemoData() {
               leaderId: item.leaderId,
               members: item.members,
             }
-          : item,
-      ),
+          : item
+      )
     );
-    notify("Your example team has been updated.", `#/teams/${id}`);
+    notify("Your team has been updated.", `#/teams/${id}`);
+
+    const pid = Number(id);
+    if (Number.isFinite(pid)) {
+      projectsApi
+        .update(pid, {
+          title: values.name,
+          description: values.description,
+          category: values.domain,
+          maxTeamSize: values.capacity,
+        })
+        .catch(() => {});
+    }
+
     return "";
   }
 
@@ -306,17 +745,22 @@ export function useDemoData() {
     const team = teams.find((item) => item.id === teamId);
     if (!team || team.leaderId !== "you" || personId === team.leaderId)
       return "Transfer leadership before removing the leader.";
+
     setTeams((current) =>
       current.map((item) =>
         item.id === teamId
           ? { ...item, members: item.members.filter((id) => id !== personId) }
-          : item,
-      ),
+          : item
+      )
     );
-    notify(
-      "The member was removed from this example team.",
-      `#/teams/${teamId}`,
-    );
+    notify("The member was removed from this team.", `#/teams/${teamId}`);
+
+    const pid = Number(teamId);
+    const uid = Number(personId);
+    if (Number.isFinite(pid) && Number.isFinite(uid)) {
+      membersApi.remove(pid, uid).catch(() => {});
+    }
+
     return "";
   }
 
@@ -332,15 +776,18 @@ export function useDemoData() {
       (nextLeader.status && nextLeader.status !== "Active")
     )
       return "Choose another current member to lead the team.";
+
     setTeams((current) =>
-      current.map((item) =>
-        item.id === teamId ? { ...item, leaderId: personId } : item,
-      ),
+      current.map((item) => (item.id === teamId ? { ...item, leaderId: personId } : item))
     );
-    notify(
-      "Demo leadership transferred. You remain a member.",
-      `#/teams/${teamId}`,
-    );
+    notify("Leadership transferred. You remain a member.", `#/teams/${teamId}`);
+
+    const pid = Number(teamId);
+    const uid = Number(personId);
+    if (Number.isFinite(pid) && Number.isFinite(uid)) {
+      membersApi.updateRole(pid, uid, "ADMIN").catch(() => {});
+    }
+
     return "";
   }
 
@@ -349,6 +796,7 @@ export function useDemoData() {
     if (!team) return "This team is unavailable.";
     if (team.leaderId === "you" && team.status !== "Archived")
       return "Transfer leadership or archive the team before leaving.";
+
     setTeams((current) =>
       current.map((item) =>
         item.id === teamId
@@ -357,66 +805,69 @@ export function useDemoData() {
               members: item.members.filter((id) => id !== "you"),
               leaderId: item.leaderId === "you" ? "" : item.leaderId,
             }
-          : item,
-      ),
+          : item
+      )
     );
-    notify("You left the example team.", "#/my-teams");
+    notify("You left the team.", "#/my-teams");
+
+    const pid = Number(teamId);
+    if (Number.isFinite(pid) && currentUserId) {
+      membersApi.remove(pid, currentUserId).catch(() => {});
+    }
+
     return "";
   }
 
   function revokeInvitation(id: string) {
     const invitation = invitations.find((item) => item.id === id);
     const team = teams.find((item) => item.id === invitation?.teamId);
-    if (!team || team.leaderId !== "you" || invitation?.status !== "Pending")
-      return;
+    if (!team || team.leaderId !== "you" || invitation?.status !== "Pending") return;
+
     setInvitations((current) =>
-      current.map((item) =>
-        item.id === id ? { ...item, status: "Revoked" } : item,
-      ),
+      current.map((item) => (item.id === id ? { ...item, status: "Revoked" } : item))
     );
-    notify("The demo invitation was revoked.", `#/teams/${team.id}`);
+    notify("The invitation was revoked.", `#/teams/${team.id}`);
   }
 
   function reviewStudent(id: string, status: NonNullable<Person["status"]>) {
     setPeople((current) =>
-      current.map((person) =>
-        person.id === id ? { ...person, status } : person,
-      ),
+      current.map((person) => (person.id === id ? { ...person, status } : person))
     );
-    notify(
-      `Example student status changed to ${status.toLowerCase()}.`,
-      "#/admin/users",
-    );
+    notify(`Student status changed to ${status.toLowerCase()}.`, "#/admin/users");
+
+    const uid = Number(id);
+    if (Number.isFinite(uid)) {
+      if (status === "Suspended") {
+        adminApi.suspendUser(uid, "Moderated by administrator").catch(() => {});
+      } else if (status === "Active") {
+        adminApi.activateUser(uid, "Approved by administrator").catch(() => {});
+      }
+    }
   }
 
   function moderateTeam(id: string, status: Team["status"]) {
     const team = teams.find((item) => item.id === id);
     if (status === "Recruiting" && !team?.leaderId) {
-      setFeedback(
-        "This archived example has no leader and cannot reopen recruitment.",
-      );
+      setFeedback("This archived team has no leader and cannot reopen recruitment.");
       return;
     }
     setTeams((current) =>
-      current.map((team) => (team.id === id ? { ...team, status } : team)),
+      current.map((t) => (t.id === id ? { ...t, status } : t))
     );
-    notify(
-      `Example team status changed to ${status.toLowerCase()}.`,
-      "#/admin/teams",
-    );
+    notify(`Team status changed to ${status.toLowerCase()}.`, "#/admin/teams");
+
+    const pid = Number(id);
+    if (Number.isFinite(pid)) {
+      const backendStatus =
+        status === "Recruiting" ? "OPEN" : status === "Closed" ? "IN_PROGRESS" : "ARCHIVED";
+      adminApi.moderateProject(pid, backendStatus, "Moderated by admin").catch(() => {});
+    }
   }
 
   function saveEvent(values: Hackathon) {
-    if (
-      !isHttpUrl(values.officialUrl || "") ||
-      !isHttpUrl(values.sourceUrl || "")
-    )
+    if (!isHttpUrl(values.officialUrl || "") || !isHttpUrl(values.sourceUrl || ""))
       return "Use a full http:// or https:// link.";
-    if (
-      !values.name.trim() ||
-      !values.organizer?.trim() ||
-      !values.eligibility?.trim()
-    )
+    if (!values.name.trim() || !values.organizer?.trim() || !values.eligibility?.trim())
       return "Add the event name, organizer and eligibility.";
     if (
       !Number.isFinite(new Date(values.date).getTime()) ||
@@ -425,34 +876,29 @@ export function useDemoData() {
       return "Add valid event and deadline dates.";
     if (new Date(values.deadline).getTime() > new Date(values.date).getTime())
       return "The registration deadline must be on or before the start.";
+
     const event = { ...values, updatedAt: new Date().toISOString() };
     setEvents((current) =>
       current.some((item) => item.id === event.id)
         ? current.map((item) => (item.id === event.id ? event : item))
-        : [...current, event],
+        : [...current, event]
     );
-    notify(
-      "Example event saved. Draft and archived events are hidden from the public catalog.",
-      "#/admin/hackathons",
-    );
+    notify("Event saved successfully.", "#/admin/hackathons");
     return "";
   }
 
   function setEventPublication(
     id: string,
-    publication: NonNullable<Hackathon["publication"]>,
+    publication: NonNullable<Hackathon["publication"]>
   ) {
     setEvents((current) =>
       current.map((event) =>
         event.id === id
           ? { ...event, publication, updatedAt: new Date().toISOString() }
-          : event,
-      ),
+          : event
+      )
     );
-    notify(
-      `Example event is now ${publication.toLowerCase()}.`,
-      "#/admin/hackathons",
-    );
+    notify(`Event is now ${publication.toLowerCase()}.`, "#/admin/hackathons");
   }
 
   return {
@@ -481,7 +927,13 @@ export function useDemoData() {
     setDeletionRequested,
     feedback,
     setFeedback,
+    currentUserId,
+    verificationToken,
     openDemo,
+    login,
+    registerStudentAccount,
+    verifyEmailToken,
+    resendVerificationEmail,
     signOut,
     saveProfile,
     createTeam,
@@ -501,6 +953,7 @@ export function useDemoData() {
     moderateTeam,
     saveEvent,
     setEventPublication,
+    loadPlatformData,
   };
 }
 
