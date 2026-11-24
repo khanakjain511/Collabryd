@@ -22,6 +22,7 @@ import {
   catalogApi,
   clearStoredTokens,
   connectLiveSocket,
+  createLiveSocket,
   eventsApi,
   getStoredTokens,
   membersApi,
@@ -245,7 +246,9 @@ export function useDemoData() {
       }
 
       if (backendStudents && Array.isArray(backendStudents)) {
-        const mapped = backendStudents.map((s) => mapBackendStudent(s, activeUserId));
+        // The discovery endpoint returns only active students and omits accountStatus.
+        const mapped = backendStudents.map((student) =>
+          mapBackendStudent({ ...student, accountStatus: "ACTIVE" }, activeUserId));
         if (mapped.length > 0) setPeople(mapped);
       }
 
@@ -341,16 +344,18 @@ export function useDemoData() {
     };
   }, [loadPlatformData]);
 
+  const [liveSocket] = useState(createLiveSocket);
+
   // Connect live notifications via Socket.IO
   useEffect(() => {
     if (!signedIn) return;
-    const disconnect = connectLiveSocket((notice) => {
+    const disconnect = connectLiveSocket(liveSocket, (notice) => {
       const mapped = mapBackendNotification(notice);
       setNotices((current) => [mapped, ...current]);
       setFeedback(notice.title);
     });
     return disconnect;
-  }, [signedIn]);
+  }, [signedIn, currentUserId, liveSocket]);
 
   async function openDemo() {
     const error = await login("aarav.sharma@campus.edu", "Password123!");
@@ -1034,6 +1039,7 @@ export function useDemoData() {
     feedback,
     setFeedback,
     currentUserId,
+    liveSocket,
     verificationToken,
     openDemo,
     login,

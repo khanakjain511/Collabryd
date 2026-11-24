@@ -185,7 +185,7 @@ export interface ConversationParticipant {
 
 export interface BackendConversation {
   conversationId: number;
-  type: "DIRECT" | "PROJECT_GROUP";
+  type: "DIRECT" | "GROUP";
   projectId: number | null;
   projectTitle: string | null;
   lastReadSequence: number;
@@ -926,15 +926,15 @@ export const conversationsApi = {
     return res || [];
   },
 
-  async createDirect(recipientId: number): Promise<BackendConversation> {
-    return apiRequest<BackendConversation>("/conversations/direct", {
+  async createDirect(recipientId: number): Promise<Pick<BackendConversation, "conversationId">> {
+    return apiRequest<Pick<BackendConversation, "conversationId">>("/conversations/direct", {
       method: "POST",
       body: JSON.stringify({ recipientId }),
     });
   },
 
-  async getProjectConversation(projectId: number): Promise<BackendConversation> {
-    return apiRequest<BackendConversation>(`/conversations/project/${projectId}`);
+  async getProjectConversation(projectId: number): Promise<Pick<BackendConversation, "conversationId">> {
+    return apiRequest<Pick<BackendConversation, "conversationId">>(`/conversations/project/${projectId}`);
   },
 
   async listMessages(
@@ -944,7 +944,7 @@ export const conversationsApi = {
       beforeSequence?: number;
       limit?: number;
     }
-  ): Promise<{ items: BackendMessage[]; nextAfterSequence?: number | null }> {
+  ): Promise<BackendMessage[]> {
     const sp = new URLSearchParams();
     if (params?.afterSequence !== undefined)
       sp.set("afterSequence", String(params.afterSequence));
@@ -952,7 +952,7 @@ export const conversationsApi = {
       sp.set("beforeSequence", String(params.beforeSequence));
     if (params?.limit) sp.set("limit", String(params.limit));
     const qs = sp.toString();
-    return apiRequest<{ items: BackendMessage[]; nextAfterSequence?: number | null }>(
+    return apiRequest<BackendMessage[]>(
       `/conversations/${conversationId}/messages${qs ? `?${qs}` : ""}`
     );
   },
@@ -960,15 +960,15 @@ export const conversationsApi = {
   async sendMessage(
     conversationId: number,
     content: string,
-    clientMessageId?: string
-  ): Promise<{ message: BackendMessage; deduplicated: boolean }> {
-    return apiRequest<{ message: BackendMessage; deduplicated: boolean }>(
+    clientMessageId: string
+  ): Promise<Omit<BackendMessage, "senderName" | "senderAvatarUrl">> {
+    return apiRequest<Omit<BackendMessage, "senderName" | "senderAvatarUrl">>(
       `/conversations/${conversationId}/messages`,
       {
         method: "POST",
         body: JSON.stringify({
           content,
-          clientMessageId: clientMessageId || crypto.randomUUID(),
+          clientMessageId,
         }),
       }
     );
@@ -977,8 +977,8 @@ export const conversationsApi = {
   async markRead(
     conversationId: number,
     lastReadSequence?: number
-  ): Promise<{ success: boolean; lastReadSequence: number }> {
-    return apiRequest<{ success: boolean; lastReadSequence: number }>(
+  ): Promise<{ lastReadSequence: number }> {
+    return apiRequest<{ lastReadSequence: number }>(
       `/conversations/${conversationId}/read`,
       {
         method: "PATCH",
@@ -992,35 +992,40 @@ export const conversationsApi = {
 
 // ==================== REALTIME WEBSOCKET ====================
 
-let activeSocket: Socket | null = null;
-
-export function connectLiveSocket(
-  onNotification?: (notification: BackendNotification) => void
-): () => void {
-  const { accessToken } = getStoredTokens();
-  if (!accessToken) return () => {};
-
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
-
-  if (activeSocket) {
-    activeSocket.disconnect();
-  }
-
-  const socket = io(socketUrl, {
-    auth: { token: accessToken },
+export function createLiveSocket(): Socket {
+  return io(import.meta.env.VITE_SOCKET_URL || window.location.origin, {
+    autoConnect: false,
+    auth: (done) => done({ token: getStoredTokens().accessToken }),
     transports: ["websocket", "polling"],
   });
+}
 
-  activeSocket = socket;
-
-  if (onNotification) {
-    socket.on("notification:new", (notice: BackendNotification) => {
-      onNotification(notice);
-    });
+export function connectLiveSocket(socket: Socket, onNotification: (notice: BackendNotification) => void) {
+  let closed = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  function recover() {
+    // Transport failures already use Socket.IO backoff. A rejected/expired JWT needs REST refresh.
+    if (closed || socket.active || timer || !getStoredTokens().refreshToken) return;
+    timer = setTimeout(async () => {
+      timer = undefined;
+      try {
+        await authApi.me();
+        if (!closed) socket.connect();
+      } catch {
+        recover();
+      }
+    }, 2000);
   }
-
+  socket.on("notification:new", onNotification);
+  socket.on("connect_error", recover);
+  socket.on("disconnect", recover);
+  socket.connect();
   return () => {
+    closed = true;
+    clearTimeout(timer);
+    socket.off("notification:new", onNotification);
+    socket.off("connect_error", recover);
+    socket.off("disconnect", recover);
     socket.disconnect();
-    if (activeSocket === socket) activeSocket = null;
   };
 }

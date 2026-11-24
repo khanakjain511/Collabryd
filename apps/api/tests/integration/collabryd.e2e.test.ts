@@ -670,6 +670,82 @@ describe("Collabryd End-to-End Integration Suite", () => {
     }
   });
 
+  it("recovers sequenced direct history across socket reconnects and authorizes each live delivery", async () => {
+    const server = createServer(app);
+    const close = await attachNotificationSockets(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const open = (token: string) => io(url, {
+      autoConnect: false, forceNew: true, auth: { token }, reconnection: false,
+    });
+    const recipient = open(tokenB);
+    const secondTab = open(tokenB);
+    const observer = open(tokenC);
+    const writer = open(tokenA);
+    const clients = [recipient, secondTab, observer, writer];
+    const id = directConversationId;
+    const path = `/api/v1/conversations/${id}`;
+    const join = (client: typeof recipient) => client.timeout(2000).emitWithAck("conversation:join", id);
+    const connect = async (client: typeof recipient) => {
+      const ready = once(client, "connect");
+      client.connect();
+      await ready;
+    };
+    const send = (key: string) => request(app).post(path + "/messages")
+      .set("Authorization", `Bearer ${tokenA}`).send({ content: key, clientMessageId: key });
+    const history = (query: object) => request(app).get(path + "/messages").query(query)
+      .set("Authorization", `Bearer ${tokenB}`).expect(200);
+    const observed = vi.fn();
+    observer.on("conversation:changed", observed);
+    try {
+      await Promise.all(clients.map(connect));
+      expect(await Promise.all(clients.map(join))).toEqual([true, true, false, true]);
+      const events = Promise.all([once(recipient, "conversation:changed"), once(secondTab, "conversation:changed")]);
+      const writes = await Promise.all([send("direct-one"), send("direct-one")]);
+      expect(writes.map((r) => r.status).sort()).toEqual([200, 201]);
+      expect(writes[0]!.body.data.messageId).toBe(writes[1]!.body.data.messageId);
+      expect(await events).toEqual([[id], [id]]);
+      recipient.disconnect();
+      await send("direct-two").expect(201);
+      await send("direct-three").expect(201);
+      await connect(recipient);
+      expect(await join(recipient)).toBe(true);
+      const missed = (await history({ afterSequence: 1, limit: 1 })).body.data;
+      expect(missed.map((m: { content: string }) => m.content)).toEqual(["direct-two"]);
+      expect((await history({ beforeSequence: 2 })).body.data).toHaveLength(1);
+      expect((await history({ afterSequence: 2 })).body.data[0].sequenceNumber).toBe(3);
+      for (const req of [request(app).get(path + "/messages"), request(app).patch(path + "/read").send({ lastReadSequence: 3 }),
+        request(app).post(path + "/messages").send({content: "ignored", clientMessageId: "outsider"})]) {
+        await req.set("Authorization", `Bearer ${tokenC}`).expect(403);
+      }
+      expect(observed).not.toHaveBeenCalled();
+
+      recipient.on("conversation:changed", observed);
+      secondTab.on("conversation:changed", observed);
+      await db.update(users).set({ accountStatus: "SUSPENDED" }).where(eq(users.userId, userBId));
+      try {
+        const committed = once(writer, "conversation:changed");
+        await send("direct-during-suspension").expect(201);
+        await committed;
+        expect(await join(recipient)).toBe(false);
+        expect(observed).not.toHaveBeenCalled();
+      } finally {
+        await db.update(users).set({ accountStatus: "ACTIVE" }).where(eq(users.userId, userBId));
+      }
+      // The socket remains connected while its disposable membership is removed.
+      await db.execute(sql`DELETE FROM collabryd.conversation_members WHERE conversation_id=${id} AND user_id=${userBId}`);
+      const committed = once(writer, "conversation:changed");
+      await send("direct-after-removal").expect(201);
+      await committed;
+      expect(await join(recipient)).toBe(false);
+      expect(observed).not.toHaveBeenCalled();
+    } finally {
+      for (const client of clients) client.close();
+      await close();
+    }
+  });
+
   it("7. Notifications, preferences, team member removal, and Admin RBAC + audit logs", async () => {
 
     // User B has unread notifications (accepted + messages)

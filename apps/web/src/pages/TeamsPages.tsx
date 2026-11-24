@@ -446,6 +446,25 @@ export function CreateTeamPage({ demo, id }: { demo: DemoData; id?: string }) {
   );
 }
 
+function ProjectChatLink({ projectId }: { projectId: number }) {
+  const [id, setId] = useState<number>();
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let active = true;
+    conversationsApi.getProjectConversation(projectId).then((conv) => {
+      if (active) { setId(conv.conversationId); setError(""); }
+    }).catch((err) => {
+      if (active && err?.status !== 403 && err?.status !== 404) setError("Could not load team chat.");
+    });
+    return () => { active = false; };
+  }, [projectId, attempt]);
+  if (error) return <p role="alert">{error} <button onClick={() => setAttempt(attempt + 1)}>Retry</button></p>;
+  return id ? <a href={`#/messages/${id}`} className="inline-flex items-center gap-2 font-semibold text-primary">
+    <Icon name="mail" size={16} /> Open Team Chat
+  </a> : null;
+}
+
 export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
   const team = demo.teams.find((item) => item.id === id);
   const [joining, setJoining] = useState(false);
@@ -768,28 +787,9 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
                   ? "You’re a member of this team. Bring your strengths and see what happens."
                   : "Tell the team a little about yourself and what you’d like to contribute."}
             </p>
+            {Number.isSafeInteger(pid) && pid > 0 && <ProjectChatLink key={pid} projectId={pid} />}
             {member ? (
               <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  className="w-full inline-flex items-center justify-center gap-2 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-primary text-on-primary hover:bg-primary/90 transition-colors cursor-pointer"
-                  onClick={async () => {
-                    const pid = Number(team.id);
-                    if (Number.isFinite(pid)) {
-                      try {
-                        const conv = await conversationsApi.getProjectConversation(pid);
-                        window.location.hash = `/messages/${conv.conversationId}`;
-                      } catch {
-                        window.location.hash = "/messages";
-                      }
-                    } else {
-                      window.location.hash = "/messages";
-                    }
-                  }}
-                >
-                  <Icon name="mail" size={16} />
-                  Open Team Chat
-                </button>
                 <a
                   href="#/discover"
                   className="w-full inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"

@@ -1,382 +1,215 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { DemoData } from "../hooks/useDemoData";
-import {
-  conversationsApi,
-  type BackendConversation,
-  type BackendMessage,
-} from "../lib/api";
-import { Avatar, Badge, Icon, PageHeading } from "../components/ui";
+import { conversationsApi, type BackendConversation, type BackendMessage } from "../lib/api";
+import { watchChat } from "../lib/chat-sync";
+import { Avatar, Badge, PageHeading } from "../components/ui";
 
-export function MessagesPage({
-  conversationId: activeConvIdFromRoute,
-  demo,
-}: {
-  conversationId?: string;
-  demo: DemoData;
-}) {
-  const [conversations, setConversations] = useState<BackendConversation[]>([]);
-  const [loadingList, setLoadingList] = useState(true);
-  const [activeConvId, setActiveConvId] = useState<number | null>(
-    activeConvIdFromRoute ? Number(activeConvIdFromRoute) : null
-  );
+const PAGE = 50;
+const action = "px-3 py-2 rounded-lg text-sm font-semibold text-primary hover:bg-soft";
+const errorText = (error: unknown) => error instanceof Error ? error.message : "Could not reach messaging.";
+
+function accessEnded(error: unknown) {
+  return error instanceof Error && "status" in error && [401, 403, 404].includes(Number(error.status));
+}
+
+function title(conv: BackendConversation, userId?: number) {
+  return conv.type === "GROUP" ? conv.projectTitle || "Team chat"
+    : conv.participants.find((p) => p.userId !== userId)?.displayName || "Direct message";
+}
+
+function mergeMessages(previous: BackendMessage[], incoming: BackendMessage[]) {
+  const byId = new Map(previous.map((m) => [m.messageId, m]));
+  for (const message of incoming) byId.set(message.messageId, message);
+  return [...byId.values()].sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+}
+
+export function MessagesPage({ conversationId, demo }: { conversationId?: string; demo: DemoData }) {
+  const { liveSocket: socket, currentUserId } = demo;
+  const [inbox, setInbox] = useState<BackendConversation[]>();
+  const [error, setError] = useState("");
+  const [connected, setConnected] = useState(socket.connected);
+  const retry = useRef<() => void>(() => {});
+  useEffect(() => {
+    const status = () => setConnected(socket.connected);
+    socket.on("connect", status).on("disconnect", status);
+    const watch = watchChat(socket, null, async (signal) => {
+      const rows = await conversationsApi.list();
+      if (signal.aborted) return;
+      setInbox(rows);
+      setError("");
+      status();
+    }, (err) => {
+      if (accessEnded(err)) setInbox([]);
+      setError(errorText(err));
+    });
+    retry.current = watch.sync;
+    return () => {
+      watch.close();
+      socket.off("connect", status).off("disconnect", status);
+    };
+  }, [socket]);
+
+  const selected = conversationId ? inbox?.find((c) => c.conversationId === Number(conversationId)) : inbox?.[0];
+  return <>
+    <PageHeading eyebrow="Workspace" title="Messages" description="Direct conversations and project team chats." />
+    <div className="bg-surface border border-border rounded-2xl overflow-hidden grid grid-cols-1 md:grid-cols-[minmax(220px,30%)_1fr] mb-10">
+      <aside aria-label="Conversation inbox" className="border-b md:border-r border-border">
+        <div className="p-4 flex items-center justify-between">
+          <h2 className="font-semibold">Inbox</h2>
+          <span role="status" className="text-xs text-muted">{connected ? "Live" : "Reconnecting…"}</span>
+        </div>
+        {error && <p role="alert" className="px-4 text-danger">{error} <button className={action} onClick={() => retry.current()}>Retry inbox</button></p>}
+        {!inbox && !error && <p className="p-4">Loading conversations…</p>}
+        {inbox?.length === 0 && <p className="p-4 text-muted">No conversations yet.</p>}
+        <nav aria-label="Conversations" className="max-h-48 md:max-h-[55vh] overflow-y-auto">
+          {inbox?.map((conv) => <a key={conv.conversationId} href={`#/messages/${conv.conversationId}`}
+            aria-current={selected?.conversationId === conv.conversationId ? "page" : undefined}
+            className="flex items-center gap-3 p-3 hover:bg-soft aria-[current=page]:bg-sage/40">
+            <Avatar name={title(conv, currentUserId)} color={conv.type === "GROUP" ? "#115e59" : "#6b46c1"} small />
+            <span className="flex-1 min-w-0 truncate">{title(conv, currentUserId)}</span>
+            {conv.unreadMessagesCount > 0 && <Badge tone="neutral">{conv.unreadMessagesCount} unread</Badge>}
+          </a>)}
+        </nav>
+        <a href="#/discover" className={action + " inline-block m-2"}>Find students to message</a>
+      </aside>
+      {selected ? <Thread key={selected.conversationId} conv={selected} demo={demo} /> :
+        <p className="p-8 text-muted">{conversationId && inbox ? "Conversation unavailable." : "Select a conversation."}</p>}
+    </div>
+  </>;
+}
+
+function Thread({ conv, demo }: { conv: BackendConversation; demo: DemoData }) {
+  const id = conv.conversationId;
+  const { liveSocket: socket } = demo;
   const [messages, setMessages] = useState<BackendMessage[]>([]);
-  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [older, setOlder] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [error, setError] = useState("");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Load conversations list
-  async function loadConversations() {
-    try {
-      const list = await conversationsApi.list();
-      const safeList = Array.isArray(list) ? list : [];
-      setConversations(safeList);
-      if (!activeConvId && safeList.length > 0 && !activeConvIdFromRoute) {
-        setActiveConvId(safeList[0]?.conversationId ?? null);
-      }
-    } catch {
-      setConversations([]);
-    } finally {
-      setLoadingList(false);
-    }
-  }
+  const [failed, setFailed] = useState(false);
+  const pending = useRef<{ clientMessageId: string; content: string } | null>(null);
+  const sendLock = useRef(false);
+  const sync = useRef<() => void>(() => {});
+  const feed = useRef<HTMLDivElement>(null);
+  const follow = useRef(true);
+  const initialRead = useRef(conv.lastReadSequence);
 
   useEffect(() => {
-    loadConversations();
-  }, []);
-
-  // Update activeConvId when route changes
-  useEffect(() => {
-    if (activeConvIdFromRoute) {
-      setActiveConvId(Number(activeConvIdFromRoute));
-    }
-  }, [activeConvIdFromRoute]);
-
-  // Load messages for active conversation
-  useEffect(() => {
-    if (!activeConvId) {
-      setMessages([]);
-      return;
-    }
-
-    setLoadingMessages(true);
-    conversationsApi
-      .listMessages(activeConvId, { limit: 50 })
-      .then((res) => {
-        const items = res?.items && Array.isArray(res.items) ? res.items : [];
-        setMessages(items);
-        // Mark conversation as read
-        if (items.length > 0) {
-          const lastSeq = items[items.length - 1]?.sequenceNumber;
-          if (lastSeq !== undefined) {
-            conversationsApi.markRead(activeConvId, lastSeq).catch(() => {});
+    let cursor: number | undefined;
+    let readThrough = initialRead.current;
+    const watch = watchChat(socket, id, async (signal) => {
+      let page: BackendMessage[];
+      do {
+        const initial = cursor === undefined;
+        page = await conversationsApi.listMessages(id, { afterSequence: cursor, limit: PAGE });
+        if (signal.aborted) return;
+        if (initial) setOlder(page.length === PAGE);
+        if (page.length) {
+          const batch = page;
+          setMessages((prev) => mergeMessages(prev, batch));
+          if (batch.some((m) => m.clientMessageId === pending.current?.clientMessageId)) {
+            pending.current = null;
+            setFailed(false);
+            setText("");
           }
         }
-      })
-      .catch(() => {
-        setMessages([]);
-      })
-      .finally(() => setLoadingMessages(false));
-  }, [activeConvId]);
-
-  // Auto-scroll to bottom of messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  // Periodic polling for new messages when open
-  useEffect(() => {
-    if (!activeConvId) return;
-    const interval = setInterval(() => {
-      conversationsApi
-        .listMessages(activeConvId, { limit: 50 })
-        .then((res) => {
-          if (res?.items && Array.isArray(res.items)) {
-            setMessages(res.items);
-          }
-        })
-        .catch(() => {});
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, [activeConvId]);
-
-  const activeConversation = conversations.find(
-    (c) => c.conversationId === activeConvId
-  );
-
-  async function handleSend(e: FormEvent) {
-    e.preventDefault();
-    if (!text.trim() || !activeConvId || sending) return;
-
-    const content = text.trim();
-    setText("");
-    setSending(true);
-
-    // Optimistic message
-    const tempId = crypto.randomUUID();
-    const currentUserName = demo.profile?.name || "You";
-    const optimisticMessage: BackendMessage = {
-      messageId: Date.now(),
-      conversationId: activeConvId,
-      senderId: demo.currentUserId || 0,
-      senderName: currentUserName,
-      senderAvatarUrl: null,
-      clientMessageId: tempId,
-      sequenceNumber: (messages[messages.length - 1]?.sequenceNumber || 0) + 1,
-      content,
-      createdAt: new Date().toISOString(),
-    };
-    setMessages((curr) => [...curr, optimisticMessage]);
-
-    try {
-      const res = await conversationsApi.sendMessage(activeConvId, content, tempId);
-      if (res && res.message) {
-        setMessages((curr) =>
-          curr.map((m) =>
-            m.clientMessageId === tempId ? { ...res.message, senderName: currentUserName } : m
-          )
-        );
+        cursor = page.at(-1)?.sequenceNumber ?? cursor ?? 0;
+        if (initial) break;
+      } while (page.length === PAGE);
+      setLoading(false);
+      setError("");
+      if (document.visibilityState === "visible" && cursor > readThrough) {
+        const result = await conversationsApi.markRead(id, cursor);
+        readThrough = result.lastReadSequence;
       }
-    } catch {
-      // Keep optimistic message or handle error
+    }, (err) => {
+      if (accessEnded(err)) {
+        setMessages([]);
+        setOlder(false);
+        cursor = undefined;
+        readThrough = 0;
+      }
+      setError(errorText(err));
+      setLoading(false);
+    });
+    sync.current = watch.sync;
+    return watch.close;
+  }, [id, socket]);
+
+  const latest = messages.at(-1)?.sequenceNumber;
+  useEffect(() => {
+    if (follow.current && feed.current) feed.current.scrollTop = feed.current.scrollHeight;
+  }, [latest]);
+
+  async function loadOlder() {
+    if (!messages.length || loadingOlder) return;
+    setLoadingOlder(true);
+    try {
+      const page = await conversationsApi.listMessages(id, { beforeSequence: messages[0].sequenceNumber, limit: PAGE });
+      setMessages((prev) => mergeMessages(prev, page));
+      setOlder(page.length === PAGE);
+      setError("");
+    } catch (err) { setError(errorText(err)); }
+    finally { setLoadingOlder(false); }
+  }
+
+  async function send(event: FormEvent) {
+    event.preventDefault();
+    if (sendLock.current || !text.trim()) return;
+    const request = pending.current ?? { content: text.trim(), clientMessageId: crypto.randomUUID() };
+    pending.current = request;
+    sendLock.current = true;
+    setSending(true);
+    setFailed(false);
+    try {
+      const row = await conversationsApi.sendMessage(id, request.content, request.clientMessageId);
+      const message = { ...row, senderName: demo.profile.name, senderAvatarUrl: null };
+      follow.current = true;
+      setMessages((prev) => mergeMessages(prev, [message]));
+      pending.current = null;
+      setText("");
+      sync.current();
+    } catch (err) {
+      if (pending.current) {
+        setFailed(true);
+        setError(errorText(err));
+      }
     } finally {
+      sendLock.current = false;
       setSending(false);
     }
   }
 
-  function getConversationTitle(conv?: BackendConversation | null): string {
-    if (!conv) return "Conversation";
-    if (conv.type === "PROJECT_GROUP") {
-      return conv.projectTitle || "Team Project Chat";
-    }
-    const participants = conv.participants || [];
-    const otherParticipant = participants.find(
-      (p) => p && p.userId !== demo.currentUserId
-    );
-    return otherParticipant?.displayName || "Direct Message";
-  }
-
-  return (
-    <>
-      <PageHeading
-        eyebrow="COMMUNICATION & COLLABORATION"
-        title="Messages"
-        description="Connect directly with peers, team members, and collaborators across campus."
-      />
-
-      <div className="bg-surface border border-border rounded-2xl overflow-hidden shadow-xs grid grid-cols-1 md:grid-cols-[320px_1fr] min-h-[600px] mb-10">
-        {/* Left column: Conversations sidebar */}
-        <aside className="border-r border-border flex flex-col bg-surface/50">
-          <div className="p-4 border-b border-border flex items-center justify-between">
-            <h2 className="text-sm font-bold tracking-wider uppercase text-muted">
-              Inbox
-            </h2>
-            <Badge tone="neutral">{conversations.length}</Badge>
-          </div>
-
-          <div className="overflow-y-auto flex-1 divide-y divide-border/60">
-            {loadingList ? (
-              <div className="p-6 text-center text-sm text-muted">
-                Loading conversations...
-              </div>
-            ) : conversations.length === 0 ? (
-              <div className="p-8 text-center flex flex-col items-center gap-3">
-                <span className="w-10 h-10 rounded-full bg-soft grid place-items-center text-muted">
-                  <Icon name="mail" size={20} />
-                </span>
-                <p className="text-sm text-muted">No conversations yet.</p>
-                <a
-                  href="#/discover"
-                  className="text-xs font-bold text-primary hover:underline"
-                >
-                  Find people to message
-                </a>
-              </div>
-            ) : (
-              conversations.map((conv) => {
-                const isSelected = conv.conversationId === activeConvId;
-                const title = getConversationTitle(conv);
-                const isGroup = conv.type === "PROJECT_GROUP";
-
-                return (
-                  <button
-                    key={conv.conversationId}
-                    type="button"
-                    onClick={() => {
-                      setActiveConvId(conv.conversationId);
-                      window.location.hash = `/messages/${conv.conversationId}`;
-                    }}
-                    className={`w-full p-4 text-left transition-colors flex items-start gap-3 cursor-pointer ${
-                      isSelected
-                        ? "bg-sage/40 border-l-4 border-primary"
-                        : "hover:bg-soft"
-                    }`}
-                  >
-                    <Avatar
-                      name={title}
-                      color={isGroup ? "#115e59" : "#6b46c1"}
-                      small
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1 mb-0.5">
-                        <strong className="text-sm font-semibold text-ink truncate">
-                          {title}
-                        </strong>
-                        {conv.unreadMessagesCount > 0 && (
-                          <span className="w-5 h-5 rounded-full bg-accent text-on-accent text-[11px] font-bold grid place-items-center">
-                            {conv.unreadMessagesCount}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted truncate">
-                        {isGroup ? "Project group chat" : "Direct message"}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </aside>
-
-        {/* Right column: Message thread */}
-        <section className="flex flex-col h-[600px] bg-surface">
-          {activeConversation ? (
-            <>
-              {/* Header */}
-              <div className="p-4 border-b border-border flex items-center justify-between bg-surface/70">
-                <div className="flex items-center gap-3">
-                  <Avatar
-                    name={getConversationTitle(activeConversation)}
-                    color={
-                      activeConversation.type === "PROJECT_GROUP"
-                        ? "#115e59"
-                        : "#6b46c1"
-                    }
-                    small
-                  />
-                  <div>
-                    <h3 className="text-sm font-bold text-ink">
-                      {getConversationTitle(activeConversation)}
-                    </h3>
-                    <p className="text-xs text-muted">
-                      {activeConversation.type === "PROJECT_GROUP"
-                        ? `Project Team · ${(activeConversation.participants || []).length} members`
-                        : "Direct conversation"}
-                    </p>
-                  </div>
-                </div>
-                {activeConversation.projectId && (
-                  <a
-                    href={`#/teams/${activeConversation.projectId}`}
-                    className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
-                  >
-                    View team project <Icon name="arrowUp" size={14} />
-                  </a>
-                )}
-              </div>
-
-              {/* Messages feed */}
-              <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-soft/30">
-                {loadingMessages ? (
-                  <div className="p-8 text-center text-sm text-muted">
-                    Loading messages...
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="p-12 text-center text-muted text-sm">
-                    No messages in this conversation yet. Say hello!
-                  </div>
-                ) : (
-                  messages.map((msg) => {
-                    const isSelf = Boolean(demo.currentUserId && msg.senderId === demo.currentUserId);
-                    const timeString = msg.createdAt
-                      ? (() => {
-                          const d = new Date(msg.createdAt);
-                          return Number.isFinite(d.getTime())
-                            ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                            : "";
-                        })()
-                      : "";
-
-                    return (
-                      <div
-                        key={msg.clientMessageId || msg.messageId}
-                        className={`flex flex-col ${
-                          isSelf ? "items-end" : "items-start"
-                        }`}
-                      >
-                        {!isSelf && (
-                          <span className="text-[11px] font-semibold text-muted mb-1 px-1">
-                            {msg.senderName || "Member"}
-                          </span>
-                        )}
-                        <div
-                          className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-2xs ${
-                            isSelf
-                              ? "bg-accent text-on-accent rounded-br-xs"
-                              : "bg-surface border border-border text-ink rounded-bl-xs"
-                          }`}
-                        >
-                          <p className="whitespace-pre-wrap break-words">
-                            {msg.content || ""}
-                          </p>
-                        </div>
-                        {timeString && (
-                          <span className="text-[10px] text-muted mt-1 px-1">
-                            {timeString}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Send message form */}
-              <form
-                onSubmit={handleSend}
-                className="p-3 border-t border-border flex items-center gap-2 bg-surface"
-              >
-                <input
-                  type="text"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="Type a message..."
-                  className="flex-1 py-2.5 px-3.5 bg-surface border border-input-border rounded-lg text-sm text-ink placeholder:text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors"
-                />
-                <button
-                  type="submit"
-                  disabled={!text.trim() || sending}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 disabled:opacity-50 transition-colors cursor-pointer"
-                >
-                  <span>Send</span>
-                  <Icon name="arrowUp" size={16} />
-                </button>
-              </form>
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-              <span className="w-14 h-14 rounded-full bg-soft grid place-items-center text-muted mb-4">
-                <Icon name="mail" size={28} />
-              </span>
-              <h3 className="text-lg font-bold text-ink mb-2">
-                Select a conversation
-              </h3>
-              <p className="text-sm text-muted max-w-sm mb-6">
-                Pick a conversation from the sidebar or reach out to other students on discovery or team pages.
-              </p>
-              <a
-                href="#/discover"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-primary text-on-primary hover:bg-primary/90 transition-colors"
-              >
-                Browse students <Icon name="arrow" size={16} />
-              </a>
-            </div>
-          )}
-        </section>
-      </div>
-    </>
-  );
+  return <section className="min-w-0 flex flex-col h-[65vh] min-h-80">
+    <header className="flex justify-between items-center gap-3 p-4 border-b border-border">
+      <h2 className="font-semibold">{title(conv, demo.currentUserId)}</h2>
+      {conv.projectId && <a className={action} href={`#/teams/${conv.projectId}`}>View team</a>}
+    </header>
+    {error && <p role="alert" className="px-4 text-danger">{error} <button className={action} onClick={() => sync.current()}>Reload history</button></p>}
+    <div ref={feed} aria-label="Message history" className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-soft/30"
+      onScroll={(e) => { const el = e.currentTarget; follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 64; }}>
+      {older && <button className={action} onClick={loadOlder} disabled={loadingOlder}>{loadingOlder ? "Loading…" : "Load older messages"}</button>}
+      {loading && <p>Loading messages…</p>}
+      {!loading && !error && messages.length === 0 && <p className="text-muted">No messages yet. Say hello!</p>}
+      {messages.map((m) => {
+        const own = m.senderId === demo.currentUserId;
+        return <article key={m.messageId} className={`flex flex-col ${own ? "items-end" : "items-start"}`}>
+          <span className="text-xs text-muted">{own ? "You" : m.senderName}</span>
+          <p className={`max-w-[85%] whitespace-pre-wrap break-words rounded-xl px-3 py-2 ${own ? "bg-accent text-on-accent" : "bg-surface border border-border"}`}>{m.content}</p>
+          <time className="text-xs text-muted" dateTime={m.createdAt}>{new Date(m.createdAt).toLocaleString()}</time>
+        </article>;
+      })}
+    </div>
+    {failed && <p role="status" className="px-3 text-sm">Send unconfirmed. Retry to check delivery.</p>}
+    <form onSubmit={send} className="flex gap-2 p-3 border-t border-border">
+      <input aria-label="Message" placeholder="Type a message…" maxLength={4000} value={text} readOnly={sending}
+        onChange={(e) => { pending.current = null; setFailed(false); setText(e.target.value); }}
+        className="flex-1 min-w-0 border border-input-border bg-surface rounded-lg px-3 py-2" />
+      <button disabled={!text.trim() || sending} className="bg-accent text-on-accent font-semibold px-4 py-2 rounded-lg disabled:opacity-50">
+        {sending ? "Sending…" : failed ? "Retry send" : "Send"}
+      </button>
+    </form>
+  </section>;
 }
