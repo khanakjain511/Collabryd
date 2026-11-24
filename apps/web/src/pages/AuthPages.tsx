@@ -21,6 +21,12 @@ function AuthContent({
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loginMethod, setLoginMethod] = useState<"password" | "otp">("password");
+  const [loginOtpSent, setLoginOtpSent] = useState(false);
+  const [loginOtpEmail, setLoginOtpEmail] = useState(demo.pendingEmail || "");
+  const [loginOtpCode, setLoginOtpCode] = useState("");
+  const [loginOtpMessage, setLoginOtpMessage] = useState("");
+
   const [verificationInput, setVerificationInput] = useState(
     () => new URLSearchParams(window.location.hash.slice(1)).get("token") || demo.verificationToken
   );
@@ -127,11 +133,52 @@ function AuthContent({
     setResendMessage("");
     setLoading(true);
     try {
-      const result = await authApi.resendVerification(resendEmail.trim());
-      setVerificationInput(result.verificationToken || "");
+      const result = await authApi.sendOtp(resendEmail.trim(), "SIGNUP");
+      setVerificationInput(result.otp || result.verificationToken || "");
       setResendMessage(result.message);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to resend verification.");
+      setError(err instanceof Error ? err.message : "Failed to resend verification code.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSendLoginOtp(event?: FormEvent) {
+    if (event) event.preventDefault();
+    setError("");
+    setLoginOtpMessage("");
+    setLoading(true);
+    try {
+      if (!loginOtpEmail.trim()) {
+        setError("Please enter your campus email address.");
+        return;
+      }
+      const result = await demo.sendLoginOtp(loginOtpEmail.trim());
+      if (!result.success) {
+        setError(result.message);
+        return;
+      }
+      setLoginOtpSent(true);
+      setLoginOtpMessage(result.message);
+      if (result.otp) {
+        setLoginOtpCode(result.otp);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleVerifyLoginOtp(event: FormEvent) {
+    event.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      if (!loginOtpEmail.trim() || !loginOtpCode.trim()) {
+        setError("Please enter your email and the 6-digit verification code.");
+        return;
+      }
+      const err = await demo.loginWithOtp(loginOtpEmail.trim(), loginOtpCode.trim());
+      if (err) setError(err);
     } finally {
       setLoading(false);
     }
@@ -187,19 +234,19 @@ function AuthContent({
               Verify your campus identity
             </h2>
             <p className="text-sm text-muted mb-4 leading-relaxed">
-              Enter your verification token or confirm with one click to activate
-              your campus profile.
+              Enter the 6-digit verification code (OTP) sent to your campus email address to activate your account.
             </p>
 
             {demo.authMessage && !resendMessage && <p role="status">{demo.authMessage}</p>}
             <div className="w-full mb-4 text-left">
               <label htmlFor="verification-token" className="text-xs font-semibold text-ink block mb-1.5">
-                Verification Token
+                6-Digit Verification Code (OTP)
               </label>
               <input
-                className="w-full px-3.5 py-2.5 bg-surface border border-input-border rounded-lg text-sm text-ink placeholder:text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors font-mono"
+                className="w-full px-3.5 py-2.5 bg-surface border border-input-border rounded-lg text-sm text-ink placeholder:text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors font-mono tracking-widest text-center text-lg"
                 id="verification-token"
-                placeholder="Paste verification token"
+                placeholder="482915"
+                maxLength={6}
                 value={verificationInput}
                 onChange={(e) => setVerificationInput(e.target.value)}
               />
@@ -217,7 +264,7 @@ function AuthContent({
               className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer shadow-sm disabled:opacity-50"
               onClick={() => handleVerify(verificationInput)}
             >
-              {loading ? "Verifying…" : "Confirm campus verification"}{" "}
+              {loading ? "Verifying…" : "Confirm verification code"}{" "}
               <Icon name="arrow" size={18} />
             </button>
             <form onSubmit={handleResend} className="w-full mt-4">
@@ -229,7 +276,7 @@ function AuthContent({
               </label>
               <button type="submit" disabled={loading}
                 className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-muted hover:text-ink cursor-pointer mt-2">
-                Resend verification token
+                Resend 6-digit code
               </button>
             </form>
             {resendMessage && (
@@ -256,8 +303,128 @@ function AuthContent({
               Back to login <Icon name="arrow" />
             </a>
           </div>
+        ) : mode === "login" && loginMethod === "otp" ? (
+          <div className="flex flex-col gap-3.5">
+            <div className="flex gap-2 p-1 bg-soft rounded-lg mb-2 text-xs font-semibold">
+              <button
+                type="button"
+                className="flex-1 py-1.5 rounded-md transition-colors text-muted hover:text-ink"
+                onClick={() => { setLoginMethod("password"); setError(""); }}
+              >
+                Password Login
+              </button>
+              <button
+                type="button"
+                className="flex-1 py-1.5 rounded-md transition-colors bg-surface shadow-sm text-ink font-bold"
+                onClick={() => { setLoginMethod("otp"); setError(""); }}
+              >
+                OTP Code Login
+              </button>
+            </div>
+
+            {!loginOtpSent ? (
+              <form onSubmit={handleSendLoginOtp} className="flex flex-col gap-3.5">
+                <p className="text-xs text-muted leading-relaxed">
+                  Enter your campus email. We will send a 6-digit one-time code to log you in securely.
+                </p>
+                <label className="text-xs font-semibold text-ink flex flex-col gap-1.5">
+                  Institution email
+                  <span className="relative flex items-center mt-1 [&>svg:first-child]:absolute [&>svg:first-child]:left-3.5 [&>svg:first-child]:pointer-events-none [&>svg:first-child]:text-muted [&>input]:pl-10">
+                    <Icon name="mail" size={18} />
+                    <input
+                      name="email"
+                      type="email"
+                      placeholder="student@campus.edu"
+                      value={loginOtpEmail}
+                      onChange={(e) => setLoginOtpEmail(e.target.value)}
+                      autoComplete="email"
+                      required
+                      className="w-full px-3.5 py-2.5 bg-surface border border-input-border rounded-lg text-sm text-ink placeholder:text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors"
+                    />
+                  </span>
+                </label>
+
+                {error && <p role="alert" className="text-xs text-danger font-medium">{error}</p>}
+
+                <button
+                  className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer shadow-sm mt-1 disabled:opacity-50"
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading ? "Sending code…" : "Send login code"}
+                  <Icon name="arrowUp" size={18} />
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyLoginOtp} className="flex flex-col gap-3.5">
+                {loginOtpMessage && (
+                  <p className="text-xs text-accent font-medium">{loginOtpMessage}</p>
+                )}
+                <label className="text-xs font-semibold text-ink flex flex-col gap-1.5">
+                  6-Digit Login Code (OTP)
+                  <input
+                    name="otp"
+                    type="text"
+                    maxLength={6}
+                    placeholder="482915"
+                    value={loginOtpCode}
+                    onChange={(e) => setLoginOtpCode(e.target.value)}
+                    required
+                    className="w-full px-3.5 py-2.5 bg-surface border border-input-border rounded-lg text-sm text-ink placeholder:text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors font-mono tracking-widest text-center text-lg"
+                  />
+                </label>
+
+                {error && <p role="alert" className="text-xs text-danger font-medium">{error}</p>}
+
+                <button
+                  className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer shadow-sm mt-1 disabled:opacity-50"
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading ? "Logging in…" : "Verify code & log in"}
+                  <Icon name="arrowUp" size={18} />
+                </button>
+
+                <div className="flex items-center justify-between text-xs text-muted mt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSendLoginOtp()}
+                    className="text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer text-xs"
+                    disabled={loading}
+                  >
+                    Resend code
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setLoginOtpSent(false); setLoginOtpCode(""); setError(""); }}
+                    className="text-muted hover:text-ink bg-transparent border-0 p-0 cursor-pointer text-xs"
+                  >
+                    Use different email
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         ) : (
           <form className="auth-form flex flex-col gap-3.5" onSubmit={submit}>
+            {mode === "login" && (
+              <div className="flex gap-2 p-1 bg-soft rounded-lg mb-2 text-xs font-semibold">
+                <button
+                  type="button"
+                  className="flex-1 py-1.5 rounded-md transition-colors bg-surface shadow-sm text-ink font-bold"
+                  onClick={() => { setLoginMethod("password"); setError(""); }}
+                >
+                  Password Login
+                </button>
+                <button
+                  type="button"
+                  className="flex-1 py-1.5 rounded-md transition-colors text-muted hover:text-ink"
+                  onClick={() => { setLoginMethod("otp"); setError(""); }}
+                >
+                  OTP Code Login
+                </button>
+              </div>
+            )}
             {mode === "login" && demo.authMessage && <p role="status">{demo.authMessage}</p>}
             {registering && (
               <label className="text-xs font-semibold text-ink flex flex-col gap-1.5">

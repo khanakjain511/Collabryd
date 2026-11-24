@@ -417,6 +417,43 @@ export function useDemoData() {
     }
   }
 
+  // Real OTP login
+  async function loginWithOtp(email: string, otp: string): Promise<string | undefined> {
+    setAuthMessage("");
+    try {
+      const res = await authApi.loginWithOtp(email, otp);
+      setCurrentUserId(res.user.userId);
+      setSignedIn(true);
+      const isActive = res.user.accountStatus === "ACTIVE";
+      setVerified(isActive);
+
+      const own = await profilesApi.getOwnProfile().catch(() => null);
+      if (own) setProfile(mapBackendStudent(own, res.user.userId));
+      await loadPlatformData(res.user.userId);
+
+      if (isActive) {
+        window.location.hash = res.user.email === onboardingEmail.current ? "/onboarding" : "/dashboard";
+        onboardingEmail.current = "";
+      } else {
+        window.location.hash = "/verify-campus";
+      }
+      return undefined;
+    } catch (err) {
+      const error = err as Error & { code?: string };
+      return error.message || "Failed to log in with code";
+    }
+  }
+
+  async function sendLoginOtp(email: string): Promise<{ success: boolean; message: string; otp?: string }> {
+    try {
+      const res = await authApi.sendOtp(email, "LOGIN");
+      return { success: true, message: res.message, otp: res.otp };
+    } catch (err) {
+      const error = err as Error;
+      return { success: false, message: error.message || "Failed to send login code" };
+    }
+  }
+
   function signOut() {
     void authApi.logout().catch(() => {
       setAuthMessage("Signed out of this browser. The server could not confirm logout.");
@@ -924,6 +961,8 @@ export function useDemoData() {
     verificationToken,
     openDemo,
     login,
+    loginWithOtp,
+    sendLoginOtp,
     registerStudentAccount,
     verifyEmailToken,
     pendingEmail,
