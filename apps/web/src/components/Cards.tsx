@@ -47,7 +47,7 @@ export function PersonCard({
         </p>
       )}
       <div className="card-bottom flex items-center justify-between gap-2 border-t border-border pt-4 mt-5 text-sm">
-        <span className="text-xs text-muted">Example profile</span>
+        <span className="text-xs text-muted">Campus member</span>
         <a
           href={`#/users/${person.id}`}
           className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"

@@ -64,7 +64,7 @@ export function DashboardPage({ demo }: { demo: DemoData }) {
           <span className="flex flex-col flex-1">
             <strong className="text-sm font-semibold">
               {demo.teams.filter((team) => team.members.includes("you")).length}{" "}
-              demo team
+              team
               {demo.teams.filter((team) => team.members.includes("you"))
                 .length === 1
                 ? ""
@@ -174,7 +174,7 @@ export function DashboardPage({ demo }: { demo: DemoData }) {
             Something to build towards
           </h2>
           <p className="text-xs sm:text-sm text-muted mt-1">
-            Fictional events. Real possibilities for your frontend demo.
+            Upcoming campus events and hackathons to build towards.
           </p>
         </div>
         <a

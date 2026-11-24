@@ -12,7 +12,7 @@ export function isHttpUrl(value: string) {
 
 export function teamCapacityError(capacity: number, memberCount: number) {
   if (!Number.isInteger(capacity) || capacity < 2 || capacity > 6)
-    return "Choose a demo capacity from 2 to 6.";
+    return "Choose a team capacity from 2 to 6.";
   if (capacity < memberCount)
     return "Capacity cannot be smaller than the current membership.";
   return "";

@@ -141,7 +141,7 @@ export function EventsPage({ demo }: { demo: DemoData }) {
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:px-5 border-b border-border bg-surface/50 rounded-t-xl">
         <p aria-live="polite">
-          <strong>{events.length}</strong> fictional events to explore
+          <strong>{events.length}</strong> events to explore
         </p>
         <div className="flex items-center gap-3">
           <label>
@@ -246,9 +246,7 @@ export function EventsPage({ demo }: { demo: DemoData }) {
       <div className="bg-soft border-l-4 border-primary p-4 rounded-r-xl my-5 text-sm text-ink leading-relaxed flex items-start gap-3">
         <Icon name="calendar" />
         <p>
-          <strong>A little clarity.</strong> These are fictional events. Dates
-          use India Standard Time. Joining a team is not event registration.
-          Draft and archived examples are hidden from this catalog.
+          <strong>Calendar Notes.</strong> Dates use India Standard Time. Joining a team is not event registration.
         </p>
       </div>
     </>
@@ -285,7 +283,7 @@ export function EventDetailPage({ id, demo }: { id: string; demo: DemoData }) {
         className={`min-h-[240px] rounded-2xl p-6 sm:p-8 relative overflow-hidden flex flex-col justify-end bg-surface border border-border mb-8 shadow-sm ${event.color}`}
       >
         <div>
-          <Badge>FICTIONAL EXAMPLE EVENT</Badge>
+          <Badge tone="positive">{event.category || "HACKATHON"}</Badge>
           <h1
             className="font-display text-3xl sm:text-4xl md:text-5xl font-medium text-ink mt-3 mb-1"
             tabIndex={-1}
@@ -306,10 +304,10 @@ export function EventDetailPage({ id, demo }: { id: string; demo: DemoData }) {
           <h2>Good ideas deserve a starting line.</h2>
           <p className="text-sm text-muted leading-relaxed mb-6">{event.description}</p>
           <h3>Organizer and eligibility</h3>
-          <p>{event.organizer || "Fictional event organizers"}</p>
+          <p>{event.organizer || "Campus Event Organizers"}</p>
           <p>
             {event.eligibility ||
-              "Example campus opportunity. Real eligibility must come from a verified organizer."}
+              "Open to all registered campus students."}
           </p>
           {event.rules && (
             <>
@@ -370,13 +368,12 @@ export function EventDetailPage({ id, demo }: { id: string; demo: DemoData }) {
                 <span className="sr-only">(opens a new tab)</span>
               </a>
               <p className="text-xs text-muted mt-1 block">
-                External example link. A visit does not register your team.
+                External event link. Ensure your team registers directly with the organizer.
               </p>
             </>
           ) : (
             <p className="flex items-center gap-2 text-xs text-muted my-2">
-              No official registration link is available for this fictional
-              event.
+              No official registration link is available for this event.
             </p>
           )}
           {event.sourceUrl && isHttpUrl(event.sourceUrl) && (
@@ -391,21 +388,21 @@ export function EventDetailPage({ id, demo }: { id: string; demo: DemoData }) {
           )}
           {event.updatedAt && (
             <p className="text-xs text-muted mt-1 block">
-              Example listing updated {eventDate(event.updatedAt)}.
+              Listing updated {eventDate(event.updatedAt)}.
             </p>
           )}
           <a
             href="#/teams/create"
             className="w-full inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
           >
-            Create a demo team <Icon name="plus" size={17} />
+            Create a team <Icon name="plus" size={17} />
           </a>
         </aside>
       </div>
       <div className="flex justify-between items-end gap-4 my-8">
         <div>
           <h2>People building towards this</h2>
-          <p>Example teams connected to this hackathon.</p>
+          <p>Teams connected to this hackathon.</p>
         </div>
       </div>
       {teams.length ? (
