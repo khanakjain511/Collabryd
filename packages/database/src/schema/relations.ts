@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 import { adminAuditLogs } from "./admin.js";
 import {
+  authOtps,
   emailVerificationTokens,
   refreshSessions,
   users,
@@ -37,6 +38,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.userId],
     references: [notificationPreferences.userId],
   }),
+  authOtps: many(authOtps),
   emailVerificationTokens: many(emailVerificationTokens),
   refreshSessions: many(refreshSessions),
   achievements: many(achievements),
@@ -62,6 +64,13 @@ export const emailVerificationTokensRelations = relations(
     }),
   })
 );
+
+export const authOtpsRelations = relations(authOtps, ({ one }) => ({
+  user: one(users, {
+    fields: [authOtps.userId],
+    references: [users.userId],
+  }),
+}));
 
 export const refreshSessionsRelations = relations(
   refreshSessions,
