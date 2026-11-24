@@ -11,6 +11,7 @@
     "api:dev": "pnpm --filter @repo/api dev",
     "backend:dev": "pnpm --filter @repo/api dev",
     "backend:build": "pnpm --filter @repo/api build",
+    "backend:start": "pnpm --filter @repo/api start",
     "backend:test": "pnpm --filter @repo/api test",
     "web:dev": "pnpm --filter web dev",
     "web:build": "pnpm --filter web build",

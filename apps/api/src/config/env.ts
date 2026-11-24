@@ -14,8 +14,9 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
-  BACKEND_PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-  TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(0),
+  PORT: z.coerce.number().int().min(1).max(65535).optional(),
+  BACKEND_PORT: z.coerce.number().int().min(1).max(65535).optional(),
+  TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(1),
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
@@ -66,10 +67,12 @@ if (provider === "resend" && (!parsed.data.RESEND_API_KEY || !parsed.data.EMAIL_
   throw new Error("Resend requires RESEND_API_KEY, EMAIL_FROM and an HTTPS VERIFICATION_PAGE_URL.");
 }
 
+const effectivePort = parsed.data.PORT ?? parsed.data.BACKEND_PORT ?? 3000;
+
 export const env = {
   ...parsed.data,
   EMAIL_PROVIDER: provider,
-  PORT: parsed.data.BACKEND_PORT,
+  PORT: effectivePort,
   LOG_LEVEL:
     parsed.data.LOG_LEVEL ??
     (parsed.data.NODE_ENV === "test" ? "silent" : "info"),
