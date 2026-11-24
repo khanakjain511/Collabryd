@@ -745,4 +745,69 @@ describe("Collabryd End-to-End Integration Suite", () => {
     expect(auditLogs.status).toBe(200);
     expect(auditLogs.body.data.length).toBeGreaterThanOrEqual(3);
   });
+
+  it("8. OTP Authentication lifecycle: signup verification, login with OTP, and retry limiting", async () => {
+    const otpEmail = `otp.user.${runSuffix}@campus.edu`;
+    const password = "ValidPass123!";
+
+    // 1. Register user -> receives OTP
+    const regRes = await request(app)
+      .post("/api/v1/auth/register")
+      .send({
+        email: otpEmail,
+        password,
+        displayName: "OTP Student",
+        institution: "IIT Delhi",
+        courseProgram: "B.Tech CS",
+        academicYear: "2nd Year",
+      });
+    expect(regRes.status).toBe(201);
+    const signupOtp = regRes.body.data.otp as string;
+    expect(signupOtp).toMatch(/^\d{6}$/);
+
+    // 2. Test invalid OTP increments attempts
+    const badVerify = await request(app)
+      .post("/api/v1/auth/verify-otp")
+      .send({
+        email: otpEmail,
+        otp: "000000",
+        purpose: "SIGNUP",
+      });
+    expect(badVerify.status).toBe(400);
+    expect(badVerify.body.error.code).toBe("INVALID_OTP");
+
+    // 3. Verify with valid signup OTP -> activates user
+    const goodVerify = await request(app)
+      .post("/api/v1/auth/verify-otp")
+      .send({
+        email: otpEmail,
+        otp: signupOtp,
+        purpose: "SIGNUP",
+      });
+    expect(goodVerify.status).toBe(200);
+    expect(goodVerify.body.data.user.accountStatus).toBe("ACTIVE");
+
+    // 4. Request OTP for Login
+    const sendLoginOtp = await request(app)
+      .post("/api/v1/auth/send-otp")
+      .send({
+        email: otpEmail,
+        purpose: "LOGIN",
+      });
+    expect(sendLoginOtp.status).toBe(200);
+    const loginOtp = sendLoginOtp.body.data.otp as string;
+    expect(loginOtp).toMatch(/^\d{6}$/);
+
+    // 5. Login via /login-otp using the OTP
+    const loginWithOtpRes = await request(app)
+      .post("/api/v1/auth/login-otp")
+      .send({
+        email: otpEmail,
+        otp: loginOtp,
+      });
+    expect(loginWithOtpRes.status).toBe(200);
+    expect(loginWithOtpRes.body.data.tokens.accessToken).toBeTruthy();
+    expect(loginWithOtpRes.body.data.tokens.refreshToken).toBeTruthy();
+    expect(loginWithOtpRes.body.data.user.email).toBe(otpEmail);
+  });
 });

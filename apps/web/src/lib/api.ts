@@ -265,13 +265,55 @@ export const authApi = {
   },
 
   async resendVerification(email: string) {
-    return apiRequest<{ message: string; verificationToken?: string }>(
+    return apiRequest<{ message: string; otp?: string; verificationToken?: string }>(
       "/auth/resend-verification",
       {
         method: "POST",
         body: JSON.stringify({ email }),
       }, false
     );
+  },
+
+  async sendOtp(email: string, purpose: "SIGNUP" | "LOGIN" = "LOGIN") {
+    return apiRequest<{ message: string; otp?: string; verificationToken?: string }>(
+      "/auth/send-otp",
+      {
+        method: "POST",
+        body: JSON.stringify({ email, purpose }),
+      },
+      false
+    );
+  },
+
+  async verifyOtp(email: string, otp: string, purpose?: "SIGNUP" | "LOGIN") {
+    return apiRequest<{
+      message: string;
+      user: UserSummary;
+      tokens?: AuthTokens;
+    }>(
+      "/auth/verify-otp",
+      {
+        method: "POST",
+        body: JSON.stringify({ email, otp, purpose }),
+      },
+      false
+    );
+  },
+
+  async loginWithOtp(email: string, otp: string) {
+    const res = await apiRequest<{
+      user: UserSummary;
+      tokens: AuthTokens;
+    }>(
+      "/auth/login-otp",
+      {
+        method: "POST",
+        body: JSON.stringify({ email, otp }),
+      },
+      false
+    );
+    setStoredTokens(res.tokens);
+    return res;
   },
 
   async login(data: { email: string; password: string }) {

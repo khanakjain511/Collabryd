@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
 import {
+  generateNumericOtp,
   generateSecureToken,
   hashPassword,
   sha256,
@@ -17,7 +18,12 @@ import { buildPaginationMeta } from "../../src/utils/pagination.js";
 import { isSameInstitution } from "../../src/utils/visibility.js";
 import { getOrSetCache } from "../../src/utils/cache.js";
 import { mapPostgresError } from "../../src/errors/app-error.js";
-import { registerSchema } from "../../src/schemas/auth.schemas.js";
+import {
+  loginWithOtpSchema,
+  registerSchema,
+  sendOtpSchema,
+  verifyOtpSchema,
+} from "../../src/schemas/auth.schemas.js";
 import { createProjectSchema } from "../../src/schemas/projects.schemas.js";
 import app from "../../src/app.js";
 
@@ -36,6 +42,13 @@ describe("Core utilities & security primitives", () => {
     expect(t1).not.toBe(t2);
     expect(sha256(t1)).toBe(sha256(t1));
     expect(sha256(t1)).not.toBe(sha256(t2));
+  });
+
+  it("generates valid numeric OTP codes", () => {
+    const otp1 = generateNumericOtp(6);
+    const otp2 = generateNumericOtp(6);
+    expect(otp1).toMatch(/^\d{6}$/);
+    expect(otp2).toMatch(/^\d{6}$/);
   });
 
   it("signs and verifies access and refresh JWTs with strict type separation", () => {
@@ -123,6 +136,27 @@ describe("Zod validation schemas", () => {
       academicYear: "3rd Year",
     });
     expect(weak.success).toBe(false);
+  });
+
+  it("validates OTP schemas correctly", () => {
+    expect(
+      verifyOtpSchema.safeParse({
+        email: "student@campus.edu",
+        otp: "123456",
+      }).success
+    ).toBe(true);
+    expect(
+      loginWithOtpSchema.safeParse({
+        email: "student@campus.edu",
+        otp: "654321",
+      }).success
+    ).toBe(true);
+    expect(
+      sendOtpSchema.safeParse({
+        email: "student@campus.edu",
+        purpose: "LOGIN",
+      }).success
+    ).toBe(true);
   });
 
   it("enforces maxTeamSize >= minTeamSize on project creation", () => {

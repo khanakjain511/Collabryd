@@ -1,5 +1,6 @@
 export {
   users,
+  authOtps,
   emailVerificationTokens,
   refreshSessions,
   type AccountStatus,
