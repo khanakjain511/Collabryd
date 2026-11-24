@@ -268,6 +268,7 @@ export function PersonPage({ id, demo }: { id: string; demo: DemoData }) {
   const person =
     id === "you" ? demo.profile : demo.people.find((item) => item.id === id);
   const [dialog, setDialog] = useState<"invite" | "report" | null>(null);
+  const [chatError, setChatError] = useState("");
   const [error, setError] = useState("");
   const invited = demo.invitations.some(
     (invitation) =>
@@ -347,26 +348,23 @@ export function PersonPage({ id, demo }: { id: string; demo: DemoData }) {
         </div>
         {id !== "you" && (
           <div className="flex flex-wrap items-center gap-2">
-            <button
+            {Number.isSafeInteger(Number(id)) && Number(id) > 0 && <button
               type="button"
               className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 py-2.5 rounded-lg text-sm font-bold bg-primary text-on-primary hover:bg-primary/90 transition-colors cursor-pointer"
               onClick={async () => {
-                const uid = Number(id);
-                if (Number.isFinite(uid) && uid > 0) {
-                  try {
-                    const conv = await conversationsApi.createDirect(uid);
-                    window.location.hash = `/messages/${conv.conversationId}`;
-                  } catch {
-                    window.location.hash = "/messages";
-                  }
-                } else {
-                  window.location.hash = "/messages";
+                setChatError("");
+                try {
+                  const conv = await conversationsApi.createDirect(Number(id));
+                  window.location.hash = `/messages/${conv.conversationId}`;
+                } catch (err) {
+                  setChatError(err instanceof Error ? err.message : "Could not open the conversation.");
                 }
               }}
             >
               <Icon name="mail" size={17} />
               Message
-            </button>
+            </button>}
+            {chatError && <p role="alert" className="text-sm text-danger">{chatError}</p>}
             <button
               type="button"
               className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"

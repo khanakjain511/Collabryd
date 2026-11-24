@@ -22,6 +22,7 @@ import {
   catalogApi,
   clearStoredTokens,
   connectLiveSocket,
+  createLiveSocket,
   eventsApi,
   getStoredTokens,
   membersApi,
@@ -270,7 +271,11 @@ export function useDemoData() {
       if (adminUsers && Array.isArray(adminUsers) && adminUsers.length > 0) {
         peopleList.push(...adminUsers.map((u) => mapBackendStudent(u, activeUserId)));
       } else if (backendStudents && Array.isArray(backendStudents) && backendStudents.length > 0) {
-        peopleList.push(...backendStudents.map((s) => mapBackendStudent(s, activeUserId)));
+        peopleList.push(
+          ...backendStudents.map((s) =>
+            mapBackendStudent({ ...s, accountStatus: (s as any).accountStatus || "ACTIVE" }, activeUserId)
+          )
+        );
       }
 
       if (peopleList.length > 0) {
@@ -371,16 +376,18 @@ export function useDemoData() {
     };
   }, [loadPlatformData]);
 
+  const [liveSocket] = useState(createLiveSocket);
+
   // Connect live notifications via Socket.IO
   useEffect(() => {
     if (!signedIn) return;
-    const disconnect = connectLiveSocket((notice) => {
+    const disconnect = connectLiveSocket(liveSocket, (notice) => {
       const mapped = mapBackendNotification(notice);
       setNotices((current) => [mapped, ...current]);
       setFeedback(notice.title);
     });
     return disconnect;
-  }, [signedIn]);
+  }, [signedIn, currentUserId, liveSocket]);
 
   async function openDemo() {
     const error = await login("aarav.sharma@campus.edu", "Password123!");
@@ -1088,6 +1095,7 @@ export function useDemoData() {
     currentUserId,
     currentUserRole,
     isAdmin: currentUserRole === "ADMIN",
+    liveSocket,
     verificationToken,
     openDemo,
     login,

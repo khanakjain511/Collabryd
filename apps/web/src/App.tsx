@@ -192,7 +192,7 @@ function App() {
       content = <EventDetailPage id={id} demo={demo} />;
     else if (area === "hackathons") content = <EventsPage demo={demo} />;
     else if (area === "messages")
-      content = <MessagesPage key={path} conversationId={id} demo={demo} />;
+      content = <MessagesPage key={`${demo.currentUserId}/${path}`} conversationId={id} demo={demo} />;
     else if (area === "notifications")
       content = <NotificationsPage demo={demo} />;
     else if (area === "onboarding" || (area === "settings" && id === "profile"))

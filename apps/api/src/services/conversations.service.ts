@@ -212,7 +212,7 @@ export async function getProjectConversation(
   return { ...conv, participants };
 }
 
-async function assertConversationMember(
+export async function assertConversationMember(
   conversationId: number,
   userId: number
 ): Promise<void> {
@@ -323,6 +323,7 @@ export async function sendMessage(
           eq(conversationMembers.userId, senderId)
         )
       )
+      .for("update")
       .limit(1);
 
     if (!membership) {
@@ -397,6 +398,9 @@ export async function sendMessage(
         )
       );
 
+    // PostgreSQL publishes this wake-up only after commit, including on other API instances.
+    await tx.execute(sql`SELECT pg_notify('collabryd_chat', ${String(conversationId)})`);
+
     // Notify other participants
     const [senderProfile] = await tx
       .select({ displayName: userProfiles.displayName })
@@ -463,18 +467,19 @@ export async function markConversationRead(
       ? Math.min(requestedSequence, latestSeq)
       : latestSeq;
 
-  const [updated] = await db
-    .update(conversationMembers)
-    .set({
-      lastReadSequence: sql`GREATEST(${conversationMembers.lastReadSequence}, ${targetSeq})`,
-    })
-    .where(
-      and(
-        eq(conversationMembers.conversationId, conversationId),
-        eq(conversationMembers.userId, userId)
-      )
-    )
-    .returning();
-
-  return updated!;
+  const member = and(eq(conversationMembers.conversationId, conversationId),
+    eq(conversationMembers.userId, userId));
+  return db.transaction(async (tx) => {
+    const [updated] = await tx.update(conversationMembers)
+      .set({ lastReadSequence: targetSeq })
+      .where(and(member, lt(conversationMembers.lastReadSequence, targetSeq)))
+      .returning();
+    if (updated) {
+      await tx.execute(sql`SELECT pg_notify('collabryd_chat', ${`read:${userId}`})`);
+      return updated;
+    }
+    const [current] = await tx.select().from(conversationMembers).where(member).limit(1);
+    if (!current) throw new ForbiddenError("Conversation membership ended", "NOT_CONVERSATION_MEMBER");
+    return current;
+  });
 }
