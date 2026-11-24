@@ -119,7 +119,7 @@ pnpm test          # Run unit & PostgreSQL integration tests
 - [docs/BACKEND_ARCHITECTURE.md](docs/BACKEND_ARCHITECTURE.md) — Deep-dive backend system, modular slices, security invariants & real-time delivery
 - [docs/API.md](docs/API.md) — Full REST API reference and error contract
 - [docs/dbms/](docs/dbms/) — Authoritative normalization proof, ER diagrams, SQL DDL, queries, and query timings/plans
-- [apps/web/docs/](apps/web/docs/) — Frontend design system, architecture, and UI documentation
+- [docs/FULLSTACK_INTEGRATION.md](docs/FULLSTACK_INTEGRATION.md) — Fullstack architecture, REST API integration, and real-time delivery
 
 ### Backend deployment
 
