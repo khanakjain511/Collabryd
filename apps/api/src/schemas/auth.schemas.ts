@@ -21,12 +21,35 @@ export const registerSchema = z.object({
   preferredProjectType: z.enum(PROJECT_TYPES).optional(),
 });
 
-export const verifyEmailSchema = z.object({
-  token: z.string().trim().min(16).max(256),
+export const verifyEmailSchema = z
+  .object({
+    token: z.string().trim().min(6).max(256).optional(),
+    otp: z.string().trim().min(6).max(256).optional(),
+    email: z.string().trim().email().max(255).optional(),
+  })
+  .refine((data) => data.token || data.otp, {
+    message: "Either token or otp must be provided",
+  });
+
+export const sendOtpSchema = z.object({
+  email: z.string().trim().email().max(255),
+  purpose: z.enum(["SIGNUP", "LOGIN"]).default("LOGIN"),
+});
+
+export const verifyOtpSchema = z.object({
+  email: z.string().trim().email().max(255),
+  otp: z.string().trim().min(6).max(10),
+  purpose: z.enum(["SIGNUP", "LOGIN"]).optional(),
+});
+
+export const loginWithOtpSchema = z.object({
+  email: z.string().trim().email().max(255),
+  otp: z.string().trim().min(6).max(10),
 });
 
 export const resendVerificationSchema = z.object({
   email: z.string().trim().email().max(255),
+  purpose: z.enum(["SIGNUP", "LOGIN"]).optional(),
 });
 
 export const loginSchema = z.object({
@@ -49,4 +72,7 @@ export const changePasswordSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type SendOtpInput = z.infer<typeof sendOtpSchema>;
+export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
+export type LoginWithOtpInput = z.infer<typeof loginWithOtpSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
