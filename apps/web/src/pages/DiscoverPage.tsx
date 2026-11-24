@@ -29,29 +29,29 @@ export function DiscoverPage({ demo }: { demo: DemoData }) {
     sort: "default",
     page: "1",
   });
-  const activePeople = demo.people.filter(
+  const activePeople = (demo.people || []).filter(
     (person) => !person.status || person.status === "Active",
   );
   const directory = demo.visible
     ? [demo.profile, ...activePeople]
     : activePeople;
-  const roles = [...new Set(directory.map((person) => person.role))];
+  const roles = [...new Set(directory.map((person) => person.role || ""))].filter(Boolean);
   const skills = [
-    ...new Set(directory.flatMap((person) => person.skills)),
+    ...new Set(directory.flatMap((person) => person.skills || [])),
   ].sort();
-  const branches = [...new Set(directory.map((person) => person.branch))];
-  const years = [...new Set(directory.map((person) => person.year))];
+  const branches = [...new Set(directory.map((person) => person.branch || ""))].filter(Boolean);
+  const years = [...new Set(directory.map((person) => person.year || ""))].filter(Boolean);
   const people = directory.filter(
     (person) =>
-      !demo.blockedIds.includes(person.id) &&
-      `${person.name} ${person.skills.join(" ")} ${person.interests}`
+      !(demo.blockedIds || []).includes(person.id) &&
+      `${person.name || ""} ${(person.skills || []).join(" ")} ${person.interests || ""}`
         .toLowerCase()
         .includes(filters.search.toLowerCase()) &&
       (!filters.role || person.role === filters.role) &&
-      (!filters.skill || person.skills.includes(filters.skill)) &&
+      (!filters.skill || (person.skills || []).includes(filters.skill)) &&
       (!filters.branch || person.branch === filters.branch) &&
       (!filters.year || person.year === filters.year) &&
-      person.interests.toLowerCase().includes(filters.interest.toLowerCase()) &&
+      (person.interests || "").toLowerCase().includes(filters.interest.toLowerCase()) &&
       (!filters.available || person.available),
   );
   const direction = sortDirection(filters.sort);
@@ -292,12 +292,12 @@ export function PersonPage({ id, demo }: { id: string; demo: DemoData }) {
         }
       />
     );
-  const ownedTeams = demo.teams.filter(
+  const ownedTeams = (demo.teams || []).filter(
     (team) =>
       team.leaderId === "you" &&
       team.status === "Recruiting" &&
-      team.members.length < team.capacity &&
-      !team.members.includes(id),
+      (team.members?.length || 0) < (team.capacity || 4) &&
+      !(team.members || []).includes(id),
   );
   function invite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -502,7 +502,7 @@ export function PersonPage({ id, demo }: { id: string; demo: DemoData }) {
             <form className="flex flex-col gap-4 mt-2" onSubmit={invite}>
               <p>
                 Choose a recruiting team to invite{" "}
-                {person.name.split(" ")[0]}.
+                {(person.name || "Student").split(" ")[0]}.
               </p>
               <label>
                 Your team

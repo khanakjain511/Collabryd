@@ -38,14 +38,14 @@ export function TeamsPage({ demo }: { demo: DemoData }) {
   const roles = [...new Set(demo.teams.flatMap((team) => team.roles))];
   const teams = demo.teams.filter(
     (team) =>
-      `${team.name} ${team.description} ${team.roles.join(" ")} ${team.skills.join(" ")}`
+      `${team.name || ""} ${team.description || ""} ${(team.roles || []).join(" ")} ${(team.skills || []).join(" ")}`
         .toLowerCase()
         .includes(filters.search.toLowerCase()) &&
       (!filters.domain || team.domain === filters.domain) &&
-      (!filters.role || team.roles.includes(filters.role)) &&
+      (!filters.role || (team.roles || []).includes(filters.role)) &&
       (!filters.event || team.eventId === filters.event) &&
       (!filters.open ||
-        (team.status === "Recruiting" && team.members.length < team.capacity)),
+        (team.status === "Recruiting" && (team.members?.length || 0) < (team.capacity || 4))),
   );
   const direction = sortDirection(filters.sort);
   if (sortField(filters.sort) === "name")
@@ -483,8 +483,10 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
       />
     );
   const leader = team.leaderId === "you";
-  const member = team.members.includes("you");
-  const full = team.members.length >= team.capacity;
+  const members = team?.members || [];
+  const member = members.includes("you");
+  const capacity = team?.capacity || 4;
+  const full = members.length >= capacity;
   const ownRequest = demo.requests.find(
     (item) =>
       item.teamId === id &&
@@ -547,8 +549,8 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
             </div>
             <h3>Skills we’d love to have around</h3>
             <div className="flex flex-wrap gap-1.5 my-3">
-              {team.skills.length ? (
-                team.skills.map((skill) => <Badge key={skill}>{skill}</Badge>)
+              {(team.skills || []).length ? (
+                (team.skills || []).map((skill) => <Badge key={skill}>{skill}</Badge>)
               ) : (
                 <p>Open to different strengths.</p>
               )}
@@ -560,7 +562,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
               <h2>The people behind the idea</h2>
               <TeamSeats team={team} size="md" />
             </div>
-            {team.members.map((personId) => {
+            {members.map((personId) => {
               const person =
                 personId === "you"
                   ? demo.profile
@@ -585,7 +587,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
               );
             })}
             {Array.from({
-              length: Math.max(0, team.capacity - team.members.length),
+              length: Math.max(0, capacity - members.length),
             }).map((_, i) => (
               <div
                 className="flex items-center justify-between gap-3 py-3 border-b border-border last:border-b-0"
@@ -595,10 +597,10 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
                   <Seat status="open" size="md" decorative />
                   <div>
                     <strong className="text-sm font-semibold text-ink">
-                      Open seat {team.members.length + i + 1}
+                      Open seat {members.length + i + 1}
                     </strong>
                     <p className="text-xs text-muted">
-                      {team.roles[team.members.length + i] ||
+                      {(team.roles || [])[members.length + i] ||
                         "Open contributor role"}
                     </p>
                   </div>
@@ -675,7 +677,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
               )}
             </section>
           )}
-          {leader && recommendedCandidates.length > 0 && (
+          {leader && (recommendedCandidates || []).length > 0 && (
             <section className="bg-surface border border-border rounded-xl p-6 shadow-sm mb-6">
               <div className="flex items-center justify-between gap-4 mb-4">
                 <div>
@@ -708,7 +710,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
                         {cand.courseProgram || cand.institution || "Student"} · {cand.academicYear || "Enrolled"}
                       </p>
                       <div className="flex flex-wrap gap-1 mb-3">
-                        {cand.matchedSkills.map((s) => (
+                        {(cand.matchedSkills || []).map((s) => (
                           <span
                             key={s}
                             className="text-[11px] px-1.5 py-0.5 rounded bg-sage/60 text-primary font-medium"
@@ -746,14 +748,14 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
           <section className="bg-surface border border-border rounded-xl p-6 shadow-sm mb-6 flex flex-col gap-3">
             <div className="flex items-center justify-between gap-4 mb-4">
               <Seats
-                capacity={team.capacity}
-                filled={team.members.length}
+                capacity={capacity}
+                filled={members.length}
                 size="sm"
                 decorative
               />
               <span className="text-xs text-muted font-medium">
-                {team.capacity - team.members.length} open{" "}
-                {team.capacity - team.members.length === 1 ? "place" : "places"}
+                {Math.max(0, capacity - members.length)} open{" "}
+                {Math.max(0, capacity - members.length) === 1 ? "place" : "places"}
               </span>
             </div>
             <h2>

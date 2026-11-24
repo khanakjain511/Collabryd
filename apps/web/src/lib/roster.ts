@@ -9,7 +9,9 @@ export function sortDirection(value: string) {
 }
 
 export function openSeats(team: Team) {
-  return team.status === "Recruiting"
-    ? Math.max(0, team.capacity - team.members.length)
+  const memberCount = team?.members?.length || 0;
+  const capacity = team?.capacity || 4;
+  return team?.status === "Recruiting"
+    ? Math.max(0, capacity - memberCount)
     : 0;
 }

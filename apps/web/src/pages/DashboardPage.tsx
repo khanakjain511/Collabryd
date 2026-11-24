@@ -78,9 +78,9 @@ export function DashboardPage({ demo }: { demo: DemoData }) {
           </span>
           <span className="flex flex-col flex-1">
             <strong className="text-sm font-semibold">
-              {demo.teams.filter((team) => team.members.includes("you")).length}{" "}
+              {(demo.teams || []).filter((team) => (team.members || []).includes("you")).length}{" "}
               team
-              {demo.teams.filter((team) => team.members.includes("you"))
+              {(demo.teams || []).filter((team) => (team.members || []).includes("you"))
                 .length === 1
                 ? ""
                 : "s"}
@@ -204,7 +204,7 @@ export function DashboardPage({ demo }: { demo: DemoData }) {
                     {rec.summary}
                   </p>
                   <div className="flex flex-wrap gap-1.5 mb-4">
-                    {rec.matchedSkills.map((skill) => (
+                    {(rec.matchedSkills || []).map((skill) => (
                       <span
                         key={skill}
                         className="text-xs px-2 py-0.5 rounded bg-sage/60 text-primary font-medium"

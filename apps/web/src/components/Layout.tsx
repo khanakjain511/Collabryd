@@ -236,7 +236,7 @@ export function AppLayout({
   path: string;
   children: ReactNode;
 }) {
-  const unread = demo.notices.filter((notice) => !notice.read).length;
+  const unread = (demo?.notices || []).filter((notice) => !notice.read).length;
   const area = path.split("/")[1];
   const active = appLinks.findIndex((link) =>
     (link.areas as readonly string[]).includes(area),

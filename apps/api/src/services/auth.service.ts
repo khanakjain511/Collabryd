@@ -80,13 +80,26 @@ export async function registerStudent(input: RegisterInput) {
   const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
   const created = await db.transaction(async (tx) => {
+    // Check if this should be an admin account (first user or configured admin email)
+    const [adminCountRow] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(users)
+      .where(eq(users.systemRole, "ADMIN"));
+
+    const noExistingAdmins = (adminCountRow?.count ?? 0) === 0;
+    const isConfiguredAdmin =
+      Boolean(process.env.ADMIN_EMAIL && email.toLowerCase() === process.env.ADMIN_EMAIL.toLowerCase()) ||
+      email.toLowerCase().startsWith("admin@");
+
+    const systemRole = (noExistingAdmins || isConfiguredAdmin) ? "ADMIN" : "STUDENT";
+
     const [user] = await tx
       .insert(users)
       .values({
         email,
         passwordHash,
         accountStatus: "PENDING_VERIFICATION",
-        systemRole: "STUDENT",
+        systemRole,
       })
       .returning({
         userId: users.userId,

@@ -747,6 +747,13 @@ describe("Collabryd End-to-End Integration Suite", () => {
       .set("Authorization", `Bearer ${tokenAdmin}`);
     expect(auditLogs.status).toBe(200);
     expect(auditLogs.body.data.length).toBeGreaterThanOrEqual(3);
+
+    const userList = await request(app)
+      .get("/api/v1/admin/users")
+      .set("Authorization", `Bearer ${tokenAdmin}`);
+    expect(userList.status).toBe(200);
+    expect(Array.isArray(userList.body.data)).toBe(true);
+    expect(userList.body.data.length).toBeGreaterThan(0);
   });
 
   it("8. OTP Authentication lifecycle: signup verification, login with OTP, and retry limiting", async () => {

@@ -23,11 +23,15 @@ export function joinRequestError(
   personId: string,
   requests: JoinRequest[],
 ) {
-  if (team.status !== "Recruiting" || team.members.length >= team.capacity)
+  const members = team?.members || [];
+  const memberCount = members.length;
+  const capacity = team?.capacity || 4;
+  if (team?.status !== "Recruiting" || memberCount >= capacity)
     return "This team is no longer recruiting.";
-  if (team.members.includes(personId))
+  if (members.includes(personId))
     return "You are already a member of this team.";
   if (
+    Array.isArray(requests) &&
     requests.some(
       (request) =>
         request.teamId === team.id &&
@@ -40,13 +44,14 @@ export function joinRequestError(
 }
 
 export function paginate<T>(items: T[], requestedPage: number, pageSize = 6) {
-  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const safeItems = Array.isArray(items) ? items : [];
+  const totalPages = Math.max(1, Math.ceil(safeItems.length / pageSize));
   const safePage = Number.isFinite(requestedPage)
     ? Math.trunc(requestedPage)
     : 1;
   const page = Math.max(1, Math.min(totalPages, safePage));
   return {
-    items: items.slice((page - 1) * pageSize, page * pageSize),
+    items: safeItems.slice((page - 1) * pageSize, page * pageSize),
     page,
     totalPages,
   };

@@ -7,6 +7,7 @@ import { validate } from "../middlewares/validate.middleware.js";
 import * as controller from "../controllers/admin.controller.js";
 import {
   listAuditLogsQuerySchema,
+  listUsersQuerySchema,
   moderateProjectSchema,
   moderationReasonSchema,
   projectIdParamsSchema,
@@ -20,6 +21,12 @@ const adminRouter: Router = Router();
 adminRouter.use(requireAuth, requireAdmin);
 
 adminRouter.get("/metrics", controller.getMetricsHandler);
+
+adminRouter.get(
+  "/users",
+  validate({ query: listUsersQuerySchema }),
+  controller.listUsersHandler
+);
 
 adminRouter.get(
   "/audit-logs",
