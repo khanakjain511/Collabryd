@@ -6,11 +6,14 @@ import * as controller from "../controllers/auth.controller.js";
 import {
   changePasswordSchema,
   loginSchema,
+  loginWithOtpSchema,
   logoutSchema,
   refreshSchema,
   registerSchema,
   resendVerificationSchema,
+  sendOtpSchema,
   verifyEmailSchema,
+  verifyOtpSchema,
 } from "../schemas/auth.schemas.js";
 
 const authRouter: Router = Router();
@@ -26,6 +29,24 @@ authRouter.post(
   authRateLimiter,
   validate({ body: verifyEmailSchema }),
   controller.verifyEmailHandler
+);
+authRouter.post(
+  "/send-otp",
+  authRateLimiter,
+  validate({ body: sendOtpSchema }),
+  controller.sendOtpHandler
+);
+authRouter.post(
+  "/verify-otp",
+  authRateLimiter,
+  validate({ body: verifyOtpSchema }),
+  controller.verifyOtpHandler
+);
+authRouter.post(
+  "/login-otp",
+  authRateLimiter,
+  validate({ body: loginWithOtpSchema }),
+  controller.loginOtpHandler
 );
 authRouter.post(
   "/resend-verification",

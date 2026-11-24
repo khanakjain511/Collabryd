@@ -13,12 +13,45 @@ export async function registerHandler(req: Request, res: Response) {
 }
 
 export async function verifyEmailHandler(req: Request, res: Response) {
-  const result = await authService.verifyEmail(req.body.token as string);
+  const tokenOrOtp = (req.body.otp || req.body.token) as string;
+  const result = await authService.verifyEmail(
+    tokenOrOtp,
+    req.body.email as string | undefined
+  );
+  sendSuccess(res, result);
+}
+
+export async function sendOtpHandler(req: Request, res: Response) {
+  const result = await authService.sendOtp(
+    req.body.email as string,
+    req.body.purpose as "SIGNUP" | "LOGIN" | undefined
+  );
+  sendSuccess(res, result);
+}
+
+export async function verifyOtpHandler(req: Request, res: Response) {
+  const result = await authService.verifyOtp(
+    req.body.email as string,
+    req.body.otp as string,
+    req.body.purpose as "SIGNUP" | "LOGIN" | undefined
+  );
+  sendSuccess(res, result);
+}
+
+export async function loginOtpHandler(req: Request, res: Response) {
+  const result = await authService.verifyOtp(
+    req.body.email as string,
+    req.body.otp as string,
+    "LOGIN"
+  );
   sendSuccess(res, result);
 }
 
 export async function resendVerificationHandler(req: Request, res: Response) {
-  const result = await authService.resendVerification(req.body.email as string);
+  const result = await authService.resendVerification(
+    req.body.email as string,
+    req.body.purpose as "SIGNUP" | "LOGIN" | undefined
+  );
   sendSuccess(res, result);
 }
 
