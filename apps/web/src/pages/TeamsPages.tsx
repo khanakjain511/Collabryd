@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import type { DemoData } from "../hooks/useDemoData";
 import { Pagination } from "../components/Pagination";
@@ -8,6 +8,11 @@ import { paginate } from "../lib/validation";
 import { TeamCard } from "../components/Cards";
 import { Roster, RosterSkills, TeamSeats } from "../components/Roster";
 import { openSeats, sortDirection, sortField } from "../lib/roster";
+import {
+  conversationsApi,
+  recommendationsApi,
+  type RecommendedCandidate,
+} from "../lib/api";
 import {
   Avatar,
   Badge,
@@ -446,6 +451,22 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState("");
   const [archiving, setArchiving] = useState(false);
+  const [recommendedCandidates, setRecommendedCandidates] = useState<RecommendedCandidate[]>([]);
+
+  const pid = Number(id);
+  const isLeader = team?.leaderId === "you";
+
+  useEffect(() => {
+    if (isLeader && Number.isFinite(pid) && pid > 0) {
+      recommendationsApi
+        .getRecommendedCandidates(pid, 6)
+        .then((candidates) => {
+          setRecommendedCandidates(candidates);
+        })
+        .catch(() => {});
+    }
+  }, [isLeader, pid]);
+
   if (!team)
     return (
       <EmptyState
@@ -654,6 +675,72 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
               )}
             </section>
           )}
+          {leader && recommendedCandidates.length > 0 && (
+            <section className="bg-surface border border-border rounded-xl p-6 shadow-sm mb-6">
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 mb-1">
+                    <Icon name="spark" size={12} />
+                    SKILL MATCH RECOMMENDATIONS
+                  </div>
+                  <h2>Candidates matching your project</h2>
+                  <p className="text-xs text-muted">
+                    Students whose registered skills match what your team is looking for.
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {recommendedCandidates.map((cand) => (
+                  <div
+                    key={cand.userId}
+                    className="p-3.5 border border-border rounded-lg bg-surface/60 hover:border-primary transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <strong className="text-sm font-semibold text-ink">
+                          {cand.displayName}
+                        </strong>
+                        <Badge tone="positive">
+                          {cand.matchingSkillsCount} match{cand.matchingSkillsCount === 1 ? "" : "es"}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted mb-2">
+                        {cand.courseProgram || cand.institution || "Student"} · {cand.academicYear || "Enrolled"}
+                      </p>
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {cand.matchedSkills.map((s) => (
+                          <span
+                            key={s}
+                            className="text-[11px] px-1.5 py-0.5 rounded bg-sage/60 text-primary font-medium"
+                          >
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-border/60 text-xs">
+                      <a
+                        href={`#/users/${cand.userId}`}
+                        className="text-primary font-bold hover:underline"
+                      >
+                        View profile
+                      </a>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 text-xs font-bold text-accent hover:underline cursor-pointer"
+                        onClick={() => {
+                          const err = demo.invitePerson(String(cand.userId), team.id);
+                          if (err) setError(err);
+                        }}
+                      >
+                        Invite to team
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
         <aside>
           <section className="bg-surface border border-border rounded-xl p-6 shadow-sm mb-6 flex flex-col gap-3">
@@ -682,13 +769,35 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
                   : "Tell the team a little about yourself and what you’d like to contribute."}
             </p>
             {member ? (
-              <a
-                href="#/discover"
-                className="w-full inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
-              >
-                {leader ? "Find teammates" : "Explore people"}
-                <Icon name="arrowUp" size={16} />
-              </a>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  className="w-full inline-flex items-center justify-center gap-2 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-primary text-on-primary hover:bg-primary/90 transition-colors cursor-pointer"
+                  onClick={async () => {
+                    const pid = Number(team.id);
+                    if (Number.isFinite(pid)) {
+                      try {
+                        const conv = await conversationsApi.getProjectConversation(pid);
+                        window.location.hash = `/messages/${conv.conversationId}`;
+                      } catch {
+                        window.location.hash = "/messages";
+                      }
+                    } else {
+                      window.location.hash = "/messages";
+                    }
+                  }}
+                >
+                  <Icon name="mail" size={16} />
+                  Open Team Chat
+                </button>
+                <a
+                  href="#/discover"
+                  className="w-full inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
+                >
+                  {leader ? "Find teammates" : "Explore people"}
+                  <Icon name="arrowUp" size={16} />
+                </a>
+              </div>
             ) : ownRequest ? (
               <>
                 <Badge tone="positive">Your request is pending</Badge>

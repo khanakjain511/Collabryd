@@ -214,6 +214,12 @@ const appLinks = [
     areas: ["hackathons"],
   },
   {
+    label: "Messages",
+    href: "#/messages",
+    icon: "mail",
+    areas: ["messages"],
+  },
+  {
     label: "Profile",
     href: "#/settings/profile",
     icon: "settings",
