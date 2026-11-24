@@ -168,6 +168,9 @@ export function useDemoData() {
   const [deletionRequested, setDeletionRequested] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [currentUserId, setCurrentUserId] = useState<number | undefined>(undefined);
+  const onboardingEmail = useRef("");
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [authMessage, setAuthMessage] = useState("");
   const [verificationToken, setVerificationToken] = useState<string>("");
 
   const catalogSkillsRef = useRef<Array<{ skillId: number; name: string }>>([]);
@@ -252,45 +255,60 @@ export function useDemoData() {
 
   // Check stored tokens on mount
   useEffect(() => {
-    let active = true;
+    let generation = 0;
+    function resetSession() {
+      generation++;
+      setSignedIn(false);
+      setVerified(false);
+      setCurrentUserId(undefined);
+    }
 
     async function initializeSession() {
-      // Yield to next microtask so effect body has completed
+      const request = ++generation;
       await Promise.resolve();
-      if (!active) return;
-
+      if (request !== generation) return;
       const tokens = getStoredTokens();
       if (!tokens.accessToken && !tokens.refreshToken) {
-        if (active) await loadPlatformData();
+        resetSession();
+        await loadPlatformData();
         return;
       }
 
       try {
         const user = await authApi.me();
-        if (!active) return;
+        if (request !== generation) return;
         setCurrentUserId(user.userId);
         setSignedIn(true);
-        const isActive = user.accountStatus === "ACTIVE";
-        setVerified(isActive);
-
-        try {
-          const full = await profilesApi.getOwnProfile();
-          if (active) setProfile(mapBackendStudent(full, user.userId));
-        } catch {
-          // Keep current profile if fetch fails
+        setVerified(user.accountStatus === "ACTIVE");
+        const full = await profilesApi.getOwnProfile().catch(() => null);
+        if (request !== generation) return;
+        if (full) setProfile(mapBackendStudent(full, user.userId));
+        await loadPlatformData(user.userId);
+      } catch (err) {
+        if (request !== generation) return;
+        const status = (err as { status?: number }).status;
+        if ((status === 401 || status === 403) &&
+            getStoredTokens().refreshToken === tokens.refreshToken) {
+          clearStoredTokens();
+        } else {
+          resetSession();
+          setAuthMessage("Could not restore your session. Reload to try again.");
         }
-
-        if (active) await loadPlatformData(user.userId);
-      } catch {
-        clearStoredTokens();
-        if (active) await loadPlatformData();
       }
     }
 
+    function syncOtherTab(event: StorageEvent) {
+      if (event.key === "collabryd_refresh_token" || event.key === null) {
+        void initializeSession();
+      }
+    }
+    window.addEventListener("storage", syncOtherTab);
+    window.addEventListener("collabryd-signout", resetSession);
     void initializeSession();
-
     return () => {
-      active = false;
+      generation++;
+      window.removeEventListener("storage", syncOtherTab);
+      window.removeEventListener("collabryd-signout", resetSession);
     };
   }, [loadPlatformData]);
 
@@ -305,31 +323,17 @@ export function useDemoData() {
     return disconnect;
   }, [signedIn]);
 
-  // Authenticate using demo credentials or seeded user
   async function openDemo() {
-    try {
-      const res = await authApi.login({
-        email: "aarav.sharma@campus.edu",
-        password: "Password123!",
-      });
-      setCurrentUserId(res.user.userId);
-      setSignedIn(true);
-      setVerified(true);
-      const own = await profilesApi.getOwnProfile().catch(() => null);
-      if (own) setProfile(mapBackendStudent(own, res.user.userId));
-      await loadPlatformData(res.user.userId);
-      window.location.hash = "/dashboard";
-    } catch {
-      // Local fallback
-      setProfile((current) => ({ ...current, status: "Active" }));
-      setSignedIn(true);
-      setVerified(true);
-      window.location.hash = "/dashboard";
+    const error = await login("aarav.sharma@campus.edu", "Password123!");
+    if (error) {
+      setAuthMessage(error);
+      window.location.hash = "/login";
     }
   }
 
   // Real login against backend
   async function login(email: string, pass: string): Promise<string | undefined> {
+    setAuthMessage("");
     try {
       const res = await authApi.login({ email, password: pass });
       setCurrentUserId(res.user.userId);
@@ -342,7 +346,8 @@ export function useDemoData() {
       await loadPlatformData(res.user.userId);
 
       if (isActive) {
-        window.location.hash = "/dashboard";
+        window.location.hash = res.user.email === onboardingEmail.current ? "/onboarding" : "/dashboard";
+        onboardingEmail.current = "";
       } else {
         window.location.hash = "/verify-campus";
       }
@@ -350,8 +355,8 @@ export function useDemoData() {
     } catch (err) {
       const error = err as Error & { code?: string };
       if (error.code === "EMAIL_NOT_VERIFIED") {
-        setSignedIn(true);
-        setVerified(false);
+        setPendingEmail(email);
+        setVerificationToken("");
         window.location.hash = "/verify-campus";
         return undefined;
       }
@@ -367,6 +372,7 @@ export function useDemoData() {
     branch?: string;
     year?: string;
   }): Promise<string | undefined> {
+    setAuthMessage("");
     try {
       const res = await authApi.register({
         email: data.email,
@@ -378,24 +384,19 @@ export function useDemoData() {
         department: data.branch,
       });
 
-      setCurrentUserId(res.user.userId);
-      setProfile((prev) => ({
-        ...prev,
-        id: "you",
-        name: data.name,
-        branch: data.branch || prev.branch,
-        year: data.year || prev.year,
-        status: "Pending review",
-      }));
-      setSignedIn(true);
-      setVerified(false);
-      if (res.verificationToken) {
-        setVerificationToken(res.verificationToken);
-      }
+      setPendingEmail(data.email);
+      setVerificationToken(res.verificationToken || "");
       window.location.hash = "/verify-campus";
       return undefined;
     } catch (err) {
-      const error = err as Error;
+      const error = err as Error & { code?: string };
+      if (error.code === "EMAIL_DELIVERY_UNAVAILABLE") {
+        setPendingEmail(data.email);
+        setVerificationToken("");
+        setAuthMessage(error.message);
+        window.location.hash = "/verify-campus";
+        return undefined;
+      }
       return error.message || "Registration failed";
     }
   }
@@ -403,11 +404,12 @@ export function useDemoData() {
   // Real email verification
   async function verifyEmailToken(token: string): Promise<string | undefined> {
     try {
-      await authApi.verifyEmail(token);
-      setVerified(true);
-      setProfile((prev) => ({ ...prev, status: "Active" }));
-      notify("Campus identity verified successfully.", "#/dashboard");
-      window.location.hash = "/onboarding";
+      const user = await authApi.verifyEmail(token);
+      onboardingEmail.current = user.email;
+      setPendingEmail(user.email);
+      setVerificationToken("");
+      setAuthMessage("Email verified. Sign in to continue.");
+      window.location.replace("#/login");
       return undefined;
     } catch (err) {
       const error = err as Error;
@@ -415,22 +417,15 @@ export function useDemoData() {
     }
   }
 
-  // Resend verification email
-  async function resendVerificationEmail(email: string): Promise<string> {
-    try {
-      const res = await authApi.resendVerification(email);
-      if (res.verificationToken) {
-        setVerificationToken(res.verificationToken);
-      }
-      return res.message;
-    } catch (err) {
-      const error = err as Error;
-      return error.message || "Failed to resend verification";
-    }
-  }
-
   function signOut() {
-    void authApi.logout();
+    void authApi.logout().catch(() => {
+      setAuthMessage("Signed out of this browser. The server could not confirm logout.");
+      window.location.hash = "/login";
+    });
+    setAuthMessage("");
+    onboardingEmail.current = "";
+    setPendingEmail("");
+    setVerificationToken("");
     setSignedIn(false);
     setVerified(false);
     setCurrentUserId(undefined);
@@ -903,9 +898,7 @@ export function useDemoData() {
 
   return {
     signedIn,
-    setSignedIn,
     verified,
-    setVerified,
     profile,
     setProfile,
     teams,
@@ -933,7 +926,8 @@ export function useDemoData() {
     login,
     registerStudentAccount,
     verifyEmailToken,
-    resendVerificationEmail,
+    pendingEmail,
+    authMessage,
     signOut,
     saveProfile,
     createTeam,

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppearanceControls } from "../components/AppearanceControls";
 import type { FormEvent } from "react";
 import type { DemoData } from "../hooks/useDemoData";
+import { authApi } from "../lib/api";
 import { Icon, Logo } from "../components/ui";
 
 function AuthContent({
@@ -21,8 +22,21 @@ function AuthContent({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [verificationInput, setVerificationInput] = useState(
-    demo.verificationToken || ""
+    () => new URLSearchParams(window.location.hash.slice(1)).get("token") || demo.verificationToken
   );
+
+  const [resendEmail, setResendEmail] = useState(demo.pendingEmail);
+  const [resendMessage, setResendMessage] = useState("");
+
+  useEffect(() => {
+    if (mode !== "verify-campus") return;
+    function readVerificationLink() {
+      const token = new URLSearchParams(window.location.hash.slice(1)).get("token");
+      if (token) setVerificationInput(token);
+    }
+    window.addEventListener("hashchange", readVerificationLink);
+    return () => window.removeEventListener("hashchange", readVerificationLink);
+  }, [mode]);
 
   const registering = mode === "register";
   const recovery = mode === "forgot-password" || mode === "reset-password";
@@ -83,12 +97,8 @@ function AuthContent({
         const email = String(form.get("email") || "").trim();
         const password = String(form.get("password") || "");
 
-        if (email && password && password !== "demo-only") {
-          const err = await demo.login(email, password);
-          if (err) setError(err);
-        } else {
-          await demo.openDemo();
-        }
+        const err = await demo.login(email, password);
+        if (err) setError(err);
       }
     } finally {
       setLoading(false);
@@ -99,12 +109,9 @@ function AuthContent({
     setError("");
     setLoading(true);
     try {
-      const token = tokenValue.trim() || demo.verificationToken;
+      const token = tokenValue.trim();
       if (!token) {
-        // Fallback for visual preview
-        demo.setSignedIn(true);
-        demo.setVerified(true);
-        window.location.hash = "/onboarding";
+        setError("Enter the token from your verification email.");
         return;
       }
       const err = await demo.verifyEmailToken(token);
@@ -114,17 +121,20 @@ function AuthContent({
     }
   }
 
-  async function handleResend() {
+  async function handleResend(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setError("");
-    const email = demo.profile.name.includes("@")
-      ? demo.profile.name
-      : "student@campus.edu";
-    const msg = await demo.resendVerificationEmail(email);
-    setSent(true);
-    if (demo.verificationToken) {
-      setVerificationInput(demo.verificationToken);
+    setResendMessage("");
+    setLoading(true);
+    try {
+      const result = await authApi.resendVerification(resendEmail.trim());
+      setVerificationInput(result.verificationToken || "");
+      setResendMessage(result.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to resend verification.");
+    } finally {
+      setLoading(false);
     }
-    demo.setFeedback(msg);
   }
 
   return (
@@ -181,21 +191,18 @@ function AuthContent({
               your campus profile.
             </p>
 
+            {demo.authMessage && !resendMessage && <p role="status">{demo.authMessage}</p>}
             <div className="w-full mb-4 text-left">
-              <label className="text-xs font-semibold text-ink block mb-1.5">
+              <label htmlFor="verification-token" className="text-xs font-semibold text-ink block mb-1.5">
                 Verification Token
               </label>
               <input
                 className="w-full px-3.5 py-2.5 bg-surface border border-input-border rounded-lg text-sm text-ink placeholder:text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors font-mono"
-                placeholder="Paste token or click below"
+                id="verification-token"
+                placeholder="Paste verification token"
                 value={verificationInput}
                 onChange={(e) => setVerificationInput(e.target.value)}
               />
-              {demo.verificationToken && (
-                <span className="text-[11px] text-primary block mt-1">
-                  Local token detected: {demo.verificationToken.slice(0, 12)}…
-                </span>
-              )}
             </div>
 
             {error && (
@@ -213,16 +220,21 @@ function AuthContent({
               {loading ? "Verifying…" : "Confirm campus verification"}{" "}
               <Icon name="arrow" size={18} />
             </button>
-            <button
-              type="button"
-              className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer mt-2"
-              onClick={handleResend}
-            >
-              Resend verification token
-            </button>
-            {sent && (
+            <form onSubmit={handleResend} className="w-full mt-4">
+              <label className="text-xs font-semibold text-ink block text-left">
+                Institution email
+                <input type="email" autoComplete="email" required value={resendEmail}
+                  onChange={(event) => setResendEmail(event.target.value)}
+                  className="w-full mt-1 px-3.5 py-2.5 bg-surface border border-input-border rounded-lg text-sm" />
+              </label>
+              <button type="submit" disabled={loading}
+                className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-muted hover:text-ink cursor-pointer mt-2">
+                Resend verification token
+              </button>
+            </form>
+            {resendMessage && (
               <p className="text-xs text-muted mt-3" role="status">
-                A new verification token has been issued for your account.
+                {resendMessage}
               </p>
             )}
           </div>
@@ -246,6 +258,7 @@ function AuthContent({
           </div>
         ) : (
           <form className="auth-form flex flex-col gap-3.5" onSubmit={submit}>
+            {mode === "login" && demo.authMessage && <p role="status">{demo.authMessage}</p>}
             {registering && (
               <label className="text-xs font-semibold text-ink flex flex-col gap-1.5">
                 Your full name
@@ -268,7 +281,7 @@ function AuthContent({
                     name="email"
                     type="email"
                     placeholder="student@campus.edu"
-                    defaultValue={registering ? "" : "aarav.sharma@campus.edu"}
+                    defaultValue={mode === "login" ? demo.pendingEmail : ""}
                     autoComplete="email"
                     required
                     className="w-full px-3.5 py-2.5 bg-surface border border-input-border rounded-lg text-sm text-ink placeholder:text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors"
@@ -291,7 +304,8 @@ function AuthContent({
                     name="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="At least 8 characters"
-                    defaultValue={registering || recovery ? "" : "Password123!"}
+                    minLength={registering ? 8 : undefined}
+                    maxLength={128}
                     autoComplete={
                       registering || recovery
                         ? "new-password"
@@ -330,7 +344,6 @@ function AuthContent({
             )}
             {!registering && !recovery && (
               <div className="auth-form-links flex items-center justify-between text-xs text-muted my-1">
-                <span>Default student credentials prefilled.</span>
                 <a
                   href="#/forgot-password"
                   className="text-primary hover:underline"
@@ -499,13 +512,12 @@ export function AccessPage({ demo }: { demo: DemoData }) {
         Sign in with your campus account or explore available teams.
       </p>
       <div className="flex justify-center flex-wrap gap-3">
-        <button
-          type="button"
+        <a
+          href="#/login"
           className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer shadow-sm"
-          onClick={demo.openDemo}
         >
-          Enter Workspace <Icon name="arrowUp" />
-        </button>
+          Sign in <Icon name="arrowUp" />
+        </a>
         <a
           className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold border border-border bg-surface text-ink hover:bg-soft transition-colors cursor-pointer"
           href={demo.signedIn ? "#/verify-campus" : "#/register"}
