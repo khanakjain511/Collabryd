@@ -5,5 +5,6 @@ export * from "./catalog.js";
 export * from "./projects.js";
 export * from "./messaging.js";
 export * from "./notifications.js";
+export * from "./events.js";
 export * from "./admin.js";
 export * from "./relations.js";

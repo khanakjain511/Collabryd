@@ -6,6 +6,7 @@ import { Pagination } from "../components/Pagination";
 import { paginate, isHttpUrl } from "../lib/validation";
 import { Roster, RosterSkills } from "../components/Roster";
 import { sortDirection, sortField } from "../lib/roster";
+import { conversationsApi } from "../lib/api";
 import {
   Avatar,
   Badge,
@@ -345,18 +346,40 @@ export function PersonPage({ id, demo }: { id: string; demo: DemoData }) {
           </p>
         </div>
         {id !== "you" && (
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
-            onClick={() => {
-              setError("");
-              setDialog("invite");
-            }}
-            disabled={invited}
-          >
-            {invited ? "Invitation sent" : "Invite to your team"}
-            <Icon name={invited ? "check" : "plus"} size={18} />
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 py-2.5 rounded-lg text-sm font-bold bg-primary text-on-primary hover:bg-primary/90 transition-colors cursor-pointer"
+              onClick={async () => {
+                const uid = Number(id);
+                if (Number.isFinite(uid) && uid > 0) {
+                  try {
+                    const conv = await conversationsApi.createDirect(uid);
+                    window.location.hash = `/messages/${conv.conversationId}`;
+                  } catch {
+                    window.location.hash = "/messages";
+                  }
+                } else {
+                  window.location.hash = "/messages";
+                }
+              }}
+            >
+              <Icon name="mail" size={17} />
+              Message
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
+              onClick={() => {
+                setError("");
+                setDialog("invite");
+              }}
+              disabled={invited}
+            >
+              {invited ? "Invitation sent" : "Invite to your team"}
+              <Icon name={invited ? "check" : "plus"} size={18} />
+            </button>
+          </div>
         )}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8">

@@ -417,6 +417,9 @@ describe("Collabryd End-to-End Integration Suite", () => {
         roles: [{ roleId: roleFeId, openPositions: 1, description: "Lead UI" }],
       });
 
+    if (createRes.status !== 201) {
+      console.error("CREATE EVENT FAILED:", createRes.status, createRes.body);
+    }
     expect(createRes.status).toBe(201);
     projectId = createRes.body.data.projectId;
     groupConversationId = createRes.body.data.groupConversationId;
@@ -809,5 +812,46 @@ describe("Collabryd End-to-End Integration Suite", () => {
     expect(loginWithOtpRes.body.data.tokens.accessToken).toBeTruthy();
     expect(loginWithOtpRes.body.data.tokens.refreshToken).toBeTruthy();
     expect(loginWithOtpRes.body.data.user.email).toBe(otpEmail);
+  });
+
+  it("11. Campus Events & Hackathons lifecycle: browse, detail, create, and update publication", async () => {
+    // 1. Browse seeded events
+    const listRes = await request(app).get("/api/v1/events");
+    expect(listRes.status).toBe(200);
+    expect(listRes.body.data.length).toBeGreaterThanOrEqual(3);
+
+    // 2. Fetch specific seeded event by slug
+    const detailRes = await request(app).get("/api/v1/events/green-campus-hack");
+    expect(detailRes.status).toBe(200);
+    expect(detailRes.body.data.name).toBe("Green Campus Hackathon");
+
+    // 3. Create a new event listing
+    const newSlug = `ai-summit-hack-${runSuffix}`;
+    const createRes = await request(app)
+      .post("/api/v1/events")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({
+        slug: newSlug,
+        name: `AI Summit Hack ${runSuffix}`,
+        category: "Artificial Intelligence",
+        description: "A 48-hour campus hackathon focused on generative AI applications.",
+        eventDate: "2026-12-15",
+        deadline: "2026-12-05",
+        mode: "In-person",
+        color: "sage",
+        symbol: "🤖",
+        publication: "Published",
+        organizer: "AI Student Chapter",
+      });
+    expect(createRes.status).toBe(201);
+    expect(createRes.body.data.slug).toBe(newSlug);
+
+    // 4. Update publication status
+    const pubRes = await request(app)
+      .patch(`/api/v1/events/${newSlug}/publication`)
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ publication: "Archived" });
+    expect(pubRes.status).toBe(200);
+    expect(pubRes.body.data.publication).toBe("Archived");
   });
 });

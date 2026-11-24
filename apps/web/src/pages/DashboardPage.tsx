@@ -1,10 +1,25 @@
+import { useEffect, useState } from "react";
 import type { DemoData } from "../hooks/useDemoData";
 import { EventCard, PersonCard, TeamCard } from "../components/Cards";
-import { EmptyState, Icon, PageHeading } from "../components/ui";
+import { Badge, EmptyState, Icon, PageHeading } from "../components/ui";
 import { CardRail } from "../components/CardRail";
 import { openSeats } from "../lib/roster";
+import { recommendationsApi, type RecommendedProject } from "../lib/api";
 
 export function DashboardPage({ demo }: { demo: DemoData }) {
+  const [recommendedTeams, setRecommendedTeams] = useState<RecommendedProject[]>([]);
+
+  useEffect(() => {
+    if (demo.signedIn) {
+      recommendationsApi
+        .getRecommendedProjects(6)
+        .then((recs) => {
+          setRecommendedTeams(recs);
+        })
+        .catch(() => {});
+    }
+  }, [demo.signedIn]);
+
   const pending = demo.invitations.filter(
     (item) => item.status === "Pending" && (item.personId || "you") === "you",
   );
@@ -117,8 +132,7 @@ export function DashboardPage({ demo }: { demo: DemoData }) {
             People you could click with
           </h2>
           <p className="text-xs sm:text-sm text-muted mt-1">
-            Complementary skills. A shared curiosity. Example profiles to
-            explore.
+            Complementary skills. A shared curiosity. Profiles to explore.
           </p>
         </div>
         <a
@@ -140,6 +154,80 @@ export function DashboardPage({ demo }: { demo: DemoData }) {
             <PersonCard key={person.id} person={person} compact />
           ))}
       </div>
+
+      {recommendedTeams.length > 0 && (
+        <>
+          <div className="workspace-section-heading flex justify-between items-end gap-4 my-8">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 mb-1">
+                <Icon name="spark" size={12} />
+                MATCHED TO YOUR SKILLS
+              </div>
+              <h2 className="font-display text-2xl sm:text-3xl font-medium">
+                Recommended Teams for You
+              </h2>
+              <p className="text-xs sm:text-sm text-muted mt-1">
+                Open projects looking for the exact skills in your profile.
+              </p>
+            </div>
+            <a
+              className="text-link inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-primary hover:underline"
+              href="#/teams"
+            >
+              All teams <Icon name="arrow" size={17} />
+            </a>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+            {recommendedTeams.map((rec) => (
+              <div
+                key={rec.projectId}
+                className="bg-surface border border-border rounded-xl p-5 hover:border-primary transition-all flex flex-col justify-between shadow-xs"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+                      {rec.category}
+                    </span>
+                    <Badge tone="positive">
+                      {rec.matchedSkillsCount} skill match{rec.matchedSkillsCount === 1 ? "" : "es"}
+                    </Badge>
+                  </div>
+                  <h3 className="text-lg font-bold text-ink mb-1">
+                    <a
+                      href={`#/teams/${rec.projectId}`}
+                      className="hover:text-primary transition-colors"
+                    >
+                      {rec.title}
+                    </a>
+                  </h3>
+                  <p className="text-xs text-muted mb-3 line-clamp-2">
+                    {rec.summary}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {rec.matchedSkills.map((skill) => (
+                      <span
+                        key={skill}
+                        className="text-xs px-2 py-0.5 rounded bg-sage/60 text-primary font-medium"
+                      >
+                        ✓ {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-3 border-t border-border text-xs text-muted">
+                  <span>Led by {rec.ownerName}</span>
+                  <a
+                    href={`#/teams/${rec.projectId}`}
+                    className="font-bold text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    View team <Icon name="arrowUp" size={14} />
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
       <div className="workspace-section-heading flex justify-between items-end gap-4 my-8">
         <div>
           <h2 className="font-display text-2xl sm:text-3xl font-medium">
