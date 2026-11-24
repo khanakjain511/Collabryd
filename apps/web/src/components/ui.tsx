@@ -96,21 +96,23 @@ export function Avatar({
   color = "sage",
   small = false,
 }: {
-  name: string;
+  name?: string;
   color?: string;
   small?: boolean;
 }) {
-  const initials = name
+  const safeName = (name || "").trim() || "?";
+  const initials = safeName
     .split(" ")
+    .filter(Boolean)
     .map((word) => word[0])
     .slice(0, 2)
-    .join("");
+    .join("") || safeName.slice(0, 2).toUpperCase();
   return (
     <span
       className={`avatar inline-flex items-center justify-center rounded-full shrink-0 border border-border bg-sage text-primary font-semibold ${color} ${
         small ? "avatar-small w-8 h-8 text-xs" : "w-11 h-11 text-base"
       }`}
-      aria-label={name}
+      aria-label={safeName}
     >
       {initials}
     </span>

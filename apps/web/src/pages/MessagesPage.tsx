@@ -29,12 +29,13 @@ export function MessagesPage({
   async function loadConversations() {
     try {
       const list = await conversationsApi.list();
-      setConversations(list);
-      if (!activeConvId && list.length > 0 && !activeConvIdFromRoute) {
-        setActiveConvId(list[0]!.conversationId);
+      const safeList = Array.isArray(list) ? list : [];
+      setConversations(safeList);
+      if (!activeConvId && safeList.length > 0 && !activeConvIdFromRoute) {
+        setActiveConvId(safeList[0]?.conversationId ?? null);
       }
     } catch {
-      // Fallback or offline
+      setConversations([]);
     } finally {
       setLoadingList(false);
     }
@@ -62,14 +63,19 @@ export function MessagesPage({
     conversationsApi
       .listMessages(activeConvId, { limit: 50 })
       .then((res) => {
-        setMessages(res.items);
+        const items = res?.items && Array.isArray(res.items) ? res.items : [];
+        setMessages(items);
         // Mark conversation as read
-        if (res.items.length > 0) {
-          const lastSeq = res.items[res.items.length - 1]!.sequenceNumber;
-          conversationsApi.markRead(activeConvId, lastSeq).catch(() => {});
+        if (items.length > 0) {
+          const lastSeq = items[items.length - 1]?.sequenceNumber;
+          if (lastSeq !== undefined) {
+            conversationsApi.markRead(activeConvId, lastSeq).catch(() => {});
+          }
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        setMessages([]);
+      })
       .finally(() => setLoadingMessages(false));
   }, [activeConvId]);
 
@@ -85,7 +91,9 @@ export function MessagesPage({
       conversationsApi
         .listMessages(activeConvId, { limit: 50 })
         .then((res) => {
-          setMessages(res.items);
+          if (res?.items && Array.isArray(res.items)) {
+            setMessages(res.items);
+          }
         })
         .catch(() => {});
     }, 4000);
@@ -107,11 +115,12 @@ export function MessagesPage({
 
     // Optimistic message
     const tempId = crypto.randomUUID();
+    const currentUserName = demo.profile?.name || "You";
     const optimisticMessage: BackendMessage = {
       messageId: Date.now(),
       conversationId: activeConvId,
       senderId: demo.currentUserId || 0,
-      senderName: demo.profile.name,
+      senderName: currentUserName,
       senderAvatarUrl: null,
       clientMessageId: tempId,
       sequenceNumber: (messages[messages.length - 1]?.sequenceNumber || 0) + 1,
@@ -125,7 +134,7 @@ export function MessagesPage({
       if (res && res.message) {
         setMessages((curr) =>
           curr.map((m) =>
-            m.clientMessageId === tempId ? { ...res.message, senderName: demo.profile.name } : m
+            m.clientMessageId === tempId ? { ...res.message, senderName: currentUserName } : m
           )
         );
       }
@@ -136,12 +145,14 @@ export function MessagesPage({
     }
   }
 
-  function getConversationTitle(conv: BackendConversation): string {
+  function getConversationTitle(conv?: BackendConversation | null): string {
+    if (!conv) return "Conversation";
     if (conv.type === "PROJECT_GROUP") {
       return conv.projectTitle || "Team Project Chat";
     }
-    const otherParticipant = conv.participants.find(
-      (p) => p.userId !== demo.currentUserId
+    const participants = conv.participants || [];
+    const otherParticipant = participants.find(
+      (p) => p && p.userId !== demo.currentUserId
     );
     return otherParticipant?.displayName || "Direct Message";
   }
@@ -251,7 +262,7 @@ export function MessagesPage({
                     </h3>
                     <p className="text-xs text-muted">
                       {activeConversation.type === "PROJECT_GROUP"
-                        ? `Project Team · ${activeConversation.participants.length} members`
+                        ? `Project Team · ${(activeConversation.participants || []).length} members`
                         : "Direct conversation"}
                     </p>
                   </div>
@@ -278,7 +289,16 @@ export function MessagesPage({
                   </div>
                 ) : (
                   messages.map((msg) => {
-                    const isSelf = msg.senderId === demo.currentUserId;
+                    const isSelf = Boolean(demo.currentUserId && msg.senderId === demo.currentUserId);
+                    const timeString = msg.createdAt
+                      ? (() => {
+                          const d = new Date(msg.createdAt);
+                          return Number.isFinite(d.getTime())
+                            ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                            : "";
+                        })()
+                      : "";
+
                     return (
                       <div
                         key={msg.clientMessageId || msg.messageId}
@@ -288,7 +308,7 @@ export function MessagesPage({
                       >
                         {!isSelf && (
                           <span className="text-[11px] font-semibold text-muted mb-1 px-1">
-                            {msg.senderName}
+                            {msg.senderName || "Member"}
                           </span>
                         )}
                         <div
@@ -299,15 +319,14 @@ export function MessagesPage({
                           }`}
                         >
                           <p className="whitespace-pre-wrap break-words">
-                            {msg.content}
+                            {msg.content || ""}
                           </p>
                         </div>
-                        <span className="text-[10px] text-muted mt-1 px-1">
-                          {new Date(msg.createdAt).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
+                        {timeString && (
+                          <span className="text-[10px] text-muted mt-1 px-1">
+                            {timeString}
+                          </span>
+                        )}
                       </div>
                     );
                   })
