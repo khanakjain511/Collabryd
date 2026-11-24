@@ -62,7 +62,7 @@ export function AdminPage({
               <span className="text-xs text-muted block">Awaiting campus review</span>
               <strong className="text-2xl sm:text-3xl font-display font-medium text-ink block mt-1">
                 {
-                  demo.people.filter(
+                  (demo.people || []).filter(
                     (person) => person.status === "Pending review",
                   ).length
                 }
@@ -76,7 +76,7 @@ export function AdminPage({
               <span className="text-xs text-muted block">Open reports</span>
               <strong className="text-2xl sm:text-3xl font-display font-medium text-ink block mt-1">
                 {
-                  demo.reports.filter(
+                  (demo.reports || []).filter(
                     (report) =>
                       report.status === "Open" ||
                       report.status === "Investigating",
@@ -92,7 +92,7 @@ export function AdminPage({
               <span className="text-xs text-muted block">Published events</span>
               <strong className="text-2xl sm:text-3xl font-display font-medium text-ink block mt-1">
                 {
-                  demo.events.filter(
+                  (demo.events || []).filter(
                     (event) =>
                       !event.publication || event.publication === "Published",
                   ).length
@@ -137,9 +137,9 @@ function StudentReview({ demo }: { demo: DemoData }) {
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [suspending, setSuspending] = useState<string | null>(null);
-  const people = demo.people.filter(
+  const people = (demo.people || []).filter(
     (person) =>
-      `${person.name} ${person.branch}`
+      `${person.name || ""} ${person.branch || ""}`
         .toLowerCase()
         .includes(search.toLowerCase()) &&
       (!status || (person.status || "Active") === status),
@@ -276,8 +276,8 @@ function StudentReview({ demo }: { demo: DemoData }) {
 function TeamReview({ demo }: { demo: DemoData }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const teams = demo.teams.filter((team) =>
-    `${team.name} ${team.domain}`.toLowerCase().includes(search.toLowerCase()),
+  const teams = (demo.teams || []).filter((team) =>
+    `${team.name || ""} ${team.domain || ""}`.toLowerCase().includes(search.toLowerCase()),
   );
   const results = paginate(teams, page);
   return (
@@ -313,7 +313,7 @@ function TeamReview({ demo }: { demo: DemoData }) {
               <div>
                 <h3 className="font-semibold text-ink text-base">{team.name}</h3>
                 <p className="text-sm text-muted">
-                  {team.members.length}/{team.capacity} members · {team.domain}
+                  {(team.members?.length || 0)}/{team.capacity || 4} members · {team.domain}
                 </p>
                 <a
                   className="inline-flex items-center gap-2 text-sm font-semibold text-ink border-b border-border pb-1 hover:border-primary hover:text-primary transition-colors"
@@ -362,7 +362,7 @@ function TeamReview({ demo }: { demo: DemoData }) {
 function ReportReview({ demo }: { demo: DemoData }) {
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
-  const reports = demo.reports.filter(
+  const reports = (demo.reports || []).filter(
     (report) => !status || report.status === status,
   );
   const results = paginate(reports, page);
@@ -457,7 +457,7 @@ function ReportReview({ demo }: { demo: DemoData }) {
 
 function EventReview({ demo }: { demo: DemoData }) {
   const [page, setPage] = useState(1);
-  const results = paginate(demo.events, page);
+  const results = paginate(demo.events || [], page);
   return (
     <>
       <div className="flex justify-between items-end gap-4 my-8">

@@ -14,6 +14,12 @@ export async function listAuditLogsHandler(req: Request, res: Response) {
   sendSuccess(res, items, { pagination: meta });
 }
 
+export async function listUsersHandler(req: Request, res: Response) {
+  const query = getValidatedQuery<Parameters<typeof adminService.listUsers>[0]>(req);
+  const { items, meta } = await adminService.listUsers(query);
+  sendSuccess(res, items, { pagination: meta });
+}
+
 export async function suspendUserHandler(req: Request, res: Response) {
   const { userId } = getValidatedParams<{ userId: number }>(req);
   const user = await adminService.suspendUserAccount(

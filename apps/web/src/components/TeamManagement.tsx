@@ -10,10 +10,11 @@ export function TeamManagement({ team, demo }: { team: Team; demo: DemoData }) {
   );
   const [error, setError] = useState("");
   const leader = team.leaderId === "you";
-  const member = team.members.includes("you");
+  const members = team?.members || [];
+  const member = members.includes("you");
   if (!member) return null;
-  const others = team.members.filter((id) => id !== "you");
-  const outgoing = demo.invitations.filter(
+  const others = members.filter((id) => id !== "you");
+  const outgoing = (demo?.invitations || []).filter(
     (invitation) =>
       invitation.teamId === team.id &&
       invitation.personId &&

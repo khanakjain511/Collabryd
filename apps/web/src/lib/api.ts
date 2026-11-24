@@ -789,6 +789,22 @@ export const adminApi = {
     }>>(`/admin/audit-logs${qs ? `?${qs}` : ""}`);
   },
 
+  async listUsers(params?: {
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<FullProfile[]> {
+    const sp = new URLSearchParams();
+    if (params?.status) sp.set("status", params.status);
+    if (params?.search) sp.set("search", params.search);
+    if (params?.page) sp.set("page", String(params.page));
+    if (params?.limit) sp.set("limit", String(params.limit));
+    const qs = sp.toString();
+    const res = await apiRequest<FullProfile[]>(`/admin/users${qs ? `?${qs}` : ""}`);
+    return res || [];
+  },
+
   async suspendUser(userId: number, reason: string) {
     return apiRequest(`/admin/users/${userId}/suspend`, {
       method: "POST",

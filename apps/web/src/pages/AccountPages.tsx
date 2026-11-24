@@ -382,8 +382,8 @@ export function SettingsPage({
                 </span>
               </label>
               <h3>Blocked profiles</h3>
-              {demo.blockedIds.length ? (
-                demo.blockedIds.map((id) => (
+              {(demo.blockedIds || []).length ? (
+                (demo.blockedIds || []).map((id) => (
                   <div
                     className="flex items-center justify-between p-3 sm:px-4 border-b border-border text-sm last:border-b-0"
                     key={id}
@@ -518,7 +518,7 @@ export function SettingsPage({
 export function NotificationsPage({ demo }: { demo: DemoData }) {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [page, setPage] = useState(1);
-  const notices = demo.notices.filter((notice) => !unreadOnly || !notice.read);
+  const notices = (demo.notices || []).filter((notice) => !unreadOnly || !notice.read);
   const results = paginate(notices, page);
   return (
     <>

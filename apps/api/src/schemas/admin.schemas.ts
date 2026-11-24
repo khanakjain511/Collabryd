@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  ACCOUNT_STATUSES,
   ADMIN_AUDIT_ACTIONS,
   PROJECT_MEMBER_ROLES,
   PROJECT_STATUSES,
@@ -35,4 +36,9 @@ export const roleOverrideBodySchema = z.object({
 export const listAuditLogsQuerySchema = paginationQuerySchema.extend({
   action: z.enum(ADMIN_AUDIT_ACTIONS).optional(),
   targetType: z.string().trim().max(50).optional(),
+});
+
+export const listUsersQuerySchema = paginationQuerySchema.extend({
+  status: z.enum(ACCOUNT_STATUSES).optional(),
+  search: z.string().trim().max(100).optional(),
 });

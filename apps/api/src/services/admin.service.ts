@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import {
   adminAuditLogs,
   db,
@@ -7,6 +7,7 @@ import {
   refreshSessions,
   userProfiles,
   users,
+  type AccountStatus,
   type AdminAuditAction,
   type ProjectMemberRole,
   type ProjectStatus,
@@ -84,6 +85,64 @@ export async function listAuditLogs(query: {
     .leftJoin(userProfiles, eq(adminAuditLogs.adminId, userProfiles.userId))
     .where(whereClause)
     .orderBy(desc(adminAuditLogs.createdAt))
+    .limit(query.limit)
+    .offset(offset);
+
+  return {
+    items,
+    meta: buildPaginationMeta(query.page, query.limit, countRow?.total ?? 0),
+  };
+}
+
+export async function listUsers(query: {
+  page: number;
+  limit: number;
+  search?: string;
+  status?: AccountStatus;
+}) {
+  const conditions = [];
+  if (query.status) {
+    conditions.push(eq(users.accountStatus, query.status));
+  }
+  if (query.search) {
+    const pattern = `%${query.search}%`;
+    conditions.push(
+      or(
+        ilike(users.email, pattern),
+        ilike(userProfiles.displayName, pattern),
+        ilike(userProfiles.department, pattern),
+        ilike(userProfiles.courseProgram, pattern)
+      )!
+    );
+  }
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  const offset = (query.page - 1) * query.limit;
+
+  const [countRow] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(users)
+    .leftJoin(userProfiles, eq(users.userId, userProfiles.userId))
+    .where(whereClause);
+
+  const items = await db
+    .select({
+      userId: users.userId,
+      email: users.email,
+      accountStatus: users.accountStatus,
+      systemRole: users.systemRole,
+      createdAt: users.createdAt,
+      displayName: userProfiles.displayName,
+      department: userProfiles.department,
+      courseProgram: userProfiles.courseProgram,
+      academicYear: userProfiles.academicYear,
+      bio: userProfiles.bio,
+      availabilityStatus: userProfiles.availabilityStatus,
+      institution: userProfiles.institution,
+    })
+    .from(users)
+    .leftJoin(userProfiles, eq(users.userId, userProfiles.userId))
+    .where(whereClause)
+    .orderBy(desc(users.createdAt))
     .limit(query.limit)
     .offset(offset);
 

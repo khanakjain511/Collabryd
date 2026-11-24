@@ -18,23 +18,25 @@ export function TeamSeats({
   team: Team;
   size?: SeatSize;
 }) {
+  const memberCount = team?.members?.length || 0;
+  const capacity = team?.capacity || 4;
   const open = openSeats(team);
   return (
     <div className="flex items-center gap-2 text-xs text-muted">
       <Seats
-        capacity={team.capacity}
-        filled={team.members.length}
+        capacity={capacity}
+        filled={memberCount}
         size={size}
-        inactive={team.status !== "Recruiting"}
+        inactive={team?.status !== "Recruiting"}
         decorative
       />
       <span>
         {open
           ? `${open} open`
-          : team.status === "Recruiting"
+          : team?.status === "Recruiting"
             ? "Full"
-            : team.status}{" "}
-        · {team.members.length}/{team.capacity} filled
+            : team?.status || "Recruiting"}{" "}
+        · {memberCount}/{capacity} filled
       </span>
     </div>
   );
@@ -74,13 +76,14 @@ export function RosterSkeleton({ rows = 3 }: { rows?: number }) {
 }
 
 export function RosterSkills({ skills }: { skills: string[] }) {
+  const safeSkills = Array.isArray(skills) ? skills : [];
   return (
     <div className="flex flex-wrap gap-1.5">
-      {skills.slice(0, 4).map((skill) => (
+      {safeSkills.slice(0, 4).map((skill) => (
         <Badge key={skill}>{skill}</Badge>
       ))}
-      {skills.length > 4 && <Badge>+{skills.length - 4} more</Badge>}
-      {!skills.length && (
+      {safeSkills.length > 4 && <Badge>+{safeSkills.length - 4} more</Badge>}
+      {!safeSkills.length && (
         <span className="text-xs text-muted italic">
           Skills to be decided
         </span>

@@ -174,12 +174,33 @@ function mapBackendEvent(evt: BackendEvent): Hackathon {
   };
 }
 
+function getMockReviews(): Record<string, NonNullable<Person["status"]>> {
+  try {
+    return JSON.parse(localStorage.getItem("collabryd_mock_reviews") || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveMockReview(id: string, status: NonNullable<Person["status"]>) {
+  try {
+    const current = getMockReviews();
+    current[id] = status;
+    localStorage.setItem("collabryd_mock_reviews", JSON.stringify(current));
+  } catch {}
+}
+
 export function useDemoData() {
   const [signedIn, setSignedIn] = useState(false);
   const [verified, setVerified] = useState(false);
   const [profile, setProfile] = useState<Person>(demoProfile);
   const [teams, setTeams] = useState<Team[]>(demoTeams);
-  const [people, setPeople] = useState<Person[]>([...demoPeople, demoPendingStudent]);
+  const [people, setPeople] = useState<Person[]>(() => {
+    const mockReviews = getMockReviews();
+    return [...demoPeople, demoPendingStudent].map((p) =>
+      mockReviews[p.id] ? { ...p, status: mockReviews[p.id] } : p
+    );
+  });
   const [events, setEvents] = useState<Hackathon[]>(demoEvents);
   const [requests, setRequests] = useState<JoinRequest[]>(demoRequests);
   const [invitations, setInvitations] = useState(demoInvitations);
@@ -191,6 +212,7 @@ export function useDemoData() {
   const [deletionRequested, setDeletionRequested] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [currentUserId, setCurrentUserId] = useState<number | undefined>(undefined);
+  const [currentUserRole, setCurrentUserRole] = useState<string>("STUDENT");
   const onboardingEmail = useRef("");
   const [pendingEmail, setPendingEmail] = useState("");
   const [authMessage, setAuthMessage] = useState("");
@@ -231,12 +253,13 @@ export function useDemoData() {
   }, []);
 
   // Sync session and backend resources
-  const loadPlatformData = useCallback(async (activeUserId?: number) => {
+  const loadPlatformData = useCallback(async (activeUserId?: number, activeUserRole?: string) => {
     try {
-      const [backendProjects, backendStudents, backendEvents] = await Promise.all([
+      const [backendProjects, backendStudents, backendEvents, adminUsers] = await Promise.all([
         projectsApi.list({ limit: 100 }).catch(() => null),
         studentsApi.discover({ limit: 100 }).catch(() => null),
         eventsApi.list({ limit: 100 }).catch(() => null),
+        activeUserRole === "ADMIN" ? adminApi.listUsers({ limit: 100 }).catch(() => null) : null,
       ]);
 
       if (backendProjects && Array.isArray(backendProjects)) {
@@ -244,9 +267,24 @@ export function useDemoData() {
         if (mapped.length > 0) setTeams(mapped);
       }
 
-      if (backendStudents && Array.isArray(backendStudents)) {
-        const mapped = backendStudents.map((s) => mapBackendStudent(s, activeUserId));
-        if (mapped.length > 0) setPeople(mapped);
+      const mockReviews = getMockReviews();
+      const peopleList: Person[] = [];
+
+      if (adminUsers && Array.isArray(adminUsers) && adminUsers.length > 0) {
+        peopleList.push(...adminUsers.map((u) => mapBackendStudent(u, activeUserId)));
+      } else if (backendStudents && Array.isArray(backendStudents) && backendStudents.length > 0) {
+        peopleList.push(...backendStudents.map((s) => mapBackendStudent(s, activeUserId)));
+      }
+
+      if (peopleList.length > 0) {
+        const hasPending = peopleList.some((p) => p.status === "Pending review");
+        if (!hasPending) {
+          const pendingWithReview = mockReviews[demoPendingStudent.id]
+            ? { ...demoPendingStudent, status: mockReviews[demoPendingStudent.id] }
+            : demoPendingStudent;
+          peopleList.push(pendingWithReview);
+        }
+        setPeople(peopleList);
       }
 
       if (backendEvents && Array.isArray(backendEvents) && backendEvents.length > 0) {
@@ -290,6 +328,7 @@ export function useDemoData() {
       setSignedIn(false);
       setVerified(false);
       setCurrentUserId(undefined);
+      setCurrentUserRole("STUDENT");
     }
 
     async function initializeSession() {
@@ -307,12 +346,13 @@ export function useDemoData() {
         const user = await authApi.me();
         if (request !== generation) return;
         setCurrentUserId(user.userId);
+        setCurrentUserRole(user.systemRole || "STUDENT");
         setSignedIn(true);
         setVerified(user.accountStatus === "ACTIVE");
         const full = await profilesApi.getOwnProfile().catch(() => null);
         if (request !== generation) return;
         if (full) setProfile(mapBackendStudent(full, user.userId));
-        await loadPlatformData(user.userId);
+        await loadPlatformData(user.userId, user.systemRole);
       } catch (err) {
         if (request !== generation) return;
         const status = (err as { status?: number }).status;
@@ -366,13 +406,14 @@ export function useDemoData() {
     try {
       const res = await authApi.login({ email, password: pass });
       setCurrentUserId(res.user.userId);
+      setCurrentUserRole(res.user.systemRole || "STUDENT");
       setSignedIn(true);
       const isActive = res.user.accountStatus === "ACTIVE";
       setVerified(isActive);
 
       const own = await profilesApi.getOwnProfile().catch(() => null);
       if (own) setProfile(mapBackendStudent(own, res.user.userId));
-      await loadPlatformData(res.user.userId);
+      await loadPlatformData(res.user.userId, res.user.systemRole);
 
       if (isActive) {
         window.location.hash = res.user.email === onboardingEmail.current ? "/onboarding" : "/dashboard";
@@ -452,13 +493,14 @@ export function useDemoData() {
     try {
       const res = await authApi.loginWithOtp(email, otp);
       setCurrentUserId(res.user.userId);
+      setCurrentUserRole(res.user.systemRole || "STUDENT");
       setSignedIn(true);
       const isActive = res.user.accountStatus === "ACTIVE";
       setVerified(isActive);
 
       const own = await profilesApi.getOwnProfile().catch(() => null);
       if (own) setProfile(mapBackendStudent(own, res.user.userId));
-      await loadPlatformData(res.user.userId);
+      await loadPlatformData(res.user.userId, res.user.systemRole);
 
       if (isActive) {
         window.location.hash = res.user.email === onboardingEmail.current ? "/onboarding" : "/dashboard";
@@ -495,6 +537,7 @@ export function useDemoData() {
     setSignedIn(false);
     setVerified(false);
     setCurrentUserId(undefined);
+    setCurrentUserRole("STUDENT");
     setFeedback("");
     window.location.hash = "/";
   }
@@ -894,15 +937,25 @@ export function useDemoData() {
     setPeople((current) =>
       current.map((person) => (person.id === id ? { ...person, status } : person))
     );
-    notify(`Student status changed to ${status.toLowerCase()}.`, "#/admin/users");
 
     const uid = Number(id);
     if (Number.isFinite(uid)) {
-      if (status === "Suspended") {
-        adminApi.suspendUser(uid, "Moderated by administrator").catch(() => {});
-      } else if (status === "Active") {
-        adminApi.activateUser(uid, "Approved by administrator").catch(() => {});
-      }
+      const action =
+        status === "Suspended"
+          ? adminApi.suspendUser(uid, "Moderated by administrator")
+          : adminApi.activateUser(uid, "Approved by administrator");
+
+      action
+        .then(() => {
+          notify(`Student status changed to ${status.toLowerCase()}.`, "#/admin/users");
+        })
+        .catch((err) => {
+          const error = err as Error;
+          setFeedback(`Could not update student status on server: ${error.message || "Admin access required"}`);
+        });
+    } else {
+      saveMockReview(id, status);
+      notify(`Student status changed to ${status.toLowerCase()}.`, "#/admin/users");
     }
   }
 
@@ -915,13 +968,22 @@ export function useDemoData() {
     setTeams((current) =>
       current.map((t) => (t.id === id ? { ...t, status } : t))
     );
-    notify(`Team status changed to ${status.toLowerCase()}.`, "#/admin/teams");
 
     const pid = Number(id);
     if (Number.isFinite(pid)) {
       const backendStatus =
         status === "Recruiting" ? "OPEN" : status === "Closed" ? "IN_PROGRESS" : "ARCHIVED";
-      adminApi.moderateProject(pid, backendStatus, "Moderated by admin").catch(() => {});
+      adminApi
+        .moderateProject(pid, backendStatus, "Moderated by admin")
+        .then(() => {
+          notify(`Team status changed to ${status.toLowerCase()}.`, "#/admin/teams");
+        })
+        .catch((err) => {
+          const error = err as Error;
+          setFeedback(`Could not update team status on server: ${error.message || "Admin access required"}`);
+        });
+    } else {
+      notify(`Team status changed to ${status.toLowerCase()}.`, "#/admin/teams");
     }
   }
 
@@ -1034,6 +1096,8 @@ export function useDemoData() {
     feedback,
     setFeedback,
     currentUserId,
+    currentUserRole,
+    isAdmin: currentUserRole === "ADMIN",
     verificationToken,
     openDemo,
     login,

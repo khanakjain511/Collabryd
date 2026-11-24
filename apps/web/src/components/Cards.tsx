@@ -60,7 +60,9 @@ export function PersonCard({
 }
 
 export function TeamCard({ team }: { team: Team }) {
-  const full = team.members.length >= team.capacity;
+  const memberCount = team?.members?.length || 0;
+  const capacity = team?.capacity || 4;
+  const full = memberCount >= capacity;
   return (
     <article className="team-card bg-surface border border-border rounded-xl p-6 flex flex-col h-full">
       <div className="team-card-top flex items-center justify-between mb-5">
