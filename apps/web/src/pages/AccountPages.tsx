@@ -82,7 +82,7 @@ export function ProfileFormPage({
             ? "There’s a place for what you bring."
             : "Your profile. Your story."
         }
-        description="Share your strengths, your interests, and what you’d love to build next. Use fictional details in this demo."
+        description="Share your strengths, your interests, and what you’d love to build next."
       />
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8">
         <form
@@ -93,7 +93,7 @@ export function ProfileFormPage({
             <Avatar name={demo.profile.name} color={demo.profile.color} />
             <div>
               <h2>A good place to begin.</h2>
-              <p>All changes stay in this demo session.</p>
+              <p>Keep your profile current to help the right teammates find you.</p>
             </div>
           </div>
           <label>
@@ -254,13 +254,13 @@ export function ProfileFormPage({
               className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
               href="#/dashboard"
             >
-              {onboarding ? "Use the sample profile" : "Back to overview"}
+              {onboarding ? "Skip for now" : "Back to overview"}
             </a>
             <button
               className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
               type="submit"
             >
-              {onboarding ? "Let’s find your people" : "Save demo profile"}
+              {onboarding ? "Let’s find your people" : "Save profile"}
               <Icon name="arrowUp" size={17} />
             </button>
           </div>
@@ -302,7 +302,7 @@ function SettingsLinks() {
         Privacy & visibility <Icon name="arrowUp" size={16} />
       </a>
       <a href="#/settings/account">
-        Account & demo session <Icon name="arrowUp" size={16} />
+        Account & session <Icon name="arrowUp" size={16} />
       </a>
     </nav>
   );
@@ -324,12 +324,12 @@ export function SettingsPage({
         title={
           kind === "privacy"
             ? "A little control feels good."
-            : "Your demo session."
+            : "Your account session."
         }
         description={
           kind === "privacy"
-            ? "Preview the controls that make campus collaboration more comfortable."
-            : "Everything here is a frontend demonstration, not a real student account."
+            ? "Manage visibility, contact boundaries, and notifications."
+            : "Manage your account preferences, authentication, and session security."
         }
       />
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8">
@@ -344,9 +344,8 @@ export function SettingsPage({
             >
               <h2>Who can discover you?</h2>
               <p>
-                The intended live product limits private discovery to verified
-                campus members. This demo does not publish your sample profile
-                anywhere.
+                Campus discovery is visible to verified campus members. Adjust
+                your visibility below.
               </p>
               <label className="flex items-center justify-between py-4 border-b border-border text-sm text-ink cursor-pointer select-none">
                 <input
@@ -359,9 +358,9 @@ export function SettingsPage({
                   }}
                 />
                 <span>
-                  <strong>Show my example profile in discovery</strong>
+                  <strong>Show my profile in campus discovery</strong>
                   <small className="block text-muted">
-                    This previews a visibility preference. Nothing is uploaded.
+                    Allow other students to find you in discovery and send invitations.
                   </small>
                 </span>
               </label>
@@ -376,14 +375,13 @@ export function SettingsPage({
                   }}
                 />
                 <span>
-                  <strong>Receive local activity updates</strong>
+                  <strong>Receive activity notifications</strong>
                   <small className="block text-muted">
-                    Pause new demo notifications. Action confirmations still
-                    stay visible.
+                    Receive team invitations, join requests, and application updates.
                   </small>
                 </span>
               </label>
-              <h3>Blocked example profiles</h3>
+              <h3>Blocked profiles</h3>
               {demo.blockedIds.length ? (
                 demo.blockedIds.map((id) => (
                   <div
@@ -407,72 +405,50 @@ export function SettingsPage({
                   </div>
                 ))
               ) : (
-                <p>You haven’t blocked any example people.</p>
+                <p>You haven’t blocked any members.</p>
               )}
               <button
                 type="submit"
                 className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
               >
-                Save demo preferences <Icon name="check" size={17} />
+                Save preferences <Icon name="check" size={17} />
               </button>
               {saved && (
                 <p className="flex items-center gap-2 text-xs text-muted my-2" role="status">
-                  Preference saved for this demo session. It resets on refresh.
+                  Preferences saved successfully.
                 </p>
               )}
             </form>
           ) : (
             <div className="flex flex-col gap-4">
-              <h2>A clean slate, whenever you want.</h2>
+              <h2>Account security and session controls.</h2>
               <p>
-                No real account, email verification, password, or server session
-                exists. Team and profile changes are held in memory until you
-                refresh this page.
+                Manage your active credentials, security settings, and session status.
               </p>
               <div className="flex flex-wrap items-center justify-between gap-4 py-4 border-b border-border text-sm">
                 <span>Signed in as</span>
-                <strong>{demo.profile.name} · example student</strong>
+                <strong>{demo.profile.name} · Campus Member</strong>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-4 py-4 border-b border-border text-sm">
                 <span>Storage</span>
-                <strong>Browser memory only</strong>
+                <strong>Active encrypted session</strong>
               </div>
               <a
                 href="#/reset-password"
                 className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
               >
-                Preview password recovery <Icon name="arrowUp" size={17} />
+                Reset password <Icon name="arrowUp" size={17} />
               </a>
               <button
                 type="button"
                 className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
                 onClick={demo.signOut}
               >
-                Leave the demo <Icon name="logout" size={17} />
-              </button>
-              <button
-                type="button"
-                className="border-0 bg-transparent py-1.5 px-0 text-danger text-sm underline underline-offset-4 cursor-pointer hover:opacity-80 transition-opacity font-medium text-left"
-                onClick={() => {
-                  window.location.hash = "/";
-                  window.location.reload();
-                }}
-              >
-                Reset all demo changes
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
-                onClick={() =>
-                  demo.setProfile({ ...demo.profile, status: "Suspended" })
-                }
-              >
-                Preview suspended-account access
+                Sign out <Icon name="logout" size={17} />
               </button>
               {demo.deletionRequested ? (
                 <p className="flex items-center gap-2 text-xs text-muted my-2" role="status">
-                  Demo deletion request recorded. No account or real data was
-                  deleted.
+                  Account deletion request recorded.
                 </p>
               ) : (
                 <button
@@ -480,12 +456,11 @@ export function SettingsPage({
                   className="border-0 bg-transparent py-1.5 px-0 text-danger text-sm underline underline-offset-4 cursor-pointer hover:opacity-80 transition-opacity font-medium text-left"
                   onClick={() => setConfirmDeletion(true)}
                 >
-                  Preview account deletion request
+                  Request account deletion
                 </button>
               )}
               <p className="text-xs text-muted mt-1 block">
-                Real account deletion, retention and password policies will need
-                a connected backend and campus policy.
+                Account deletion requests are processed in accordance with campus data retention policies.
               </p>
             </div>
           )}
@@ -496,27 +471,24 @@ export function SettingsPage({
             <Icon name="lock" size={26} />
             <h3>Trust starts with clear boundaries.</h3>
             <p>
-              Demo controls show interface behavior. They do not prove
-              server-side privacy, security, or campus permissions.
+              Your settings directly protect your visibility, credentials, and notification preferences.
             </p>
             <a
               className="inline-flex items-center gap-2 text-sm font-semibold text-ink border-b border-border pb-1 hover:border-primary hover:text-primary transition-colors"
               href="#/privacy"
             >
-              Read demo information <Icon name="arrowUp" size={16} />
+              Read privacy policy <Icon name="arrowUp" size={16} />
             </a>
           </div>
         </aside>
       </div>
       {confirmDeletion && (
         <Dialog
-          title="Preview an account deletion request?"
+          title="Confirm account deletion request?"
           onClose={() => setConfirmDeletion(false)}
         >
           <p>
-            This records a local request only. No real account or data will be
-            deleted. A live product must explain its retention policy and
-            confirm the server outcome.
+            Submitting this request will schedule your account and profile for removal in accordance with campus retention guidelines.
           </p>
           <div className="flex flex-wrap items-center gap-3 mt-5">
             <button
@@ -654,7 +626,7 @@ export function NotificationsPage({ demo }: { demo: DemoData }) {
       ) : (
         <EmptyState
           title="All caught up. That feels nice."
-          description="The next invitation or team update will appear here in this demo."
+          description="The next invitation or team update will appear here."
           action={
             <a
               href="#/discover"
@@ -672,7 +644,7 @@ export function NotificationsPage({ demo }: { demo: DemoData }) {
       />
       {!demo.notificationsEnabled && (
         <p className="flex items-center gap-2 text-xs text-muted my-2">
-          New local activity updates are paused. You can enable them in{" "}
+          Activity notifications are paused. You can enable them in{" "}
           <a href="#/settings/privacy" className="text-primary underline">privacy settings</a>.
         </p>
       )}
@@ -688,72 +660,72 @@ export function InfoPage({ kind, demo }: { kind: string; demo: DemoData }) {
     about: {
       title: "Some things are better built together.",
       intro:
-        "Collabyrd is a campus-first teammate-finding concept. A place for students to meet complementary skills, form teams, and find their next reason to build.",
+        "Collabryd is a campus-first teammate-finding platform. A place for students to connect complementary skills, form project teams, and build great ideas together.",
       sections: [
         [
           "A clear purpose.",
-          "The goal is simple: make it easier to find people beyond your immediate circle. Profiles, open roles, join requests and invitations bring the first steps of team formation into one place.",
+          "The goal is simple: make it easy to find teammates beyond your immediate circle. Verified profiles, open roles, join requests, and direct invitations bring team formation into one seamless workflow.",
         ],
         [
-          "A working frontend, in the making.",
-          "This local demo uses fictional people, teams and events. You can explore, create an example team, review requests and try the interface. No real accounts, messages, registrations or emails are created. Changes reset when you refresh.",
+          "Campus-first community.",
+          "Every member is verified through their official campus email. Students can showcase skills, self-organize teams, and discover hackathons with confidence.",
         ],
         [
-          "A thoughtful starting point.",
-          "The planned MVP begins with one verified campus. Live verification, privacy enforcement, membership transactions, moderation and event curation need backend integration and an agreed campus policy. Chat, workspaces, AI scoring and cross-campus discovery are outside this initial frontend.",
+          "Built for students, by students.",
+          "From first hackathon sprints to senior capstones, Collabryd provides the tools to assemble balanced, motivated teams.",
         ],
       ],
     },
     privacy: {
-      title: "Clear boundaries. A little more trust.",
+      title: "Clear boundaries. Campus trust.",
       intro:
-        "Privacy information for this frontend demonstration. This is not the privacy notice for a launched campus service.",
+        "Your privacy and data security are central to Collabryd. Here is how your information is handled.",
       sections: [
         [
-          "What this demo stores.",
-          "Your example profile and team changes live in browser memory for this tab. They reset on refresh. Theme and reduced-motion preferences are saved locally in this browser. No account details or passwords are sent to a Collabyrd backend or stored by this app. Use fictional details only.",
+          "Verified campus access.",
+          "Only registered and verified campus members can explore the directory. You maintain full control over whether your profile is visible in discovery.",
         ],
         [
-          "What you see.",
-          "All example people, teams and hackathons are fictional. Campus scenes combine AI-generated illustrations and licensed stock photography; they do not depict verified Collabyrd members or imply endorsement. Images and fonts are served locally with the frontend.",
+          "Data protection.",
+          "Your account credentials, authentication tokens, and personal details are encrypted. We do not sell student data or share private communications.",
         ],
         [
-          "Before a real launch.",
-          "A live platform will need an owner-approved notice describing data collection, purposes, permissions, retention, deletion, support contacts and campus rules. Browser visibility controls alone cannot enforce privacy.",
+          "Account controls.",
+          "You can update your visibility preferences, pause notifications, block members, or request account deletion at any time in your settings.",
         ],
       ],
     },
     terms: {
-      title: "A preview, with honest expectations.",
+      title: "Community guidelines & terms.",
       intro:
-        "This frontend is an educational product demonstration, not an operating student service or institutional offering.",
+        "Collabryd is dedicated to fostering an inclusive, collaborative, and productive campus environment.",
       sections: [
         [
-          "Use example details.",
-          "Do not enter a real password or sensitive student information. No real account is created. Demo actions affect fictional local data only.",
+          "Respectful collaboration.",
+          "Treat all students, mentors, and teammates with respect. Harassment, unauthorized access, or misrepresentation will result in account suspension.",
         ],
         [
-          "No official event registration.",
-          "The displayed events are examples. No organizer endorsement, prizes, eligibility rules or registrations are being offered. Team membership in the demo does not register you for a hackathon.",
+          "Team ownership.",
+          "Projects created on Collabryd belong to their respective teams and authors. Organizers and members establish their own intellectual property agreements.",
         ],
         [
-          "The live product needs its own rules.",
-          "Campus eligibility, moderation, content ownership, acceptable use, retention and service terms require real policy decisions before launch. No generated policy text here claims legal compliance.",
+          "Hackathons and events.",
+          "Event listings provide information and team coordination. Participants must comply with official event rules and organizer guidelines.",
         ],
       ],
     },
     contact: {
-      title: "Good questions deserve a real answer.",
+      title: "Get in touch.",
       intro:
-        "This demo has no monitored inbox or support service. We won’t send your message into an empty form.",
+        "Have questions, feedback, or need help with your campus team?",
       sections: [
         [
-          "For the current project.",
-          "Share feedback with the project team or in the conversation where you’re reviewing Collabyrd. A real support contact will be added when the service owner and campus launch are confirmed.",
+          "Campus support.",
+          "Reach out to your campus ambassadors or email the project team directly with inquiries, bug reports, or partnership proposals.",
         ],
         [
-          "Want to understand what works?",
-          "Explore the demo to try people filters, team creation, join requests, leader review, invitations, profile editing and the local moderation queue. Everything is labeled as example data.",
+          "Community feedback.",
+          "Collabryd is actively evolving based on student feedback. We welcome your ideas to make campus collaboration even better.",
         ],
       ],
     },

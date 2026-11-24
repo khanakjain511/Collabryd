@@ -32,9 +32,9 @@ export function AdminPage({
   return (
     <>
       <PageHeading
-        eyebrow="CAMPUS OPERATIONS / DEMO ONLY"
+        eyebrow="CAMPUS OPERATIONS & MODERATION"
         title="A little care for the community."
-        description="These controls update fictional local data. They are not real administrator access or campus approval."
+        description="Administrative controls for student directory, team moderation, and campus hackathon listings."
       />
       <div className="flex flex-wrap gap-2.5 mb-6">
         {links.map(([label, path]) => (
@@ -67,7 +67,7 @@ export function AdminPage({
                   ).length
                 }
               </strong>
-              <p className="text-xs text-muted mt-1">Fictional student profiles</p>
+              <p className="text-xs text-muted mt-1">Student profiles pending approval</p>
             </a>
             <a
               className="bg-surface border border-border rounded-xl p-5 hover:border-primary transition-colors block shadow-sm"
@@ -83,13 +83,13 @@ export function AdminPage({
                   ).length
                 }
               </strong>
-              <p className="text-xs text-muted mt-1">Local demonstration only</p>
+              <p className="text-xs text-muted mt-1">Active moderation items</p>
             </a>
             <a
               className="bg-surface border border-border rounded-xl p-5 hover:border-primary transition-colors block shadow-sm"
               href="#/admin/hackathons"
             >
-              <span className="text-xs text-muted block">Published event examples</span>
+              <span className="text-xs text-muted block">Published events</span>
               <strong className="text-2xl sm:text-3xl font-display font-medium text-ink block mt-1">
                 {
                   demo.events.filter(
@@ -160,7 +160,7 @@ function StudentReview({ demo }: { demo: DemoData }) {
               setSearch(event.target.value);
               setPage(1);
             }}
-            placeholder="Find an example student"
+            placeholder="Find a student"
           />
         </label>
         <label className="block min-w-[140px]">
@@ -181,7 +181,7 @@ function StudentReview({ demo }: { demo: DemoData }) {
         </label>
       </div>
       <p className="text-xs text-muted font-medium mb-3" aria-live="polite">
-        {people.length} example student records
+        {people.length} student records
       </p>
       {people.length ? (
         <div className="bg-surface border border-border rounded-xl overflow-hidden shadow-sm divide-y divide-border">
@@ -213,7 +213,7 @@ function StudentReview({ demo }: { demo: DemoData }) {
                   >
                     {person.status === "Suspended"
                       ? "Restore access"
-                      : "Approve example student"}
+                      : "Approve student"}
                   </button>
                 ) : (
                   <button
@@ -221,7 +221,7 @@ function StudentReview({ demo }: { demo: DemoData }) {
                     type="button"
                     onClick={() => setSuspending(person.id)}
                   >
-                    Suspend example
+                    Suspend student
                   </button>
                 )}
               </div>
@@ -241,13 +241,12 @@ function StudentReview({ demo }: { demo: DemoData }) {
       />
       {suspending && (
         <Dialog
-          title="Suspend this example profile?"
+          title="Suspend student profile?"
           onClose={() => setSuspending(null)}
         >
           <p>
-            The fictional student will disappear from discovery and cannot
-            receive demo invitations. This changes no real enrollment or
-            account.
+            The student will disappear from discovery and cannot receive
+            invitations or join teams.
           </p>
           <div className="flex flex-wrap items-center gap-3 mt-5">
             <button
@@ -389,7 +388,7 @@ function ReportReview({ demo }: { demo: DemoData }) {
         </label>
       </div>
       <p className="text-xs text-muted font-medium mb-3" aria-live="polite">
-        {reports.length} demo reports
+        {reports.length} reports
       </p>
       {reports.length ? (
         <div className="bg-surface border border-border rounded-xl overflow-hidden shadow-sm divide-y divide-border">
@@ -436,7 +435,7 @@ function ReportReview({ demo }: { demo: DemoData }) {
       ) : (
         <EmptyState
           title="A quiet review queue."
-          description="No reports match this status. Report an example profile to try the review flow."
+          description="All reports have been reviewed."
           action={
             <a
               href="#/discover"
@@ -464,14 +463,14 @@ function EventReview({ demo }: { demo: DemoData }) {
       <div className="flex justify-between items-end gap-4 my-8">
         <div>
           <h2>Keep the next opportunity clear.</h2>
-          <p>Draft, publish, edit or archive fictional event listings.</p>
+          <p>Draft, publish, edit or archive event listings.</p>
         </div>
         <a
           className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
           href="#/admin/hackathons/create"
         >
           <Icon name="plus" size={17} />
-          Create event example
+          Create event listing
         </a>
       </div>
       <div className="bg-surface border border-border rounded-xl overflow-hidden shadow-sm divide-y divide-border">
@@ -661,7 +660,7 @@ function EventEditor({ id, demo }: { id: string; demo: DemoData }) {
               rows={2}
               defaultValue={
                 event?.eligibility ||
-                (event ? "Example campus students; demonstration only." : "")
+                (event ? "Enrolled campus students." : "")
               }
             />
           </label>
@@ -671,7 +670,7 @@ function EventEditor({ id, demo }: { id: string; demo: DemoData }) {
               name="rules"
               rows={3}
               defaultValue={event?.rules}
-              placeholder="Example team size and participation requirements"
+              placeholder="Team size and participation requirements"
             />
           </label>
           <label>
@@ -721,7 +720,7 @@ function EventEditor({ id, demo }: { id: string; demo: DemoData }) {
               className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
               type="submit"
             >
-              Save event example <Icon name="check" size={17} />
+              Save event <Icon name="check" size={17} />
             </button>
           </div>
         </form>
@@ -730,13 +729,9 @@ function EventEditor({ id, demo }: { id: string; demo: DemoData }) {
             Good details build trust.
           </h2>
           <p className="text-sm text-muted leading-relaxed">
-            Use fictional details here. Publication only changes this tab’s
-            example catalog. No event is submitted to a real organizer or
-            campus.
-          </p>
-          <p className="text-sm text-muted leading-relaxed">
-            In the live product, approved editors must verify eligibility, time
-            zones, official URLs and sources before publishing.
+            Enter accurate event guidelines, dates, and links. Approved editors
+            must verify eligibility, time zones, and official URLs before
+            publishing.
           </p>
         </aside>
       </div>

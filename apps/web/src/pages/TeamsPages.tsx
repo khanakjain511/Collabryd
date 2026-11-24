@@ -239,7 +239,7 @@ export function CreateTeamPage({ demo, id }: { demo: DemoData; id?: string }) {
     return (
       <EmptyState
         title="This team can’t be edited here."
-        description="Only the current example team leader can change these details."
+        description="Only the current team leader can change these details."
         action={
           <a
             className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
@@ -341,7 +341,7 @@ export function CreateTeamPage({ demo, id }: { demo: DemoData; id?: string }) {
                 required
               />
               <span className="text-xs text-muted mt-1 block">
-                Demo limit: 2–6. Live limits depend on event policy.
+                Team size limit: 2–6 members.
               </span>
             </label>
           </div>
@@ -433,7 +433,7 @@ export function CreateTeamPage({ demo, id }: { demo: DemoData; id?: string }) {
             </li>
           </ul>
           <p className="text-xs text-muted mt-1 block">
-            This creates an example team for this session only.
+            Teams can recruit members and submit project applications.
           </p>
         </aside>
       </div>
@@ -450,7 +450,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
     return (
       <EmptyState
         title="This team isn’t here."
-        description="It may have been removed, or the demo was refreshed."
+        description="It may have been removed or archived."
         action={
           <a
             href="#/teams"
@@ -498,7 +498,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
         </span>
         <div className="sm:mr-auto">
           <p className="text-xs font-semibold tracking-wider text-primary uppercase mb-2 block">
-            {team.domain} / EXAMPLE TEAM
+            {team.domain} / PROJECT TEAM
           </p>
           <h1 tabIndex={-1}>{team.name}</h1>
         </div>
@@ -676,9 +676,9 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
             </h2>
             <p>
               {leader
-                ? "You lead this example team. Review requests below, or invite someone from discovery."
+                ? "You lead this team. Review requests below, or invite someone from discovery."
                 : member
-                  ? "You’re a member of this example team. Bring your strengths and see what happens."
+                  ? "You’re a member of this team. Bring your strengths and see what happens."
                   : "Tell the team a little about yourself and what you’d like to contribute."}
             </p>
             {member ? (
@@ -697,7 +697,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
                   className="border-0 bg-transparent py-1.5 px-0 text-primary text-sm underline underline-offset-4 cursor-pointer hover:text-primary-hover transition-colors font-medium"
                   onClick={() => demo.cancelRequest(ownRequest.id)}
                 >
-                  Cancel demo request
+                  Cancel request
                 </button>
               </>
             ) : (
@@ -720,9 +720,6 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
                 )}
               </button>
             )}
-            <span className="text-xs text-muted mt-1 block">
-              Demo actions only. Nothing is sent to real people.
-            </span>
           </section>
           {event && (
             <section className="bg-surface border border-border rounded-xl p-6 shadow-sm mb-6">
@@ -769,7 +766,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
                 onClick={() => setArchiving(true)}
                 disabled={team.status === "Archived"}
               >
-                Archive example team
+                Archive team
               </button>
             </section>
           )}
@@ -782,8 +779,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
         >
           <form className="flex flex-col gap-4 mt-2" onSubmit={apply}>
             <p>
-              Share the role you’d like to take and what you can bring. Your
-              request will stay in this demo only.
+              Share the role you’d like to take and what you can bring.
             </p>
             <label>
               A little introduction
@@ -804,7 +800,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
               type="submit"
               className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
             >
-              Send demo join request <Icon name="arrowUp" size={18} />
+              Send join request <Icon name="arrowUp" size={18} />
             </button>
           </form>
         </Dialog>
@@ -816,7 +812,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
         >
           <p>
             Archiving closes recruitment and moves the team to your archived
-            examples. Existing members remain listed.
+            teams. Existing members remain listed.
           </p>
           <div className="flex flex-wrap items-center gap-3 mt-5">
             <button
@@ -834,7 +830,7 @@ export function TeamDetailPage({ id, demo }: { id: string; demo: DemoData }) {
                 setArchiving(false);
               }}
             >
-              Archive demo team
+              Archive team
             </button>
           </div>
         </Dialog>
@@ -923,10 +919,10 @@ export function MyTeamsPage({ demo }: { demo: DemoData }) {
                   </span>
                   <div>
                     <h3 className="font-semibold text-ink text-base">
-                      {team?.name || "Example team"} thinks you’d be a good fit.
+                      {team?.name || "Team"} thinks you’d be a good fit.
                     </h3>
                     <p className="text-sm text-muted">
-                      An example invitation. Take a look before you decide.
+                      You have received an invitation to join this team.
                     </p>
                     <a
                       className="inline-flex items-center gap-2 text-sm font-semibold text-ink border-b border-border pb-1 hover:border-primary hover:text-primary transition-colors"

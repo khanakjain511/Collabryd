@@ -22,7 +22,7 @@ function TeamPreview() {
   return (
     <article
       className="bg-surface border border-border rounded-2xl p-6 sm:p-8 shadow-lg max-w-xl mx-auto w-full"
-      aria-label="Example team"
+      aria-label="Featured team"
     >
       <div className="flex items-center gap-3 mb-4">
         <span className="grid place-items-center w-11 h-11 rounded-xl bg-sage text-primary shrink-0">
@@ -30,7 +30,7 @@ function TeamPreview() {
         </span>
         <div>
           <span className="text-xs uppercase font-extrabold tracking-wider text-primary">
-            Example team
+            Featured team
           </span>
           <h3 className="font-display text-2xl sm:text-3xl font-medium">{example.name}</h3>
         </div>
@@ -216,7 +216,7 @@ export function LandingPage({
                 className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold border border-border bg-surface text-ink hover:bg-soft transition-colors cursor-pointer min-h-[48px]"
                 onClick={demo.openDemo}
               >
-                Try the demo
+                Explore workspace
               </button>
             </div>
           }

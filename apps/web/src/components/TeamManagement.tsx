@@ -78,13 +78,13 @@ export function TeamManagement({ team, demo }: { team: Team; demo: DemoData }) {
           className="text-danger hover:underline text-xs cursor-pointer font-medium"
           onClick={() => open("leave")}
         >
-          Leave example team
+          Leave team
         </button>
       </div>
       {leader && (
         <p className="text-xs text-muted mt-2">
           Transfer leadership to another current member, or archive the team,
-          before leaving. All actions affect demo data only.
+          before leaving.
         </p>
       )}
       {leader && outgoing.length > 0 && (
@@ -99,12 +99,12 @@ export function TeamManagement({ team, demo }: { team: Team; demo: DemoData }) {
                 <strong className="text-sm font-medium">
                   {demo.people.find(
                     (person) => person.id === invitation.personId,
-                  )?.name || "Example person"}
+                  )?.name || "Member"}
                 </strong>
                 <span className="text-xs text-muted">
                   {invitation.expiresAt
                     ? `Expires ${new Date(invitation.expiresAt).toLocaleDateString("en-IN")}`
-                    : "Example invitation"}
+                    : "Team invitation"}
                 </span>
               </div>
               <Badge>{invitation.status}</Badge>
@@ -128,7 +128,7 @@ export function TeamManagement({ team, demo }: { team: Team; demo: DemoData }) {
               ? "Pass the next chapter on."
               : action === "remove"
                 ? "Remove a team member?"
-                : "Leave this example team?"
+                : "Leave this team?"
           }
           onClose={() => setAction(null)}
         >
@@ -137,7 +137,7 @@ export function TeamManagement({ team, demo }: { team: Team; demo: DemoData }) {
               {action === "transfer"
                 ? "The selected member becomes the leader. You remain a member, but can no longer use leader controls."
                 : action === "remove"
-                  ? "The member will be removed from this demo team. This opens a place in the membership count."
+                  ? "The member will be removed from this team. This opens a place in the membership count."
                   : "Your membership will be removed. A leader must transfer responsibility or archive the team first."}
             </p>
             {action !== "leave" && (
