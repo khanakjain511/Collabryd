@@ -149,45 +149,43 @@ export function setStoredTokens(tokens: AuthTokens): void {
 export function clearStoredTokens(): void {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
+  window.dispatchEvent(new Event("collabryd-signout"));
 }
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api/v1";
 
-let isRefreshing = false;
-let refreshPromise: Promise<string | null> | null = null;
+const pendingRefreshes = new Map<string, Promise<string | null>>();
 
-async function refreshAccessToken(): Promise<string | null> {
-  const { refreshToken } = getStoredTokens();
-  if (!refreshToken) return null;
-
-  try {
+async function refreshAccessToken(refreshToken: string): Promise<string | null> {
+  async function rotate() {
+    if (getStoredTokens().refreshToken !== refreshToken) return null;
     const res = await fetch(`${API_BASE}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
     });
 
-    if (!res.ok) {
+    if (getStoredTokens().refreshToken !== refreshToken) return null;
+    if (res.status === 401 || res.status === 403) {
       clearStoredTokens();
       return null;
     }
-
+    if (!res.ok) throw new Error(`Unable to refresh the session (HTTP ${res.status}).`);
     const payload: ApiResponse<{ tokens: AuthTokens }> = await res.json();
-    if (payload.success && payload.data?.tokens) {
-      setStoredTokens(payload.data.tokens);
-      return payload.data.tokens.accessToken;
-    }
-    clearStoredTokens();
-    return null;
-  } catch {
-    clearStoredTokens();
-    return null;
+    if (!payload.data?.tokens) throw new Error("Invalid session refresh response.");
+    if (getStoredTokens().refreshToken !== refreshToken) return null;
+    setStoredTokens(payload.data.tokens);
+    return payload.data.tokens.accessToken;
   }
+
+  // The backend revokes every session if two tabs submit the same refresh token.
+  return navigator.locks ? navigator.locks.request("collabryd-refresh", rotate) : rotate();
 }
 
 export async function apiRequest<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  authenticated = true
 ): Promise<T> {
   const url = path.startsWith("http") ? path : `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
   const tokens = getStoredTokens();
@@ -196,22 +194,23 @@ export async function apiRequest<T>(
   if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
-  if (tokens.accessToken && !headers.has("Authorization")) {
+  if (authenticated && tokens.accessToken && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${tokens.accessToken}`);
   }
 
   let res = await fetch(url, { ...options, headers });
 
-  if (res.status === 401 && tokens.refreshToken) {
-    if (!isRefreshing) {
-      isRefreshing = true;
-      refreshPromise = refreshAccessToken().finally(() => {
-        isRefreshing = false;
+  if (authenticated && res.status === 401 && tokens.refreshToken &&
+      getStoredTokens().refreshToken === tokens.refreshToken) {
+    let refresh = pendingRefreshes.get(tokens.refreshToken);
+    if (!refresh) {
+      refresh = refreshAccessToken(tokens.refreshToken).finally(() => {
+        pendingRefreshes.delete(tokens.refreshToken);
       });
+      pendingRefreshes.set(tokens.refreshToken, refresh);
     }
-
-    const newAccessToken = await refreshPromise;
-    if (newAccessToken) {
+    const newAccessToken = await refresh;
+    if (newAccessToken && getStoredTokens().accessToken === newAccessToken) {
       headers.set("Authorization", `Bearer ${newAccessToken}`);
       res = await fetch(url, { ...options, headers });
     }
@@ -255,14 +254,14 @@ export const authApi = {
     }>("/auth/register", {
       method: "POST",
       body: JSON.stringify(data),
-    });
+    }, false);
   },
 
   async verifyEmail(token: string) {
     return apiRequest<UserSummary>("/auth/verify-email", {
       method: "POST",
       body: JSON.stringify({ token }),
-    });
+    }, false);
   },
 
   async resendVerification(email: string) {
@@ -271,7 +270,7 @@ export const authApi = {
       {
         method: "POST",
         body: JSON.stringify({ email }),
-      }
+      }, false
     );
   },
 
@@ -282,7 +281,7 @@ export const authApi = {
     }>("/auth/login", {
       method: "POST",
       body: JSON.stringify(data),
-    });
+    }, false);
     setStoredTokens(res.tokens);
     return res;
   },
@@ -292,17 +291,18 @@ export const authApi = {
   },
 
   async logout() {
-    const { refreshToken } = getStoredTokens();
-    try {
+    const revoke = async () => {
+      const { refreshToken } = getStoredTokens();
+      clearStoredTokens();
       if (refreshToken) {
         await apiRequest("/auth/logout", {
           method: "POST",
           body: JSON.stringify({ refreshToken }),
-        });
+        }, false);
       }
-    } finally {
-      clearStoredTokens();
-    }
+    };
+    if (navigator.locks) await navigator.locks.request("collabryd-refresh", revoke);
+    else await revoke();
   },
 
   async changePassword(currentPassword: string, newPassword: string) {

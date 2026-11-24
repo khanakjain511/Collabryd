@@ -27,6 +27,7 @@ import { Preloader } from "./components/Preloader";
 // Native hash links keep browser back/forward support without a router library.
 // Replace this small switch with application routing when integrating the API.
 function readPath() {
+  if (window.location.hash.startsWith("#token=")) return "/verify-campus";
   return window.location.hash.startsWith("#/")
     ? window.location.hash.slice(1).split("?")[0]
     : "/";
