@@ -30,9 +30,9 @@ services:
       - key: TRUST_PROXY_HOPS
         value: "1"
       - key: EMAIL_PROVIDER
-        value: resend # Or local if testing without email
+        value: local # Set to resend once you have Resend API key and domain configured
       - key: EMAIL_FROM
-        sync: false # e.g. verify@yourdomain.com
+        sync: false # e.g. onboarding@resend.dev or verify@yourdomain.com
       - key: RESEND_API_KEY
         sync: false
       - key: VERIFICATION_PAGE_URL
