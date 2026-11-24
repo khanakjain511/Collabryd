@@ -336,12 +336,14 @@ export function AppLayout({
           >
             Account
           </a>
-          <a
-            href="#/admin"
-            aria-current={area === "admin" ? "page" : undefined}
-          >
-            Admin review
-          </a>
+          {demo.isAdmin && (
+            <a
+              href="#/admin"
+              aria-current={area === "admin" ? "page" : undefined}
+            >
+              Admin review
+            </a>
+          )}
         </nav>
       )}
       <main id="main" className="workspace-content flex-1 pt-8 pb-24 lg:pb-8 container">

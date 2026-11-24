@@ -1016,7 +1016,10 @@ export function connectLiveSocket(
   const { accessToken } = getStoredTokens();
   if (!accessToken) return () => {};
 
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+  const socketUrl =
+    import.meta.env.VITE_SOCKET_URL ||
+    import.meta.env.VITE_API_BASE_URL?.replace(/\/api\/v1\/?$/, "") ||
+    window.location.origin;
 
   if (activeSocket) {
     activeSocket.disconnect();
@@ -1024,7 +1027,13 @@ export function connectLiveSocket(
 
   const socket = io(socketUrl, {
     auth: { token: accessToken },
-    transports: ["websocket", "polling"],
+    transports: ["polling", "websocket"],
+    reconnectionAttempts: 5,
+    reconnectionDelay: 2000,
+  });
+
+  socket.on("connect_error", (err) => {
+    console.debug("[Socket] Live stream:", err.message);
   });
 
   activeSocket = socket;

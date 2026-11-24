@@ -24,6 +24,7 @@ import { MessagesPage } from "./pages/MessagesPage";
 import { AdminPage } from "./pages/AdminPages";
 import { CampusSprite } from "./components/CampusSprite";
 import { Preloader } from "./components/Preloader";
+import { EmptyState } from "./components/ui";
 
 // Native hash links keep browser back/forward support without a router library.
 // Replace this small switch with application routing when integrating the API.
@@ -204,9 +205,26 @@ function App() {
       );
     else if (area === "settings" && (id === "privacy" || id === "account"))
       content = <SettingsPage key={id} kind={id} demo={demo} />;
-    else if (area === "admin")
-      content = <AdminPage key={path} view={id} eventId={action} demo={demo} />;
-    else return <InfoPage kind="not-found" demo={demo} />;
+    else if (area === "admin") {
+      if (!demo.isAdmin) {
+        content = (
+          <EmptyState
+            title="Administrator access required"
+            description="You need campus administrator privileges to access this control panel."
+            action={
+              <a
+                className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-primary text-on-primary hover:bg-primary/90 transition-colors cursor-pointer"
+                href="#/dashboard"
+              >
+                Go to Dashboard
+              </a>
+            }
+          />
+        );
+      } else {
+        content = <AdminPage key={path} view={id} eventId={action} demo={demo} />;
+      }
+    } else return <InfoPage kind="not-found" demo={demo} />;
     page = (
       <AppLayout demo={demo} path={path}>
         {content}
