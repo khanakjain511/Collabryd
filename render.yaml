@@ -1,0 +1,49 @@
+services:
+  # ----------------------------------------------------------------------------
+  # Collabryd Backend API & Realtime WebSockets
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: collabryd-api
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: pnpm install && pnpm --filter @collabryd/database build && pnpm --filter @repo/api build && pnpm db:migrate
+    startCommand: pnpm --filter @repo/api start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: collabryd-db
+          property: connectionString
+      - key: CORS_ORIGIN
+        sync: false # Set this to your Vercel frontend URL, e.g. https://collabryd.vercel.app
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: TRUST_PROXY_HOPS
+        value: "1"
+      - key: EMAIL_PROVIDER
+        value: local # Set to resend once you have Resend API key and domain configured
+      - key: EMAIL_FROM
+        sync: false # e.g. onboarding@resend.dev or verify@yourdomain.com
+      - key: RESEND_API_KEY
+        sync: false
+      - key: VERIFICATION_PAGE_URL
+        sync: false # e.g. https://collabryd.vercel.app/#/verify-campus
+
+databases:
+  # ----------------------------------------------------------------------------
+  # Collabryd Managed PostgreSQL Database
+  # ----------------------------------------------------------------------------
+  - name: collabryd-db
+    databaseName: collabryd
+    user: collabryd
+    plan: free
+    region: oregon

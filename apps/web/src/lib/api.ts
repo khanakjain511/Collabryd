@@ -131,6 +131,82 @@ export interface BackendNotification {
   createdAt: string;
 }
 
+export interface BackendEvent {
+  eventId: number;
+  slug: string;
+  name: string;
+  category: string;
+  description: string;
+  eventDate: string;
+  deadline: string;
+  mode: string;
+  color: string;
+  symbol: string;
+  publication: "Draft" | "Published" | "Archived";
+  organizer: string | null;
+  eligibility: string | null;
+  rules: string | null;
+  officialUrl: string | null;
+  sourceUrl: string | null;
+  createdBy: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RecommendedProject {
+  projectId: number;
+  title: string;
+  summary: string;
+  category: string;
+  projectType: string;
+  maxTeamSize: number;
+  ownerName: string;
+  createdAt: string;
+  matchedSkillsCount: number;
+  matchedSkills: string[];
+}
+
+export interface RecommendedCandidate {
+  userId: number;
+  displayName: string;
+  institution: string;
+  courseProgram: string;
+  academicYear: string;
+  availabilityStatus: "AVAILABLE" | "BUSY" | "NOT_LOOKING";
+  matchingSkillsCount: number;
+  matchedSkills: string[];
+}
+
+export interface ConversationParticipant {
+  userId: number;
+  displayName: string;
+  avatarUrl?: string | null;
+}
+
+export interface BackendConversation {
+  conversationId: number;
+  type: "DIRECT" | "PROJECT_GROUP";
+  projectId: number | null;
+  projectTitle: string | null;
+  lastReadSequence: number;
+  latestSequence: number;
+  unreadMessagesCount: number;
+  createdAt: string;
+  participants: ConversationParticipant[];
+}
+
+export interface BackendMessage {
+  messageId: number;
+  conversationId: number;
+  senderId: number;
+  senderName: string;
+  senderAvatarUrl: string | null;
+  clientMessageId: string;
+  sequenceNumber: number;
+  content: string;
+  createdAt: string;
+}
+
 const ACCESS_TOKEN_KEY = "collabryd_access_token";
 const REFRESH_TOKEN_KEY = "collabryd_refresh_token";
 
@@ -265,13 +341,55 @@ export const authApi = {
   },
 
   async resendVerification(email: string) {
-    return apiRequest<{ message: string; verificationToken?: string }>(
+    return apiRequest<{ message: string; otp?: string; verificationToken?: string }>(
       "/auth/resend-verification",
       {
         method: "POST",
         body: JSON.stringify({ email }),
       }, false
     );
+  },
+
+  async sendOtp(email: string, purpose: "SIGNUP" | "LOGIN" = "LOGIN") {
+    return apiRequest<{ message: string; otp?: string; verificationToken?: string }>(
+      "/auth/send-otp",
+      {
+        method: "POST",
+        body: JSON.stringify({ email, purpose }),
+      },
+      false
+    );
+  },
+
+  async verifyOtp(email: string, otp: string, purpose?: "SIGNUP" | "LOGIN") {
+    return apiRequest<{
+      message: string;
+      user: UserSummary;
+      tokens?: AuthTokens;
+    }>(
+      "/auth/verify-otp",
+      {
+        method: "POST",
+        body: JSON.stringify({ email, otp, purpose }),
+      },
+      false
+    );
+  },
+
+  async loginWithOtp(email: string, otp: string) {
+    const res = await apiRequest<{
+      user: UserSummary;
+      tokens: AuthTokens;
+    }>(
+      "/auth/login-otp",
+      {
+        method: "POST",
+        body: JSON.stringify({ email, otp }),
+      },
+      false
+    );
+    setStoredTokens(res.tokens);
+    return res;
   },
 
   async login(data: { email: string; password: string }) {
@@ -690,6 +808,185 @@ export const adminApi = {
       method: "POST",
       body: JSON.stringify({ status, reason }),
     });
+  },
+};
+
+export const eventsApi = {
+  async list(params?: {
+    category?: string;
+    publication?: "Draft" | "Published" | "Archived";
+    mode?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<BackendEvent[]> {
+    const sp = new URLSearchParams();
+    if (params?.category) sp.set("category", params.category);
+    if (params?.publication) sp.set("publication", params.publication);
+    if (params?.mode) sp.set("mode", params.mode);
+    if (params?.search) sp.set("search", params.search);
+    if (params?.page) sp.set("page", String(params.page));
+    if (params?.limit) sp.set("limit", String(params.limit));
+    const qs = sp.toString();
+    const res = await apiRequest<BackendEvent[]>(`/events${qs ? `?${qs}` : ""}`);
+    return res || [];
+  },
+
+  async getBySlug(slug: string): Promise<BackendEvent> {
+    return apiRequest<BackendEvent>(`/events/${slug}`);
+  },
+
+  async create(data: {
+    slug?: string;
+    name: string;
+    category?: string;
+    description: string;
+    eventDate: string;
+    deadline: string;
+    mode?: string;
+    color?: string;
+    symbol?: string;
+    publication?: "Draft" | "Published" | "Archived";
+    organizer?: string;
+    eligibility?: string;
+    rules?: string;
+    officialUrl?: string;
+    sourceUrl?: string;
+  }): Promise<BackendEvent> {
+    return apiRequest<BackendEvent>("/events", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(
+    slug: string,
+    data: Partial<{
+      name: string;
+      category: string;
+      description: string;
+      eventDate: string;
+      deadline: string;
+      mode: string;
+      color: string;
+      symbol: string;
+      publication: "Draft" | "Published" | "Archived";
+      organizer: string;
+      eligibility: string;
+      rules: string;
+      officialUrl: string;
+      sourceUrl: string;
+    }>
+  ): Promise<BackendEvent> {
+    return apiRequest<BackendEvent>(`/events/${slug}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async setPublication(
+    slug: string,
+    publication: "Draft" | "Published" | "Archived"
+  ): Promise<BackendEvent> {
+    return apiRequest<BackendEvent>(`/events/${slug}/publication`, {
+      method: "PATCH",
+      body: JSON.stringify({ publication }),
+    });
+  },
+
+  async delete(slug: string): Promise<{ deleted: boolean }> {
+    return apiRequest<{ deleted: boolean }>(`/events/${slug}`, {
+      method: "DELETE",
+    });
+  },
+};
+
+export const recommendationsApi = {
+  async getRecommendedProjects(limit = 10): Promise<RecommendedProject[]> {
+    const res = await apiRequest<RecommendedProject[]>(
+      `/recommendations/projects?limit=${limit}`
+    );
+    return res || [];
+  },
+
+  async getRecommendedCandidates(
+    projectId: number,
+    limit = 10
+  ): Promise<RecommendedCandidate[]> {
+    const res = await apiRequest<RecommendedCandidate[]>(
+      `/projects/${projectId}/recommendations?limit=${limit}`
+    );
+    return res || [];
+  },
+};
+
+export const conversationsApi = {
+  async list(): Promise<BackendConversation[]> {
+    const res = await apiRequest<BackendConversation[]>("/conversations");
+    return res || [];
+  },
+
+  async createDirect(recipientId: number): Promise<BackendConversation> {
+    return apiRequest<BackendConversation>("/conversations/direct", {
+      method: "POST",
+      body: JSON.stringify({ recipientId }),
+    });
+  },
+
+  async getProjectConversation(projectId: number): Promise<BackendConversation> {
+    return apiRequest<BackendConversation>(`/conversations/project/${projectId}`);
+  },
+
+  async listMessages(
+    conversationId: number,
+    params?: {
+      afterSequence?: number;
+      beforeSequence?: number;
+      limit?: number;
+    }
+  ): Promise<{ items: BackendMessage[]; nextAfterSequence?: number | null }> {
+    const sp = new URLSearchParams();
+    if (params?.afterSequence !== undefined)
+      sp.set("afterSequence", String(params.afterSequence));
+    if (params?.beforeSequence !== undefined)
+      sp.set("beforeSequence", String(params.beforeSequence));
+    if (params?.limit) sp.set("limit", String(params.limit));
+    const qs = sp.toString();
+    return apiRequest<{ items: BackendMessage[]; nextAfterSequence?: number | null }>(
+      `/conversations/${conversationId}/messages${qs ? `?${qs}` : ""}`
+    );
+  },
+
+  async sendMessage(
+    conversationId: number,
+    content: string,
+    clientMessageId?: string
+  ): Promise<{ message: BackendMessage; deduplicated: boolean }> {
+    return apiRequest<{ message: BackendMessage; deduplicated: boolean }>(
+      `/conversations/${conversationId}/messages`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          content,
+          clientMessageId: clientMessageId || crypto.randomUUID(),
+        }),
+      }
+    );
+  },
+
+  async markRead(
+    conversationId: number,
+    lastReadSequence?: number
+  ): Promise<{ success: boolean; lastReadSequence: number }> {
+    return apiRequest<{ success: boolean; lastReadSequence: number }>(
+      `/conversations/${conversationId}/read`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(
+          lastReadSequence !== undefined ? { lastReadSequence } : {}
+        ),
+      }
+    );
   },
 };
 

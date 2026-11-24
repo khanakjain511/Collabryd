@@ -6,6 +6,7 @@ import { Pagination } from "../components/Pagination";
 import { paginate, isHttpUrl } from "../lib/validation";
 import { Roster, RosterSkills } from "../components/Roster";
 import { sortDirection, sortField } from "../lib/roster";
+import { conversationsApi } from "../lib/api";
 import {
   Avatar,
   Badge,
@@ -257,8 +258,7 @@ export function DiscoverPage({ demo }: { demo: DemoData }) {
         onChange={(page) => updateFilters({ page: String(page) })}
       />
       <p className="flex justify-center items-center gap-2 text-xs text-muted mt-5 leading-relaxed">
-        All profiles are fictional. Skills are self-reported in the intended
-        product.
+        Verified campus members. Skills and interests are self-reported.
       </p>
     </>
   );
@@ -281,7 +281,7 @@ export function PersonPage({ id, demo }: { id: string; demo: DemoData }) {
     return (
       <EmptyState
         title="This profile isn’t available."
-        description="It may be hidden or blocked in this demo session."
+        description="This profile may be hidden, inactive, or blocked."
         action={
           <a
             className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-transparent text-primary border border-input-border hover:bg-soft transition-colors cursor-pointer"
@@ -346,18 +346,40 @@ export function PersonPage({ id, demo }: { id: string; demo: DemoData }) {
           </p>
         </div>
         {id !== "you" && (
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
-            onClick={() => {
-              setError("");
-              setDialog("invite");
-            }}
-            disabled={invited}
-          >
-            {invited ? "Demo invite prepared" : "Invite to your team"}
-            <Icon name={invited ? "check" : "plus"} size={18} />
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 py-2.5 rounded-lg text-sm font-bold bg-primary text-on-primary hover:bg-primary/90 transition-colors cursor-pointer"
+              onClick={async () => {
+                const uid = Number(id);
+                if (Number.isFinite(uid) && uid > 0) {
+                  try {
+                    const conv = await conversationsApi.createDirect(uid);
+                    window.location.hash = `/messages/${conv.conversationId}`;
+                  } catch {
+                    window.location.hash = "/messages";
+                  }
+                } else {
+                  window.location.hash = "/messages";
+                }
+              }}
+            >
+              <Icon name="mail" size={17} />
+              Message
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
+              onClick={() => {
+                setError("");
+                setDialog("invite");
+              }}
+              disabled={invited}
+            >
+              {invited ? "Invitation sent" : "Invite to your team"}
+              <Icon name={invited ? "check" : "plus"} size={18} />
+            </button>
+          </div>
         )}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8">
@@ -374,7 +396,7 @@ export function PersonPage({ id, demo }: { id: string; demo: DemoData }) {
             ))}
           </div>
           <p className="text-xs text-muted mt-1 block">
-            Skills are self-reported. This is an example profile.
+            Skills and proficiencies are self-reported.
           </p>
           <h3>What gets me curious</h3>
           <p>{person.interests}</p>
@@ -452,7 +474,7 @@ export function PersonPage({ id, demo }: { id: string; demo: DemoData }) {
                 className="border-0 bg-transparent py-1.5 px-0 text-primary text-sm underline underline-offset-4 cursor-pointer hover:text-primary-hover transition-colors font-medium text-left"
                 onClick={() => setDialog("report")}
               >
-                Report this example profile
+                Report profile
               </button>
               <button
                 type="button"
@@ -460,12 +482,12 @@ export function PersonPage({ id, demo }: { id: string; demo: DemoData }) {
                 onClick={() => {
                   demo.setBlockedIds([...demo.blockedIds, id]);
                   demo.setFeedback(
-                    "Example profile blocked for this demo session.",
+                    "Profile blocked successfully.",
                   );
                   window.location.hash = "/discover";
                 }}
               >
-                Block in this demo
+                Block profile
               </button>
             </div>
           )}
@@ -479,7 +501,7 @@ export function PersonPage({ id, demo }: { id: string; demo: DemoData }) {
           {ownedTeams.length ? (
             <form className="flex flex-col gap-4 mt-2" onSubmit={invite}>
               <p>
-                Choose a recruiting team for your example invitation to{" "}
+                Choose a recruiting team to invite{" "}
                 {person.name.split(" ")[0]}.
               </p>
               <label>
@@ -501,7 +523,7 @@ export function PersonPage({ id, demo }: { id: string; demo: DemoData }) {
                 type="submit"
                 className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
               >
-                Prepare demo invitation <Icon name="arrowUp" size={18} />
+                Send team invitation <Icon name="arrowUp" size={18} />
               </button>
             </form>
           ) : (
@@ -524,8 +546,7 @@ export function PersonPage({ id, demo }: { id: string; demo: DemoData }) {
         <Dialog title="Report a concern" onClose={() => setDialog(null)}>
           <form className="flex flex-col gap-4 mt-2" onSubmit={report}>
             <p>
-              This saves a report in the demo review queue, not a real
-              moderation service.
+              Submit this report for administrative campus review.
             </p>
             <label>
               What’s the concern?
@@ -541,7 +562,7 @@ export function PersonPage({ id, demo }: { id: string; demo: DemoData }) {
               type="submit"
               className="inline-flex items-center justify-center gap-2.5 min-h-[44px] px-5 py-2.5 rounded-lg text-sm font-bold bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
             >
-              Save demo report
+              Submit report
             </button>
           </form>
         </Dialog>

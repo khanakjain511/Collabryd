@@ -20,8 +20,8 @@ export class ErrorBoundary extends Component<
             Let’s take a fresh start.
           </h1>
           <p className="text-muted text-base max-w-md">
-            The demo couldn’t display this screen. Refreshing will reset the
-            example data.
+            We encountered an unexpected error displaying this screen. Please
+            refresh the page to continue.
           </p>
           <button
             type="button"
@@ -31,7 +31,7 @@ export class ErrorBoundary extends Component<
               window.location.reload();
             }}
           >
-            Restart the demo
+            Reload application
           </button>
         </main>
       );

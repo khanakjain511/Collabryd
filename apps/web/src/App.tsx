@@ -20,6 +20,7 @@ import {
   ProfileFormPage,
   SettingsPage,
 } from "./pages/AccountPages";
+import { MessagesPage } from "./pages/MessagesPage";
 import { AdminPage } from "./pages/AdminPages";
 import { CampusSprite } from "./components/CampusSprite";
 import { Preloader } from "./components/Preloader";
@@ -142,6 +143,7 @@ function App() {
       "teams",
       "my-teams",
       "hackathons",
+      "messages",
       "notifications",
       "onboarding",
       "settings",
@@ -188,6 +190,8 @@ function App() {
     else if (area === "hackathons" && id)
       content = <EventDetailPage id={id} demo={demo} />;
     else if (area === "hackathons") content = <EventsPage demo={demo} />;
+    else if (area === "messages")
+      content = <MessagesPage key={path} conversationId={id} demo={demo} />;
     else if (area === "notifications")
       content = <NotificationsPage demo={demo} />;
     else if (area === "onboarding" || (area === "settings" && id === "profile"))

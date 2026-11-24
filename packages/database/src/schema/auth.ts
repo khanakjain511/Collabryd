@@ -5,6 +5,7 @@ import {
   boolean,
   check,
   index,
+  integer,
   timestamp,
   uniqueIndex,
   varchar,
@@ -82,4 +83,32 @@ export const refreshSessions = collabrydSchema.table(
       .defaultNow(),
   },
   (table) => [index("idx_refresh_sessions_user").on(table.userId)]
+);
+
+export const authOtps = collabrydSchema.table(
+  "auth_otps",
+  {
+    otpId: bigserial("otp_id", { mode: "number" }).primaryKey(),
+    userId: bigint("user_id", { mode: "number" })
+      .notNull()
+      .references(() => users.userId, { onDelete: "cascade" }),
+    email: varchar("email", { length: 255 }).notNull(),
+    otpHash: varchar("otp_hash", { length: 255 }).notNull(),
+    purpose: varchar("purpose", { length: 30 })
+      .$type<"SIGNUP" | "LOGIN">()
+      .notNull()
+      .default("SIGNUP"),
+    attempts: integer("attempts").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(5),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    isUsed: boolean("is_used").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    check("auth_otps_purpose_check", sql`${table.purpose} IN ('SIGNUP', 'LOGIN')`),
+    index("idx_auth_otps_user_purpose").on(table.userId, table.purpose),
+    index("idx_auth_otps_email_purpose").on(table.email, table.purpose),
+  ]
 );

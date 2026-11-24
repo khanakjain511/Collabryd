@@ -22,6 +22,7 @@ import {
   catalogApi,
   clearStoredTokens,
   connectLiveSocket,
+  eventsApi,
   getStoredTokens,
   membersApi,
   notificationsApi,
@@ -29,6 +30,7 @@ import {
   projectsApi,
   studentsApi,
   type BackendApplication,
+  type BackendEvent,
   type BackendNotification,
   type BackendProject,
   type FullProfile,
@@ -151,6 +153,27 @@ function mapBackendNotification(notif: BackendNotification): Notice {
   };
 }
 
+function mapBackendEvent(evt: BackendEvent): Hackathon {
+  return {
+    id: evt.slug || String(evt.eventId),
+    name: evt.name,
+    category: evt.category,
+    description: evt.description,
+    date: evt.eventDate,
+    deadline: evt.deadline,
+    mode: evt.mode,
+    color: evt.color,
+    symbol: evt.symbol,
+    publication: evt.publication,
+    organizer: evt.organizer || undefined,
+    eligibility: evt.eligibility || undefined,
+    rules: evt.rules || undefined,
+    officialUrl: evt.officialUrl || undefined,
+    sourceUrl: evt.sourceUrl || undefined,
+    updatedAt: evt.updatedAt,
+  };
+}
+
 export function useDemoData() {
   const [signedIn, setSignedIn] = useState(false);
   const [verified, setVerified] = useState(false);
@@ -210,9 +233,10 @@ export function useDemoData() {
   // Sync session and backend resources
   const loadPlatformData = useCallback(async (activeUserId?: number) => {
     try {
-      const [backendProjects, backendStudents] = await Promise.all([
+      const [backendProjects, backendStudents, backendEvents] = await Promise.all([
         projectsApi.list({ limit: 100 }).catch(() => null),
         studentsApi.discover({ limit: 100 }).catch(() => null),
+        eventsApi.list({ limit: 100 }).catch(() => null),
       ]);
 
       if (backendProjects && Array.isArray(backendProjects)) {
@@ -223,6 +247,11 @@ export function useDemoData() {
       if (backendStudents && Array.isArray(backendStudents)) {
         const mapped = backendStudents.map((s) => mapBackendStudent(s, activeUserId));
         if (mapped.length > 0) setPeople(mapped);
+      }
+
+      if (backendEvents && Array.isArray(backendEvents) && backendEvents.length > 0) {
+        const mappedEvents = backendEvents.map(mapBackendEvent);
+        setEvents(mappedEvents);
       }
 
       if (activeUserId) {
@@ -414,6 +443,43 @@ export function useDemoData() {
     } catch (err) {
       const error = err as Error;
       return error.message || "Invalid or expired verification token";
+    }
+  }
+
+  // Real OTP login
+  async function loginWithOtp(email: string, otp: string): Promise<string | undefined> {
+    setAuthMessage("");
+    try {
+      const res = await authApi.loginWithOtp(email, otp);
+      setCurrentUserId(res.user.userId);
+      setSignedIn(true);
+      const isActive = res.user.accountStatus === "ACTIVE";
+      setVerified(isActive);
+
+      const own = await profilesApi.getOwnProfile().catch(() => null);
+      if (own) setProfile(mapBackendStudent(own, res.user.userId));
+      await loadPlatformData(res.user.userId);
+
+      if (isActive) {
+        window.location.hash = res.user.email === onboardingEmail.current ? "/onboarding" : "/dashboard";
+        onboardingEmail.current = "";
+      } else {
+        window.location.hash = "/verify-campus";
+      }
+      return undefined;
+    } catch (err) {
+      const error = err as Error & { code?: string };
+      return error.message || "Failed to log in with code";
+    }
+  }
+
+  async function sendLoginOtp(email: string): Promise<{ success: boolean; message: string; otp?: string }> {
+    try {
+      const res = await authApi.sendOtp(email, "LOGIN");
+      return { success: true, message: res.message, otp: res.otp };
+    } catch (err) {
+      const error = err as Error;
+      return { success: false, message: error.message || "Failed to send login code" };
     }
   }
 
@@ -873,12 +939,57 @@ export function useDemoData() {
       return "The registration deadline must be on or before the start.";
 
     const event = { ...values, updatedAt: new Date().toISOString() };
+    const existing = events.find((item) => item.id === event.id);
+
     setEvents((current) =>
       current.some((item) => item.id === event.id)
         ? current.map((item) => (item.id === event.id ? event : item))
         : [...current, event]
     );
     notify("Event saved successfully.", "#/admin/hackathons");
+
+    // Sync with backend API
+    if (existing) {
+      eventsApi
+        .update(event.id, {
+          name: event.name,
+          category: event.category,
+          description: event.description,
+          eventDate: event.date,
+          deadline: event.deadline,
+          mode: event.mode,
+          color: event.color,
+          symbol: event.symbol,
+          publication: event.publication || "Published",
+          organizer: event.organizer,
+          eligibility: event.eligibility,
+          rules: event.rules,
+          officialUrl: event.officialUrl,
+          sourceUrl: event.sourceUrl,
+        })
+        .catch(() => {});
+    } else {
+      eventsApi
+        .create({
+          slug: event.id,
+          name: event.name,
+          category: event.category,
+          description: event.description,
+          eventDate: event.date,
+          deadline: event.deadline,
+          mode: event.mode,
+          color: event.color,
+          symbol: event.symbol,
+          publication: event.publication || "Published",
+          organizer: event.organizer,
+          eligibility: event.eligibility,
+          rules: event.rules,
+          officialUrl: event.officialUrl,
+          sourceUrl: event.sourceUrl,
+        })
+        .catch(() => {});
+    }
+
     return "";
   }
 
@@ -894,6 +1005,8 @@ export function useDemoData() {
       )
     );
     notify(`Event is now ${publication.toLowerCase()}.`, "#/admin/hackathons");
+
+    eventsApi.setPublication(id, publication).catch(() => {});
   }
 
   return {
@@ -924,6 +1037,8 @@ export function useDemoData() {
     verificationToken,
     openDemo,
     login,
+    loginWithOtp,
+    sendLoginOtp,
     registerStudentAccount,
     verifyEmailToken,
     pendingEmail,

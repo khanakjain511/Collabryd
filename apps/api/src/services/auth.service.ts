@@ -1,5 +1,6 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import {
+  authOtps,
   db,
   emailVerificationTokens,
   notificationPreferences,
@@ -16,6 +17,7 @@ import {
   UnauthorizedError,
 } from "../errors/app-error.js";
 import {
+  generateNumericOtp,
   generateSecureToken,
   hashPassword,
   sha256,
@@ -33,9 +35,11 @@ import type {
   RegisterInput,
 } from "../schemas/auth.schemas.js";
 
-import { sendVerificationEmail } from "./verification-email.js";
+import { sendOtpEmail, sendVerificationEmail } from "./verification-email.js";
 import { logger } from "../config/logger.js";
 
+const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const OTP_MAX_ATTEMPTS = 5;
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 
 function normalizeEmail(email: string): string {
@@ -71,9 +75,9 @@ export async function registerStudent(input: RegisterInput) {
   }
 
   const passwordHash = await hashPassword(input.password);
-  const rawVerificationToken = generateSecureToken(32);
-  const tokenHash = sha256(rawVerificationToken);
-  const expiresAt = new Date(Date.now() + VERIFICATION_TTL_MS);
+  const otp = generateNumericOtp(6);
+  const otpHash = sha256(otp);
+  const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
   const created = await db.transaction(async (tx) => {
     const [user] = await tx
@@ -110,9 +114,20 @@ export async function registerStudent(input: RegisterInput) {
       userId: user!.userId,
     });
 
+    await tx.insert(authOtps).values({
+      userId: user!.userId,
+      email,
+      otpHash,
+      purpose: "SIGNUP",
+      attempts: 0,
+      maxAttempts: OTP_MAX_ATTEMPTS,
+      expiresAt,
+      isUsed: false,
+    });
+
     await tx.insert(emailVerificationTokens).values({
       userId: user!.userId,
-      tokenHash,
+      tokenHash: otpHash,
       expiresAt,
       isUsed: false,
     });
@@ -120,19 +135,394 @@ export async function registerStudent(input: RegisterInput) {
     return { user: user!, profile: profile! };
   });
 
-  await sendVerificationEmail(email, rawVerificationToken);
+  await sendOtpEmail(email, otp, "SIGNUP");
   return {
     ...created,
+    message: "Verification code sent to your email.",
     ...(env.EMAIL_PROVIDER === "local"
-      ? { verificationToken: rawVerificationToken }
+      ? { otp, verificationToken: otp }
       : {}),
   };
 }
 
-export async function verifyEmail(rawToken: string) {
-  const tokenHash = sha256(rawToken);
+export async function sendOtp(
+  rawEmail: string,
+  purpose: "SIGNUP" | "LOGIN" = "LOGIN"
+) {
+  const email = normalizeEmail(rawEmail);
+  assertAllowedEmailDomain(email);
+
+  const message =
+    purpose === "LOGIN"
+      ? "Login verification code sent to your email."
+      : "If an unverified account exists for this email, a new verification link has been issued.";
+
+  try {
+    return await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtextextended(${email}, 0))`
+      );
+
+      const [user] = await tx
+        .select({
+          userId: users.userId,
+          accountStatus: users.accountStatus,
+        })
+        .from(users)
+        .where(
+          and(
+            sql`LOWER(${users.email}) = ${email}`,
+            purpose === "SIGNUP" ? eq(users.accountStatus, "PENDING_VERIFICATION") : sql`true`
+          )
+        )
+        .limit(1);
+
+      if (!user) {
+        return { message };
+      }
+
+      if (purpose === "LOGIN") {
+        if (user.accountStatus === "SUSPENDED") {
+          throw new ForbiddenError(
+            "Your account has been suspended",
+            "ACCOUNT_SUSPENDED"
+          );
+        }
+        if (user.accountStatus === "DEACTIVATED") {
+          throw new ForbiddenError(
+            "Your account has been deactivated",
+            "ACCOUNT_DEACTIVATED"
+          );
+        }
+      }
+
+      const otp = generateNumericOtp(6);
+      const otpHash = sha256(otp);
+      const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+
+      // Invalidate prior unused OTPs for this user & purpose
+      await tx
+        .update(authOtps)
+        .set({ isUsed: true })
+        .where(
+          and(
+            eq(authOtps.userId, user.userId),
+            eq(authOtps.purpose, purpose),
+            eq(authOtps.isUsed, false)
+          )
+        );
+
+      await tx.insert(authOtps).values({
+        userId: user.userId,
+        email,
+        otpHash,
+        purpose,
+        attempts: 0,
+        maxAttempts: OTP_MAX_ATTEMPTS,
+        expiresAt,
+        isUsed: false,
+      });
+
+      if (purpose === "SIGNUP") {
+        await tx
+          .update(emailVerificationTokens)
+          .set({ isUsed: true })
+          .where(
+            and(
+              eq(emailVerificationTokens.userId, user.userId),
+              eq(emailVerificationTokens.isUsed, false)
+            )
+          );
+
+        await tx.insert(emailVerificationTokens).values({
+          userId: user.userId,
+          tokenHash: otpHash,
+          expiresAt,
+          isUsed: false,
+        });
+      }
+
+      await sendOtpEmail(email, otp, purpose);
+
+      return {
+        message,
+        ...(env.EMAIL_PROVIDER === "local"
+          ? { otp, verificationToken: otp }
+          : {}),
+      };
+    });
+  } catch (err) {
+    if (
+      !(err instanceof AppError) ||
+      err.code !== "EMAIL_DELIVERY_UNAVAILABLE"
+    ) {
+      throw err;
+    }
+    logger.warn("Verification email delivery unavailable");
+    return { message };
+  }
+}
+
+export async function verifyOtp(
+  rawEmail: string,
+  rawOtp: string,
+  purpose?: "SIGNUP" | "LOGIN"
+) {
+  const email = normalizeEmail(rawEmail);
+  const otp = rawOtp.trim();
+  const inputHash = sha256(otp);
 
   return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${email}, 0))`
+    );
+
+    const [otpRow] = await tx
+      .select()
+      .from(authOtps)
+      .where(
+        and(
+          sql`LOWER(${authOtps.email}) = ${email}`,
+          eq(authOtps.isUsed, false),
+          purpose ? eq(authOtps.purpose, purpose) : sql`true`
+        )
+      )
+      .orderBy(desc(authOtps.createdAt))
+      .for("update")
+      .limit(1);
+
+    if (!otpRow) {
+      throw new BadRequestError(
+        "Invalid or expired verification code",
+        "INVALID_OTP"
+      );
+    }
+
+    if (otpRow.expiresAt.getTime() < Date.now()) {
+      await tx
+        .update(authOtps)
+        .set({ isUsed: true })
+        .where(eq(authOtps.otpId, otpRow.otpId));
+
+      throw new BadRequestError(
+        "Verification code has expired. Please request a new code.",
+        "OTP_EXPIRED"
+      );
+    }
+
+    if (otpRow.attempts >= otpRow.maxAttempts) {
+      await tx
+        .update(authOtps)
+        .set({ isUsed: true })
+        .where(eq(authOtps.otpId, otpRow.otpId));
+
+      throw new BadRequestError(
+        "Too many failed attempts. Please request a new verification code.",
+        "OTP_MAX_ATTEMPTS_EXCEEDED"
+      );
+    }
+
+    if (otpRow.otpHash !== inputHash) {
+      const nextAttempts = otpRow.attempts + 1;
+      const isExhausted = nextAttempts >= otpRow.maxAttempts;
+
+      await tx
+        .update(authOtps)
+        .set({
+          attempts: nextAttempts,
+          ...(isExhausted ? { isUsed: true } : {}),
+        })
+        .where(eq(authOtps.otpId, otpRow.otpId));
+
+      const remaining = otpRow.maxAttempts - nextAttempts;
+      throw new BadRequestError(
+        isExhausted
+          ? "Too many failed attempts. Please request a new verification code."
+          : `Invalid verification code. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`,
+        "INVALID_OTP"
+      );
+    }
+
+    // Mark OTP used
+    await tx
+      .update(authOtps)
+      .set({ isUsed: true })
+      .where(eq(authOtps.otpId, otpRow.otpId));
+
+    await tx
+      .update(emailVerificationTokens)
+      .set({ isUsed: true })
+      .where(
+        and(
+          eq(emailVerificationTokens.userId, otpRow.userId),
+          eq(emailVerificationTokens.isUsed, false)
+        )
+      );
+
+    const [user] = await tx
+      .select({
+        userId: users.userId,
+        email: users.email,
+        accountStatus: users.accountStatus,
+        systemRole: users.systemRole,
+        passwordHash: users.passwordHash,
+        displayName: userProfiles.displayName,
+        institution: userProfiles.institution,
+        courseProgram: userProfiles.courseProgram,
+        academicYear: userProfiles.academicYear,
+        avatarUrl: userProfiles.avatarUrl,
+      })
+      .from(users)
+      .leftJoin(userProfiles, eq(users.userId, userProfiles.userId))
+      .where(eq(users.userId, otpRow.userId))
+      .limit(1);
+
+    if (!user) {
+      throw new BadRequestError("User not found", "USER_NOT_FOUND");
+    }
+
+    let accountStatus = user.accountStatus;
+    if (accountStatus === "PENDING_VERIFICATION") {
+      await tx
+        .update(users)
+        .set({ accountStatus: "ACTIVE", updatedAt: new Date() })
+        .where(eq(users.userId, user.userId));
+      accountStatus = "ACTIVE";
+    }
+
+    if (accountStatus === "SUSPENDED") {
+      throw new ForbiddenError(
+        "Your account has been suspended",
+        "ACCOUNT_SUSPENDED"
+      );
+    }
+    if (accountStatus === "DEACTIVATED") {
+      throw new ForbiddenError(
+        "Your account has been deactivated",
+        "ACCOUNT_DEACTIVATED"
+      );
+    }
+
+    const effectivePurpose = purpose || otpRow.purpose;
+
+    if (effectivePurpose === "LOGIN") {
+      const jti = generateSecureToken(16);
+      const accessToken = signAccessToken({
+        userId: user.userId,
+        email: user.email,
+        systemRole: user.systemRole,
+      });
+      const refreshToken = signRefreshToken({ userId: user.userId, jti });
+      const refreshExpiresAt = new Date(
+        Date.now() + parseDurationToMs(env.JWT_REFRESH_EXPIRES_IN)
+      );
+
+      await tx.insert(refreshSessions).values({
+        userId: user.userId,
+        tokenHash: sha256(refreshToken),
+        expiresAt: refreshExpiresAt,
+      });
+
+      return {
+        message: "Logged in successfully",
+        user: {
+          userId: user.userId,
+          email: user.email,
+          accountStatus,
+          systemRole: user.systemRole,
+          displayName: user.displayName,
+          institution: user.institution,
+          courseProgram: user.courseProgram,
+          academicYear: user.academicYear,
+          avatarUrl: user.avatarUrl,
+        },
+        tokens: {
+          accessToken,
+          refreshToken,
+        },
+      };
+    }
+
+    return {
+      message: "Email verified successfully",
+      user: {
+        userId: user.userId,
+        email: user.email,
+        accountStatus,
+        systemRole: user.systemRole,
+        displayName: user.displayName,
+        institution: user.institution,
+        courseProgram: user.courseProgram,
+        academicYear: user.academicYear,
+        avatarUrl: user.avatarUrl,
+      },
+    };
+  });
+}
+
+export async function verifyEmail(rawTokenOrOtp: string, rawEmail?: string) {
+  const token = rawTokenOrOtp.trim();
+  const tokenHash = sha256(token);
+
+  return db.transaction(async (tx) => {
+    // 1. Check authOtps if email provided or if token looks like 6-digit OTP
+    if (rawEmail || /^\d{6}$/.test(token)) {
+      const email = rawEmail ? normalizeEmail(rawEmail) : undefined;
+      const [otpRow] = await tx
+        .select()
+        .from(authOtps)
+        .where(
+          and(
+            eq(authOtps.otpHash, tokenHash),
+            eq(authOtps.isUsed, false),
+            email ? sql`LOWER(${authOtps.email}) = ${email}` : sql`true`
+          )
+        )
+        .for("update")
+        .limit(1);
+
+      if (otpRow) {
+        if (otpRow.expiresAt.getTime() < Date.now()) {
+          await tx
+            .update(authOtps)
+            .set({ isUsed: true })
+            .where(eq(authOtps.otpId, otpRow.otpId));
+          throw new BadRequestError(
+            "Verification code has expired",
+            "TOKEN_EXPIRED"
+          );
+        }
+
+        await tx
+          .update(authOtps)
+          .set({ isUsed: true })
+          .where(eq(authOtps.otpId, otpRow.otpId));
+
+        await tx
+          .update(emailVerificationTokens)
+          .set({ isUsed: true })
+          .where(
+            and(
+              eq(emailVerificationTokens.userId, otpRow.userId),
+              eq(emailVerificationTokens.isUsed, false)
+            )
+          );
+
+        const [updatedUser] = await tx
+          .update(users)
+          .set({ accountStatus: "ACTIVE", updatedAt: new Date() })
+          .where(eq(users.userId, otpRow.userId))
+          .returning({
+            userId: users.userId,
+            email: users.email,
+            accountStatus: users.accountStatus,
+          });
+
+        return updatedUser!;
+      }
+    }
+
+    // 2. Check emailVerificationTokens
     const [tokenRow] = await tx
       .select()
       .from(emailVerificationTokens)
@@ -142,7 +532,7 @@ export async function verifyEmail(rawToken: string) {
 
     if (!tokenRow) {
       throw new BadRequestError(
-        "Invalid verification token",
+        "Invalid verification token or code",
         "INVALID_VERIFICATION_TOKEN"
       );
     }
@@ -165,6 +555,16 @@ export async function verifyEmail(rawToken: string) {
       .update(emailVerificationTokens)
       .set({ isUsed: true })
       .where(eq(emailVerificationTokens.tokenId, tokenRow.tokenId));
+
+    await tx
+      .update(authOtps)
+      .set({ isUsed: true })
+      .where(
+        and(
+          eq(authOtps.userId, tokenRow.userId),
+          eq(authOtps.isUsed, false)
+        )
+      );
 
     const [updatedUser] = await tx
       .update(users)
@@ -195,35 +595,11 @@ export async function verifyEmail(rawToken: string) {
   });
 }
 
-export async function resendVerification(rawEmail: string) {
-  const email = normalizeEmail(rawEmail);
-
-  const message = "If an unverified account exists for this email, a new verification link has been issued.";
-  try {
-    return await db.transaction(async (tx) => {
-      // Serialize resends. Roll back rotation if the provider rejects the replacement.
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${email}, 0))`);
-      const [user] = await tx.select({ userId: users.userId }).from(users)
-        .where(and(sql`LOWER(${users.email}) = ${email}`, eq(users.accountStatus, "PENDING_VERIFICATION")))
-        .limit(1);
-      if (!user) return { message };
-
-      const rawToken = generateSecureToken(32);
-      await tx.update(emailVerificationTokens).set({ isUsed: true }).where(and(
-        eq(emailVerificationTokens.userId, user.userId), eq(emailVerificationTokens.isUsed, false)
-      ));
-      await tx.insert(emailVerificationTokens).values({
-        userId: user.userId, tokenHash: sha256(rawToken),
-        expiresAt: new Date(Date.now() + VERIFICATION_TTL_MS),
-      });
-      await sendVerificationEmail(email, rawToken);
-      return { message, ...(env.EMAIL_PROVIDER === "local" ? { verificationToken: rawToken } : {}) };
-    });
-  } catch (err) {
-    if (!(err instanceof AppError) || err.code !== "EMAIL_DELIVERY_UNAVAILABLE") throw err;
-    logger.warn("Verification email delivery unavailable");
-    return { message };
-  }
+export async function resendVerification(
+  rawEmail: string,
+  purpose: "SIGNUP" | "LOGIN" = "SIGNUP"
+) {
+  return sendOtp(rawEmail, purpose);
 }
 
 export async function loginStudent(input: LoginInput) {

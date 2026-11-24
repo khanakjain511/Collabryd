@@ -214,6 +214,12 @@ const appLinks = [
     areas: ["hackathons"],
   },
   {
+    label: "Messages",
+    href: "#/messages",
+    icon: "mail",
+    areas: ["messages"],
+  },
+  {
     label: "Profile",
     href: "#/settings/profile",
     icon: "settings",
@@ -288,10 +294,6 @@ export function AppLayout({
           </div>
         </div>
       </header>
-      <div className="workspace-demo bg-soft border-b border-border px-4 py-1.5 text-xs flex justify-between items-center text-muted">
-        <span>Demo workspace · Fictional data resets on refresh.</span>
-        <a href="#/about">About this demo</a>
-      </div>
       {(area === "teams" || area === "my-teams") && (
         <nav
           className="container workspace-subnav flex gap-5 border-b border-border py-2.5 text-sm"
@@ -314,7 +316,7 @@ export function AppLayout({
       {(area === "settings" || area === "admin") && (
         <nav
           className="container workspace-subnav flex gap-5 border-b border-border py-2.5 text-sm"
-          aria-label="Profile and demo pages"
+          aria-label="Profile and settings pages"
         >
           <a
             href="#/settings/profile"
@@ -338,7 +340,7 @@ export function AppLayout({
             href="#/admin"
             aria-current={area === "admin" ? "page" : undefined}
           >
-            Demo review
+            Admin review
           </a>
         </nav>
       )}
@@ -392,7 +394,7 @@ export function AppLayout({
 
       <footer className="container workspace-footer flex justify-between items-center py-5 border-t border-border text-xs text-muted mb-16 lg:mb-0">
         <Seats capacity={3} filled={2} decorative />
-        <a href="#/privacy">Demo privacy information</a>
+        <a href="#/privacy">Privacy & Terms</a>
       </footer>
     </div>
   );

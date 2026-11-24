@@ -151,7 +151,7 @@ export const demoEvents: Hackathon[] = [
     name: "Build for Better",
     category: "Sustainability",
     description:
-      "A fictional weekend of building thoughtful solutions for a greener campus. Bring a small team and a problem worth solving.",
+      "A weekend of building thoughtful solutions for a greener campus. Bring a small team and a problem worth solving.",
     date: "2026-12-12T09:00:00+05:30",
     deadline: "2026-12-08T23:59:00+05:30",
     mode: "In person",
@@ -175,7 +175,7 @@ export const demoEvents: Hackathon[] = [
     name: "Idea to Impact",
     category: "Developer tools",
     description:
-      "A fictional open-theme sprint. Turn your favourite “what if” into a working prototype with your team.",
+      "An open-theme innovation sprint. Turn your favourite “what if” into a working prototype with your team.",
     date: "2027-01-09T09:00:00+05:30",
     deadline: "2027-01-04T23:59:00+05:30",
     mode: "Online",
@@ -213,7 +213,7 @@ export const demoPendingStudent: Person = {
   year: "2nd year",
   skills: ["Figma"],
   interests: "Accessible products",
-  bio: "An example student waiting for a campus review.",
+  bio: "Enrolled design student awaiting initial campus verification.",
   available: true,
   color: "sand",
   status: "Pending review",
@@ -239,7 +239,7 @@ export const demoNotices: Notice[] = [
     id: "notice-welcome",
     title: "Your next chapter starts here",
     description:
-      "Explore the example people, teams and hackathons in this frontend demo.",
+      "Explore students, teams and hackathons across your campus workspace.",
     href: "#/discover",
     read: true,
   },

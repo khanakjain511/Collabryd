@@ -268,44 +268,65 @@ Each subsection below outlines the **exact route**, **middleware chain**, **sour
 Mounted from [`apps/api/src/routes/auth.routes.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/routes/auth.routes.ts#L18-L60).
 
 #### `POST /api/v1/auth/register`
-- **Summary:** Register a new student account.
+- **Summary:** Register a new student account and issue a 6-digit OTP verification code.
 - **Middleware:** `authRateLimiter`, `validate({ body: registerSchema })`.
 - **Citations:**
   - Route: [`auth.routes.ts:18-23`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/routes/auth.routes.ts#L18-L23)
   - Controller: [`auth.controller.ts:10-13`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/controllers/auth.controller.ts#L10-L13)
-  - Service: `registerStudent` in [`auth.service.ts:56-130`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/services/auth.service.ts#L56-L130)
-- **Validation:** Email, password (min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char), `displayName`, `institution`, `courseProgram`, `academicYear`.
+  - Service: `registerStudent` in [`auth.service.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/services/auth.service.ts)
+- **Validation:** Email, password (min 8 chars, 1 uppercase, 1 lowercase, 1 number), `displayName`, `institution`, `courseProgram`, `academicYear`.
 - **Step-by-Step Logic:**
   1. Normalizes email and verifies it against allowed campus domains (`assertAllowedEmailDomain`).
   2. Queries `collabryd.users` to ensure email is not already taken; throws `ConflictError` (409) if duplicate.
   3. Hashes password using Argon2id.
-  4. Generates a 32-byte secure random verification token and calculates its SHA-256 hash.
+  4. Generates a 6-digit numeric OTP via `generateNumericOtp(6)` and computes its SHA-256 hash.
   5. Executes atomic `db.transaction()`:
      - Inserts record into `collabryd.users` with status `PENDING_VERIFICATION` and role `STUDENT`.
      - Inserts profile into `collabryd.user_profiles`.
      - Initializes default `collabryd.notification_preferences`.
-     - Stores hashed token in `collabryd.email_verification_tokens` with 24-hour expiration.
-  6. Dispatches verification email via `sendVerificationEmail` ([`verification-email.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/services/verification-email.ts#L9)).
+     - Stores hashed OTP in `collabryd.auth_otps` with `purpose = 'SIGNUP'`, `attempts = 0`, `maxAttempts = 5`, and 10-minute expiry.
+     - Also stores token in `collabryd.email_verification_tokens` for backwards compatibility.
+  6. Dispatches verification email via `sendOtpEmail` ([`verification-email.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/services/verification-email.ts)).
+
+#### `POST /api/v1/auth/verify-otp`
+- **Summary:** Verify 6-digit OTP for account activation or OTP-based login with retry limits.
+- **Middleware:** `authRateLimiter`, `validate({ body: verifyOtpSchema })`.
+- **Citations:** [`auth.routes.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/routes/auth.routes.ts), [`auth.controller.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/controllers/auth.controller.ts), [`auth.service.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/services/auth.service.ts).
+- **Step-by-Step Logic:**
+  1. Hashes incoming 6-digit OTP using SHA-256.
+  2. Acquires advisory lock on normalized email and selects latest active OTP record with row lock (`FOR UPDATE`).
+  3. Validates expiry (`expiresAt > Date.now()`) and attempts limit (`attempts < maxAttempts`).
+  4. If hash does not match, increments `attempts` and returns remaining attempts count (or locks OTP after 5 failed attempts).
+  5. If valid, marks OTP as used (`isUsed = true`) and activates user account if `PENDING_VERIFICATION`.
+  6. If `purpose === 'LOGIN'`, issues access and rotating refresh tokens.
+
+#### `POST /api/v1/auth/send-otp`
+- **Summary:** Request a new 6-digit OTP for signup verification or passwordless login.
+- **Middleware:** `authRateLimiter`, `validate({ body: sendOtpSchema })`.
+- **Citations:** [`auth.routes.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/routes/auth.routes.ts), [`auth.controller.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/controllers/auth.controller.ts), [`auth.service.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/services/auth.service.ts).
+- **Logic:** Acquires advisory lock, invalidates previous pending OTPs, generates a fresh 6-digit OTP, stores it in `collabryd.auth_otps` with a 10-minute TTL, and sends the code to the student's email.
+
+#### `POST /api/v1/auth/login-otp`
+- **Summary:** Authenticate student directly using a 6-digit login OTP and receive JWT tokens.
+- **Middleware:** `authRateLimiter`, `validate({ body: loginWithOtpSchema })`.
+- **Citations:** [`auth.routes.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/routes/auth.routes.ts), [`auth.controller.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/controllers/auth.controller.ts), [`auth.service.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/services/auth.service.ts).
+- **Logic:** Calls `verifyOtp` with `purpose = 'LOGIN'`, verifies the 6-digit code, issues an access token and rotating refresh token, and creates a session record in `refresh_sessions`.
 
 #### `POST /api/v1/auth/verify-email`
-- **Summary:** Activate student account using email verification token.
+- **Summary:** Activate student account using email OTP or verification token.
 - **Middleware:** `authRateLimiter`, `validate({ body: verifyEmailSchema })`.
-- **Citations:**
-  - Route: [`auth.routes.ts:24-29`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/routes/auth.routes.ts#L24-L29)
-  - Controller: [`auth.controller.ts:15-18`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/controllers/auth.controller.ts#L15-L18)
-  - Service: `verifyEmail` in [`auth.service.ts:132-196`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/services/auth.service.ts#L132-L196)
+- **Citations:** [`auth.routes.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/routes/auth.routes.ts), [`auth.controller.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/controllers/auth.controller.ts), [`auth.service.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/services/auth.service.ts).
 - **Step-by-Step Logic:**
-  1. Hashes incoming raw token using SHA-256.
-  2. In a transaction with row lock (`FOR UPDATE`), queries `collabryd.email_verification_tokens`.
-  3. Validates token existence, that `isUsed === false`, and that `expiresAt > Date.now()`.
-  4. Updates token `isUsed = true`.
-  5. Updates user `accountStatus = 'ACTIVE'`. Returns activated user.
+  1. Accepts either `{ otp }` or `{ token }` or `{ email, otp }`.
+  2. Queries `auth_otps` or `email_verification_tokens`.
+  3. Validates expiration and single-use state.
+  4. Marks code as used and transitions user account from `PENDING_VERIFICATION` to `ACTIVE`.
 
 #### `POST /api/v1/auth/resend-verification`
-- **Summary:** Invalidate prior unused tokens and issue a fresh email verification link.
+- **Summary:** Invalidate prior unused codes and issue a fresh 6-digit OTP verification code.
 - **Middleware:** `authRateLimiter`, `validate({ body: resendVerificationSchema })`.
-- **Citations:** [`auth.routes.ts:30-35`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/routes/auth.routes.ts#L30-L35), [`auth.service.ts:198-227`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/services/auth.service.ts#L198-L227).
-- **Logic:** Acquires transaction-level advisory lock `pg_advisory_xact_lock` to serialize resend requests. Marks existing unused tokens as used, creates new token, and triggers verification email.
+- **Citations:** [`auth.routes.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/routes/auth.routes.ts), [`auth.service.ts`](file:///Users/shreyansh/Documents/Coding/ap/capstone/apps/api/src/services/auth.service.ts).
+- **Logic:** Acquires transaction-level advisory lock `pg_advisory_xact_lock` to serialize resend requests. Marks existing unused OTPs as used, generates a new 6-digit code, and triggers email delivery.
 
 #### `POST /api/v1/auth/login`
 - **Summary:** Authenticate student and issue JWT token pair.

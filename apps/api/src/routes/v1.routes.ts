@@ -19,6 +19,7 @@ import {
   projectsRouter,
   recommendationsRouter,
 } from "./projects.routes.js";
+import eventsRouter from "./events.routes.js";
 
 const v1Router: Router = Router();
 
@@ -44,6 +45,7 @@ v1Router.use("/projects/:projectId/members", projectMembersRouter);
 v1Router.use("/projects", projectsRouter);
 v1Router.use("/applications", applicationsRouter);
 v1Router.use("/recommendations", recommendationsRouter);
+v1Router.use("/events", eventsRouter);
 
 // Messaging, notifications & platform administration
 v1Router.use("/conversations", conversationsRouter);
